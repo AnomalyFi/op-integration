@@ -38,12 +38,36 @@ func NewFetchingAttributesBuilder(cfg *rollup.Config, l1 L1ReceiptsFetcher, l2 S
 	}
 }
 
+// Whether an L2 block built on `l2Parent` needs a NodeKit justification.
+//
+// This is determined by whether the `NodeKit` flag is enabled in the system config after
+// `l2Parent`. Whether a block is an NodeKit block is not determined by the system config in the
+// block itself because the system config in a block is determined by the block's L1 origin, and
+// opting in or out of the NodeKit sequencer changes how the L1 origin for a block is chosen. Thus,
+// a block which is not being build by NodeKit may have an L1 origin that causes the system config
+// to opt into NodeKit. Rather than rebuild that block with NodeKit (which again changes the
+// system config, and thus may result in an infinite loop) we simply say that changes to the value of
+// the `NodeKit` flag affect the first block _after_ the block where the flag was changed.
+//
+// This function can be used by a node running in sequencer mode to check whether a block it is
+// about to build on top of `l2Parent` is an NodeKit block (in which case the sequencer is subject
+// to additional constraints). It can also be used by validating nodes in the derivation  pipeline
+// to check whether a batch with a given parent is an NodeKit batch, in which case the validators
+// must check the additional constraints against that batch.
+func (ba *FetchingAttributesBuilder) ChildNeedsJustification(ctx context.Context, l2Parent eth.L2BlockRef) (bool, error) {
+	sysConfig, err := ba.l2.SystemConfigByL2Hash(ctx, l2Parent.Hash)
+	if err != nil {
+		return false, NewTemporaryError(fmt.Errorf("failed to retrieve L2 parent block: %w", err))
+	}
+	return sysConfig.NodeKit, nil
+}
+
 // PreparePayloadAttributes prepares a PayloadAttributes template that is ready to build a L2 block with deposits only, on top of the given l2Parent, with the given epoch as L1 origin.
 // The template defaults to NoTxPool=true, and no sequencer transactions: the caller has to modify the template to add transactions,
 // by setting NoTxPool=false as sequencer, or by appending batch transactions as verifier.
 // The severity of the error is returned; a crit=false error means there was a temporary issue, like a failed RPC or time-out.
 // A crit=true error means the input arguments are inconsistent or invalid.
-func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error) {
+func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID, justification *eth.L2BatchJustification) (attrs *eth.PayloadAttributes, err error) {
 	var l1Info eth.BlockInfo
 	var depositTxs []hexutil.Bytes
 	var seqNumber uint64
@@ -100,7 +124,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 			l2Parent, nextL2Time, eth.ToBlockID(l1Info), l1Info.Time()))
 	}
 
-	l1InfoTx, err := L1InfoDepositBytes(seqNumber, l1Info, sysConfig, ba.cfg.IsRegolith(nextL2Time))
+	l1InfoTx, err := L1InfoDepositBytes(seqNumber, l1Info, sysConfig, justification, ba.cfg.IsRegolith(nextL2Time))
 	if err != nil {
 		return nil, NewCriticalError(fmt.Errorf("failed to create l1InfoTx: %w", err))
 	}
@@ -115,6 +139,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		SuggestedFeeRecipient: predeploys.SequencerFeeVaultAddr,
 		Transactions:          txs,
 		NoTxPool:              true,
+		NodeKit:               justification != nil,
 		GasLimit:              (*eth.Uint64Quantity)(&sysConfig.GasLimit),
 	}, nil
 }

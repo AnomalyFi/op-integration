@@ -44,14 +44,18 @@ type BatchQueue struct {
 
 	// batches in order of when we've first seen them, grouped by L2 timestamp
 	batches map[uint64][]*BatchWithL1InclusionBlock
+
+	l1 NodeKitL1Provider
+
 }
 
 // NewBatchQueue creates a BatchQueue, which should be Reset(origin) before use.
-func NewBatchQueue(log log.Logger, cfg *rollup.Config, prev NextBatchProvider) *BatchQueue {
+func NewBatchQueue(log log.Logger, cfg *rollup.Config, prev NextBatchProvider, l1 NodeKitL1Provider) *BatchQueue {
 	return &BatchQueue{
 		log:    log,
 		config: cfg,
 		prev:   prev,
+		l1:     l1,
 	}
 }
 
@@ -59,7 +63,7 @@ func (bq *BatchQueue) Origin() eth.L1BlockRef {
 	return bq.prev.Origin()
 }
 
-func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef) (*BatchData, error) {
+func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef, usingNodeKit bool) (*BatchData, error) {
 	// Note: We use the origin that we will have to determine if it's behind. This is important
 	// because it's the future origin that gets saved into the l1Blocks array.
 	// We always update the origin of this stage if it is not the same so after the update code
@@ -89,7 +93,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef) 
 	} else if err != nil {
 		return nil, err
 	} else if !originBehind {
-		bq.AddBatch(batch, safeL2Head)
+		bq.AddBatch(batch, safeL2Head, usingNodeKit)
 	}
 
 	// Skip adding data unless we are up to date with the origin, but do fully
@@ -103,7 +107,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef) 
 	}
 
 	// Finally attempt to derive more batches
-	batch, err := bq.deriveNextBatch(ctx, outOfData, safeL2Head)
+	batch, err := bq.deriveNextBatch(ctx, outOfData, safeL2Head, usingNodeKit)
 	if err == io.EOF && outOfData {
 		return nil, io.EOF
 	} else if err == io.EOF {
@@ -127,7 +131,7 @@ func (bq *BatchQueue) Reset(ctx context.Context, base eth.L1BlockRef, _ eth.Syst
 	return io.EOF
 }
 
-func (bq *BatchQueue) AddBatch(batch *BatchData, l2SafeHead eth.L2BlockRef) {
+func (bq *BatchQueue) AddBatch(batch *BatchData, l2SafeHead eth.L2BlockRef, usingNodeKit bool) {
 	if len(bq.l1Blocks) == 0 {
 		panic(fmt.Errorf("cannot add batch with timestamp %d, no origin was prepared", batch.Timestamp))
 	}
@@ -135,7 +139,7 @@ func (bq *BatchQueue) AddBatch(batch *BatchData, l2SafeHead eth.L2BlockRef) {
 		L1InclusionBlock: bq.origin,
 		Batch:            batch,
 	}
-	validity := CheckBatch(bq.config, bq.log, bq.l1Blocks, l2SafeHead, &data)
+	validity := CheckBatch(bq.config, bq.log, bq.l1Blocks, l2SafeHead, &data, usingNodeKit, bq.l1)
 	if validity == BatchDrop {
 		return // if we do drop the batch, CheckBatch will log the drop reason with WARN level.
 	}
@@ -147,7 +151,7 @@ func (bq *BatchQueue) AddBatch(batch *BatchData, l2SafeHead eth.L2BlockRef) {
 // following the validity rules imposed on consecutive batches,
 // based on currently available buffered batch and L1 origin information.
 // If no batch can be derived yet, then (nil, io.EOF) is returned.
-func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, l2SafeHead eth.L2BlockRef) (*BatchData, error) {
+func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, l2SafeHead eth.L2BlockRef, usingNodeKit bool) (*BatchData, error) {
 	if len(bq.l1Blocks) == 0 {
 		return nil, NewCriticalError(errors.New("cannot derive next batch, no origin was prepared"))
 	}
@@ -173,7 +177,7 @@ func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, l2Saf
 	candidates := bq.batches[nextTimestamp]
 batchLoop:
 	for i, batch := range candidates {
-		validity := CheckBatch(bq.config, bq.log.New("batch_index", i), bq.l1Blocks, l2SafeHead, batch)
+		validity := CheckBatch(bq.config, bq.log.New("batch_index", i), bq.l1Blocks, l2SafeHead, batch, usingNodeKit, bq.l1)
 		switch validity {
 		case BatchFuture:
 			return nil, NewCriticalError(fmt.Errorf("found batch with timestamp %d marked as future batch, but expected timestamp %d", batch.Batch.Timestamp, nextTimestamp))
@@ -244,12 +248,15 @@ batchLoop:
 	if nextTimestamp < nextEpoch.Time || firstOfEpoch {
 		bq.log.Info("Generating next batch", "epoch", epoch, "timestamp", nextTimestamp)
 		return &BatchData{
-			BatchV1{
-				ParentHash:   l2SafeHead.Hash,
-				EpochNum:     rollup.Epoch(epoch.Number),
-				EpochHash:    epoch.Hash,
-				Timestamp:    nextTimestamp,
-				Transactions: nil,
+			BatchV2{
+				BatchV1: BatchV1{
+					ParentHash:   l2SafeHead.Hash,
+					EpochNum:     rollup.Epoch(epoch.Number),
+					EpochHash:    epoch.Hash,
+					Timestamp:    nextTimestamp,
+					Transactions: nil,
+				},
+				Justification: nil,
 			},
 		}, nil
 	}

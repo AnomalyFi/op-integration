@@ -64,6 +64,8 @@ type DeployConfig struct {
 	// BatchSenderAddress represents the initial sequencer account that authorizes batches.
 	// Transactions sent from this account to the batch inbox address are considered valid.
 	BatchSenderAddress common.Address `json:"batchSenderAddress"`
+	// Sequencer Contract address
+	SequencerContractAddress *common.Address `json:"sequencerContractAddress,omitempty"`
 	// L2OutputOracleSubmissionInterval is the number of L2 blocks between outputs that are submitted
 	// to the L2OutputOracle contract located on L1.
 	L2OutputOracleSubmissionInterval uint64 `json:"l2OutputOracleSubmissionInterval"`
@@ -198,6 +200,8 @@ type DeployConfig struct {
 	// FundDevAccounts configures whether or not to fund the dev accounts. Should only be used
 	// during devnet deployments.
 	FundDevAccounts bool `json:"fundDevAccounts"`
+	// Whether to use the NodeKit sequencer
+	NodeKit bool `json:"nodekit,omitempty"`
 	// RequiredProtocolVersion indicates the protocol version that
 	// nodes are required to adopt, to stay in sync with the network.
 	RequiredProtocolVersion params.ProtocolVersion `json:"requiredProtocolVersion"`
@@ -466,6 +470,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 				Overhead:    eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleOverhead))),
 				Scalar:      eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleScalar))),
 				GasLimit:    uint64(d.L2GenesisBlockGasLimit),
+				NodeKit:     d.NodeKit,
 			},
 		},
 		BlockTime:              d.L2BlockTime,
@@ -478,6 +483,8 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		DepositContractAddress: d.OptimismPortalProxy,
 		L1SystemConfigAddress:  d.SystemConfigProxy,
 		RegolithTime:           d.RegolithTime(l1StartBlock.Time()),
+		SequencerContractAddress: d.SequencerContractAddress,
+
 	}, nil
 }
 

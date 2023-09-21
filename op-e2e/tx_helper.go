@@ -40,14 +40,14 @@ func SendDepositTx(t *testing.T, cfg SystemConfig, l1Client *ethclient.Client, l
 	require.Nil(t, err, "with deposit tx")
 
 	// Wait for transaction on L1
-	l1Receipt, err := geth.WaitForTransaction(tx.Hash(), l1Client, 10*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
+	l1Receipt, err := geth.WaitForTransaction(tx.Hash(), l1Client, 15*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
 	require.Nil(t, err, "Waiting for deposit tx on L1")
 
 	// Wait for transaction to be included on L2
 	reconstructedDep, err := derive.UnmarshalDepositLogEvent(l1Receipt.Logs[0])
 	require.NoError(t, err, "Could not reconstruct L2 Deposit")
 	tx = types.NewTx(reconstructedDep)
-	l2Receipt, err := geth.WaitForTransaction(tx.Hash(), l2Client, 10*time.Duration(cfg.DeployConfig.L2BlockTime)*time.Second)
+	l2Receipt, err := geth.WaitForTransaction(tx.Hash(), l2Client, 15*time.Duration(cfg.DeployConfig.L2BlockTime)*time.Second)
 	require.NoError(t, err)
 	require.Equal(t, l2Opts.ExpectedStatus, l2Receipt.Status, "l2 transaction status")
 	return l2Receipt

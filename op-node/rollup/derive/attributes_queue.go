@@ -24,8 +24,8 @@ import (
 // This stage does not need to retain any references to L1 blocks.
 
 type AttributesBuilder interface {
-	PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error)
-}
+	PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID, justification *eth.L2BatchJustification) (attrs *eth.PayloadAttributes, err error)
+	ChildNeedsJustification(ctx context.Context, l2Parent eth.L2BlockRef) (bool, error)}
 
 type AttributesQueue struct {
 	log     log.Logger
@@ -51,7 +51,11 @@ func (aq *AttributesQueue) Origin() eth.L1BlockRef {
 func (aq *AttributesQueue) NextAttributes(ctx context.Context, l2SafeHead eth.L2BlockRef) (*eth.PayloadAttributes, error) {
 	// Get a batch if we need it
 	if aq.batch == nil {
-		batch, err := aq.prev.NextBatch(ctx, l2SafeHead)
+		usingNodeKit, err := aq.builder.ChildNeedsJustification(ctx, l2SafeHead)
+		if err != nil {
+			return nil, err
+		}
+		batch, err := aq.prev.NextBatch(ctx, l2SafeHead, usingNodeKit)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +86,7 @@ func (aq *AttributesQueue) createNextAttributes(ctx context.Context, batch *Batc
 	}
 	fetchCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	attrs, err := aq.builder.PreparePayloadAttributes(fetchCtx, l2SafeHead, batch.Epoch())
+	attrs, err := aq.builder.PreparePayloadAttributes(fetchCtx, l2SafeHead, batch.Epoch(), batch.Justification)
 	if err != nil {
 		return nil, err
 	}

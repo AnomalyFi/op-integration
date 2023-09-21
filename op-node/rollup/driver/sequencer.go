@@ -13,6 +13,15 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
+)
+
+type SequencerMode uint64
+
+const (
+	NodeKit SequencerMode = iota
+	Legacy
+	Unknown
 )
 
 type Downloader interface {
@@ -22,6 +31,7 @@ type Downloader interface {
 
 type L1OriginSelectorIface interface {
 	FindL1Origin(ctx context.Context, l2Head eth.L2BlockRef) (eth.L1BlockRef, error)
+	FindL1OriginByNumber(ctx context.Context, number uint64) (eth.L1BlockRef, error)
 }
 
 type SequencerMetrics interface {
@@ -29,15 +39,32 @@ type SequencerMetrics interface {
 	RecordSequencerReset()
 }
 
+type InProgressBatch struct {
+	onto         eth.L2BlockRef
+	jst          eth.L2BatchJustification
+	transactions []eth.Data
+	windowStart  uint64
+	windowEnd    uint64
+}
+
+func (b *InProgressBatch) complete() bool {
+	// A batch is complete when we have one block past the end of its time window, proving that we
+	// have not omitted any blocks that should have fallen within the window.
+	return b.jst.Next != nil
+}
+
 // Sequencer implements the sequencing interface of the driver: it starts and completes block building jobs.
 type Sequencer struct {
 	log    log.Logger
 	config *rollup.Config
+	mode   SequencerMode
 
 	engine derive.ResettableEngineControl
 
 	attrBuilder      derive.AttributesBuilder
 	l1OriginSelector L1OriginSelectorIface
+	//TODO change this because we do not have a query service
+	nodekit nodekit.QueryService
 
 	metrics SequencerMetrics
 
@@ -45,28 +72,195 @@ type Sequencer struct {
 	timeNow func() time.Time
 
 	nextAction time.Time
+
+	// The current NodeKit block we are building, if applicable.
+	nodekitBatch *InProgressBatch
 }
 
-func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
+func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, nodekit nodekit.QueryService, metrics SequencerMetrics) *Sequencer {
 	return &Sequencer{
 		log:              log,
 		config:           cfg,
+		mode:             Unknown,
 		engine:           engine,
 		timeNow:          time.Now,
 		attrBuilder:      attributesBuilder,
 		l1OriginSelector: l1OriginSelector,
+		nodekit:          nodekit,
 		metrics:          metrics,
+		nodekitBatch:     nil,
 	}
 }
 
-// StartBuildingBlock initiates a block building job on top of the given L2 head, safe and finalized blocks, and using the provided l1Origin.
-func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
+//TODO below this is new
+
+// startBuildingNodeKitBatch initiates an NodeKit block building job on top of the given L2 head,
+// safe and finalized blocks. After this function succeeds, `d.nodekitBatch` is guaranteed to be
+// non-nil.
+func (d *Sequencer) startBuildingNodeKitBatch(ctx context.Context, l2Head eth.L2BlockRef) error {
+	windowStart := l2Head.Time + d.config.BlockTime
+	windowEnd := windowStart + d.config.BlockTime
+
+	// Fetch the available SEQ blocks from this sequencing window.
+	blocks, err := d.nodekit.FetchHeadersForWindow(ctx, windowStart, windowEnd)
+	if err != nil {
+		return err
+	}
+
+	d.nodekitBatch = &InProgressBatch{
+		onto:        l2Head,
+		windowStart: windowStart,
+		windowEnd:   windowEnd,
+		jst: eth.L2BatchJustification{
+			From: blocks.From,
+			Prev: blocks.Prev,
+		},
+	}
+	return d.updateNodeKitBatch(ctx, blocks.Window, blocks.Next)
+}
+
+// updateNodeKitBatch appends the transactions contained in the NodeKit blocks denoted by
+// `newHeaders` to the current in-progress batch. If `end`, the first block after the window of this
+// batch, is available, it will be saved in the `Next` field of the batch justification.
+func (d *Sequencer) updateNodeKitBatch(ctx context.Context, newHeaders []nodekit.Header, end *nodekit.Header) error {
+	batch := d.nodekitBatch
+	for _, header := range newHeaders {
+		blocks := batch.jst.Blocks
+		numBlocks := len(blocks)
+
+		// Validate that the given header is in the window and in the right order.
+		if header.Timestamp >= batch.windowEnd {
+			return derive.NewCriticalError(fmt.Errorf("inconsistent data from NodeKit SEQ: header %v in window has timestamp after window end %d", header, batch.windowEnd))
+		}
+		if header.Timestamp < batch.windowStart {
+			// Eventually, we should return an error here. However due to a limitation in the
+			// current implementation of HotShot/Espresso, block timestamps will sometimes decrease.
+			//TODO Do I need this
+			d.log.Error("inconsistent data from NodeKit query service: header is before window start", "header", header, "start", batch.windowStart)
+		}
+		prev := batch.jst.Prev
+		if numBlocks != 0 {
+			prev = &blocks[numBlocks-1].Header
+		}
+		if prev != nil && header.Timestamp < prev.Timestamp {
+			// Similarly, this should eventually be an error, but can happen with the current
+			// version of Espresso.
+			d.log.Error("inconsistent data from Espresso query service: header is before its predecessor", "header", header, "prev", prev)
+		}
+
+		blockNum := batch.jst.From + uint64(numBlocks)
+		//TODO fix this
+		txs, err := d.nodekit.FetchTransactionsInBlock(ctx, blockNum, &header, d.config.L2ChainID.Uint64())
+		if err != nil {
+			return err
+		}
+		d.log.Info("adding new transactions from NodeKit", "block", blockNum, "count", len(txs.Transactions))
+		batch.jst.Blocks = append(blocks, eth.NodeKitBlockJustification{
+			Header: header,
+			Proof:  txs.Proof,
+		})
+		for _, tx := range txs.Transactions {
+			batch.transactions = append(batch.transactions, []byte(tx))
+		}
+	}
+
+	batch.jst.Next = end
+	return nil
+}
+
+// tryToSealNodeKitBatch polls for new transactions from the Espresso Sequencer to append to the
+// current NodeKit Block. If the resulting block is complete (NodeKit has sequenced at least one
+// block with a timestamp beyond the end of the current sequencing window) it will submit the block
+// to the engine and return the resulting execution payload. If the block cannot be sealed yet
+// because NodeKit hasn't sequenced enough blocks, returns nil.
+func (d *Sequencer) tryToSealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload, error) {
+	batch := d.nodekitBatch
+	if !batch.complete() {
+		//TODO do I need this?
+		blocks, err := d.nodekit.FetchRemainingHeadersForWindow(ctx, batch.jst.From+uint64(len(batch.jst.Blocks)), batch.windowEnd)
+		if err != nil {
+			return nil, err
+		}
+		if err := d.updateNodeKitBatch(ctx, blocks.Window, blocks.Next); err != nil {
+			return nil, err
+		}
+	}
+	if batch.complete() {
+		return d.sealNodeKitBatch(ctx)
+	} else {
+		return nil, nil
+	}
+}
+
+// sealNodeKitBatch submits the current NodeKit batch to the engine and return the resulting
+// execution payload.
+func (d *Sequencer) sealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload, error) {
+	batch := d.nodekitBatch
+
+	// Deterministically choose an L1 origin for this L2 batch, based on the latest L1 block that
+	// NodeKit has told us exists, but adjusting as needed to meet the constraints of the
+	// derivation pipeline.
+	suggestedL1Origin, err := d.l1OriginSelector.FindL1OriginByNumber(ctx, batch.jst.Next.L1Head)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch suggested L1 origin %d: %w", batch.jst.Next.L1Head, err)
+	}
+	l1OriginNumber := derive.NodeKitL1Origin(d.config, batch.onto, suggestedL1Origin)
+	l1Origin := suggestedL1Origin
+	if l1Origin.Number != l1OriginNumber {
+		l1Origin, err = d.l1OriginSelector.FindL1OriginByNumber(ctx, l1OriginNumber)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch L1 origin %d: %w", l1OriginNumber, err)
+		}
+		d.log.Info("using adjusted L1 origin",
+			"suggested", suggestedL1Origin, "adjusted", l1Origin, "parent", batch.onto, "parentOrigin", batch.onto.L1Origin)
+	}
+
+	// In certain edge cases, like when the L2 has fallen too far behind the L1, we are required to
+	// submit empty batches until we catch up.
+	if derive.NodeKitBatchMustBeEmpty(d.config, l1Origin, batch.windowStart) {
+		batch.transactions = nil
+
+		// We don't need all the NMT proofs in this case, so save space in the batch by replacing
+		// them with empty proofs.
+		//TODO change this for NodeKit
+		for i := range batch.jst.Blocks {
+			batch.jst.Blocks[i].Proof = espresso.NmtProof{}
+		}
+	}
+
+	attrs, err := d.attrBuilder.PreparePayloadAttributes(ctx, batch.onto, l1Origin.ID(), &batch.jst)
+	if err != nil {
+		return nil, err
+	}
+	attrs.NoTxPool = true
+	attrs.Transactions = append(attrs.Transactions, batch.transactions...)
+
+	d.log.Debug("prepared attributes for new NodeKit block",
+		"num", batch.onto.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin)
+
+	// Start a payload building process.
+	errTyp, err := d.engine.StartPayload(ctx, batch.onto, attrs, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start building on top of L2 chain %s, error (%d): %w", batch.onto, errTyp, err)
+	}
+	// Immediately seal the block in the engine.
+	payload, errTyp, err := d.engine.ConfirmPayload(ctx)
+	if err != nil {
+		_ = d.engine.CancelPayload(ctx, true)
+		return nil, fmt.Errorf("failed to complete building block: error (%d): %w", errTyp, err)
+	}
+	d.nodekitBatch = nil
+	return payload, nil
+}
+
+// startBuildingLegacyBlock initiates a legacy block building job on top of the given L2 head, safe and finalized blocks, and using the provided l1Origin.
+func (d *Sequencer) startBuildingLegacyBlock(ctx context.Context) error {
 	l2Head := d.engine.UnsafeL2Head()
 
 	// Figure out which L1 origin block we're going to be building on top of.
 	l1Origin, err := d.l1OriginSelector.FindL1Origin(ctx, l2Head)
 	if err != nil {
-		d.log.Error("Error finding next L1 Origin", "err", err)
+		d.log.Error("error finding next L1 Origin", "err", err)
 		return err
 	}
 
@@ -80,7 +274,7 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	fetchCtx, cancel := context.WithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	attrs, err := d.attrBuilder.PreparePayloadAttributes(fetchCtx, l2Head, l1Origin.ID())
+	attrs, err := d.attrBuilder.PreparePayloadAttributes(fetchCtx, l2Head, l1Origin.ID(), nil)
 	if err != nil {
 		return err
 	}
@@ -103,10 +297,10 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	return nil
 }
 
-// CompleteBuildingBlock takes the current block that is being built, and asks the engine to complete the building, seal the block, and persist it as canonical.
+// completeBuildingLegacyBlock takes the current legacy block that is being built, and asks the engine to complete the building, seal the block, and persist it as canonical.
 // Warning: the safe and finalized L2 blocks as viewed during the initiation of the block building are reused for completion of the block building.
 // The Execution engine should not change the safe and finalized blocks between start and completion of block building.
-func (d *Sequencer) CompleteBuildingBlock(ctx context.Context) (*eth.ExecutionPayload, error) {
+func (d *Sequencer) completeBuildingLegacyBlock(ctx context.Context) (*eth.ExecutionPayload, error) {
 	payload, errTyp, err := d.engine.ConfirmPayload(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to complete building block: error (%d): %w", errTyp, err)
@@ -116,21 +310,54 @@ func (d *Sequencer) CompleteBuildingBlock(ctx context.Context) (*eth.ExecutionPa
 
 // CancelBuildingBlock cancels the current open block building job.
 // This sequencer only maintains one block building job at a time.
-func (d *Sequencer) CancelBuildingBlock(ctx context.Context) {
+func (d *Sequencer) cancelBuildingLegacyBlock(ctx context.Context) {
 	// force-cancel, we can always continue block building, and any error is logged by the engine state
 	_ = d.engine.CancelPayload(ctx, true)
 }
 
 // PlanNextSequencerAction returns a desired delay till the RunNextSequencerAction call.
 func (d *Sequencer) PlanNextSequencerAction() time.Duration {
-	// If the engine is busy building safe blocks (and thus changing the head that we would sync on top of),
-	// then give it time to sync up.
+	// Regardless of what mode we are in (NodeKit or Legacy) our first priority is to not bother
+	// the engine if it is busy building safe blocks (and thus changing the head that we would sync
+	// on top of). Give it time to sync up.
 	if onto, _, safe := d.engine.BuildingPayload(); safe {
 		d.log.Warn("delaying sequencing to not interrupt safe-head changes", "onto", onto, "onto_time", onto.Time)
 		// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
 		return time.Second * time.Duration(d.config.BlockTime)
 	}
 
+	switch d.mode {
+	case NodeKit:
+		return d.planNextNodeKitSequencerAction()
+	case Legacy:
+		return d.planNextLegacySequencerAction()
+	default:
+		// If we don't yet know what mode we are in, our first action is going to be discovering our
+		// mode based on the L2 system config. We should start this immediately, since it will
+		// impact our scheduling decisions for all future actions.
+		return 0
+	}
+}
+
+func (d *Sequencer) planNextNodeKitSequencerAction() time.Duration {
+	head := d.engine.UnsafeL2Head()
+	now := d.timeNow()
+
+	// We may have to wait till the next sequencing action, e.g. upon an error.
+	// However, we ignore this delay if we are building a block and the L2 head has changed, in
+	// which case we need to respond immediately.
+	delay := d.nextAction.Sub(now)
+	reorg := d.nodekitBatch != nil && d.nodekitBatch.onto.Hash != head.Hash
+	if delay > 0 && !reorg {
+		return delay
+	}
+
+	// In case there has been a reorg or the previous action did not set a delay, run the next
+	// action immediately.
+	return 0
+}
+
+func (d *Sequencer) planNextLegacySequencerAction() time.Duration {
 	head := d.engine.UnsafeL2Head()
 	now := d.timeNow()
 
@@ -170,8 +397,39 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 
 // BuildingOnto returns the L2 head reference that the latest block is or was being built on top of.
 func (d *Sequencer) BuildingOnto() eth.L2BlockRef {
-	ref, _, _ := d.engine.BuildingPayload()
-	return ref
+	if d.espressoBatch != nil {
+		return d.espressoBatch.onto
+	} else {
+		ref, _, _ := d.engine.BuildingPayload()
+		return ref
+	}
+}
+
+func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
+	switch d.mode {
+	case NodeKit:
+		return d.startBuildingNodeKitBatch(ctx, d.engine.UnsafeL2Head())
+	case Legacy:
+		return d.startBuildingLegacyBlock(ctx)
+	default:
+		// Detect mode, then try again.
+		if err := d.detectMode(ctx); err != nil {
+			return err
+		}
+		// If that succeeded, `d.mode` is now either NodeKit or Legacy.
+		return d.StartBuildingBlock(ctx)
+	}
+}
+
+func (d *Sequencer) CompleteBuildingBlock(ctx context.Context) (*eth.ExecutionPayload, error) {
+	switch d.mode {
+	case NodeKit:
+		return d.tryToSealNodeKitBatch(ctx)
+	case Legacy:
+		return d.completeBuildingLegacyBlock(ctx)
+	default:
+		return nil, fmt.Errorf("not building a block")
+	}
 }
 
 // RunNextSequencerAction starts new block building work, or seals existing work,
@@ -197,14 +455,71 @@ func (d *Sequencer) BuildingOnto() eth.L2BlockRef {
 // but the derivation can continue to reset until the chain is correct.
 // If the engine is currently building safe blocks, then that building is not interrupted, and sequencing is delayed.
 func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionPayload, error) {
-	if onto, buildingID, safe := d.engine.BuildingPayload(); buildingID != (eth.PayloadID{}) {
-		if safe {
-			d.log.Warn("avoiding sequencing to not interrupt safe-head changes", "onto", onto, "onto_time", onto.Time)
-			// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
-			d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.config.BlockTime))
-			return nil, nil
+	// Regardless of what mode we are in (NodeKit or Legacy) our first priority is to not bother
+	// the engine if it is busy building safe blocks (and thus changing the head that we would sync
+	// on top of). Give it time to sync up.
+	onto, buildingID, safe := d.engine.BuildingPayload()
+	if buildingID != (eth.PayloadID{}) && safe {
+		d.log.Warn("avoiding sequencing to not interrupt safe-head changes", "onto", onto, "onto_time", onto.Time)
+		// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
+		d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.config.BlockTime))
+		return nil, nil
+	}
+
+	switch d.mode {
+	case NodeKit:
+		return d.buildNodeKitBatch(ctx)
+	case Legacy:
+		return d.buildLegacyBlock(ctx, buildingID != eth.PayloadID{})
+	default:
+		// If we don't know what mode we are in, figure it out and then schedule another action
+		// immediately.
+		if err := d.detectMode(ctx); err != nil {
+			return nil, d.handleNonEngineError("to determine mode", err)
 		}
-		payload, err := d.CompleteBuildingBlock(ctx)
+		// Now that we know what mode we're in, return to the scheduler to plan the next action.
+		return nil, nil
+	}
+}
+
+func (d *Sequencer) buildNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload, error) {
+	// First, check if there has been a reorg. If so, drop the current block and restart.
+	head := d.engine.UnsafeL2Head()
+	if d.nodekitBatch != nil && d.nodekitBatch.onto.Hash != head.Hash {
+		d.log.Warn("reorg detected", "head", head, "onto", d.nodekitBatch.onto)
+		d.nodekitBatch = nil
+	}
+
+	// Begin a new block if necessary.
+	if d.nodekitBatch == nil {
+		d.log.Info("building new NodeKit batch", "onto", head)
+		if err := d.startBuildingNodekitBatch(ctx, head); err != nil {
+			return nil, d.handleNonEngineError("starting NodeKit block", err)
+		}
+	}
+
+	// Poll for transactions from the NodeKit Sequencer and see if we can submit the block.
+	block, err := d.tryToSealNodeKitBatch(ctx)
+	if err != nil {
+		return nil, d.handlePossibleEngineError("trying to seal NodeKit block", err)
+	}
+	if block == nil {
+		// If we didn't seal the block, it means we reached the end of the NodeKit block stream.
+		// Wait a reasonable amount of time before checking for more transactions.
+		d.log.Debug("NodeKit batch was not ready to seal, will retry in 1 second")
+		d.nextAction = d.timeNow().Add(time.Second)
+		return nil, nil
+	} else {
+		// If we did seal the block, return it and do not set a delay, so that the scheduler will
+		// start the next action (starting the next block) immediately.
+		d.log.Info("sealed NodeKit batch", "payload", block)
+		return block, nil
+	}
+}
+
+func (d *Sequencer) buildLegacyBlock(ctx context.Context, building bool) (*eth.ExecutionPayload, error) {
+	if building {
+		payload, err := d.completeBuildingLegacyBlock(ctx)
 		if err != nil {
 			if errors.Is(err, derive.ErrCritical) {
 				return nil, err // bubble up critical errors.
@@ -212,7 +527,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
 				d.metrics.RecordSequencerReset()
 				d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.config.BlockTime)) // hold off from sequencing for a full block
-				d.CancelBuildingBlock(ctx)
+				d.cancelBuildingLegacyBlock(ctx)
 				d.engine.Reset()
 			} else if errors.Is(err, derive.ErrTemporary) {
 				d.log.Error("sequencer failed temporarily to seal new block", "err", err)
@@ -222,7 +537,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			} else {
 				d.log.Error("sequencer failed to seal block with unclassified error", "err", err)
 				d.nextAction = d.timeNow().Add(time.Second)
-				d.CancelBuildingBlock(ctx)
+				d.cancelBuildingLegacyBlock(ctx)
 			}
 			return nil, nil
 		} else {
@@ -230,26 +545,56 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			return payload, nil
 		}
 	} else {
-		err := d.StartBuildingBlock(ctx)
+		err := d.startBuildingLegacyBlock(ctx)
 		if err != nil {
-			if errors.Is(err, derive.ErrCritical) {
-				return nil, err
-			} else if errors.Is(err, derive.ErrReset) {
-				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
-				d.metrics.RecordSequencerReset()
-				d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.config.BlockTime)) // hold off from sequencing for a full block
-				d.engine.Reset()
-			} else if errors.Is(err, derive.ErrTemporary) {
-				d.log.Error("sequencer temporarily failed to start building new block", "err", err)
-				d.nextAction = d.timeNow().Add(time.Second)
-			} else {
-				d.log.Error("sequencer failed to start building new block with unclassified error", "err", err)
-				d.nextAction = d.timeNow().Add(time.Second)
-			}
+			return nil, d.handlePossibleEngineError("to start building new block", err)
 		} else {
 			parent, buildingID, _ := d.engine.BuildingPayload() // we should have a new payload ID now that we're building a block
 			d.log.Info("sequencer started building new block", "payload_id", buildingID, "l2_parent_block", parent, "l2_parent_block_time", parent.Time)
+			return nil, nil
 		}
-		return nil, nil
 	}
+}
+
+func (d *Sequencer) detectMode(ctx context.Context) error {
+	head := d.engine.UnsafeL2Head()
+	nodekitBatch, err := d.attrBuilder.ChildNeedsJustification(ctx, head)
+	if err != nil {
+		return err
+	}
+	if nodekitBatch {
+		d.log.Info("OP sequencer running in NodeKit mode")
+		d.mode = Espresso
+	} else {
+		d.log.Info("OP sequencer running in legacy mode")
+		d.mode = Legacy
+	}
+	return nil
+}
+
+func (d *Sequencer) handlePossibleEngineError(action string, err error) error {
+	if errors.Is(err, derive.ErrCritical) {
+		return err
+	} else if errors.Is(err, derive.ErrReset) {
+		d.log.Error("sequencer failed, requiring derivation reset", "action", action, "err", err)
+		d.metrics.RecordSequencerReset()
+		d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.config.BlockTime)) // hold off from sequencing for a full block
+		d.engine.Reset()
+		return nil
+	} else {
+		return d.handleNonEngineError(action, err)
+	}
+}
+
+func (d *Sequencer) handleNonEngineError(action string, err error) error {
+	if errors.Is(err, derive.ErrCritical) {
+		return err
+	} else if errors.Is(err, derive.ErrTemporary) {
+		d.log.Error("sequencer encountered temporary error", "action", action, "err", err)
+		d.nextAction = d.timeNow().Add(time.Second)
+	} else {
+		d.log.Error("sequencer encountered unclassified error", "action", action, "err", err)
+		d.nextAction = d.timeNow().Add(time.Second)
+	}
+	return nil
 }

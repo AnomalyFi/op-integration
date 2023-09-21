@@ -17,8 +17,14 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
+	openrpc "github.com/rollkit/celestia-openrpc"
+	"github.com/rollkit/celestia-openrpc/types/blob"
+	openrpcns "github.com/rollkit/celestia-openrpc/types/namespace"
+	"github.com/rollkit/celestia-openrpc/types/share"
+
 	"github.com/ethereum-optimism/optimism/op-service/retry"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
+	"github.com/ethereum-optimism/optimism/op-celestia/celestia"
 )
 
 const (
@@ -96,6 +102,9 @@ type SimpleTxManager struct {
 	name    string
 	chainID *big.Int
 
+	daClient  *openrpc.Client
+	namespace openrpcns.Namespace
+
 	backend ETHBackend
 	l       log.Logger
 	metr    metrics.TxMetricer
@@ -112,6 +121,7 @@ func NewSimpleTxManager(name string, l log.Logger, m metrics.TxMetricer, cfg CLI
 	if err != nil {
 		return nil, err
 	}
+
 	return NewSimpleTxManagerFromConfig(name, l, m, conf)
 }
 
@@ -120,8 +130,29 @@ func NewSimpleTxManagerFromConfig(name string, l log.Logger, m metrics.TxMetrice
 	if err := conf.Check(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
+
+	daClient, err := openrpc.NewClient(context.Background(), cfg.DaRpc, cfg.AuthToken)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.NamespaceId == "" {
+		return nil, errors.New("namespace id cannot be blank")
+	}
+	nsBytes, err := hex.DecodeString(cfg.NamespaceId)
+	if err != nil {
+		return nil, err
+	}
+
+	namespace, err := share.NewBlobNamespaceV0(nsBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &SimpleTxManager{
 		chainID: conf.ChainID,
+		daClient:  daClient,
+		namespace: namespace.ToAppNamespace(),
 		name:    name,
 		cfg:     conf,
 		backend: conf.Backend,
@@ -185,6 +216,43 @@ func (m *SimpleTxManager) send(ctx context.Context, candidate TxCandidate) (*typ
 		ctx, cancel = context.WithTimeout(ctx, m.cfg.TxSendTimeout)
 		defer cancel()
 	}
+
+	//! TODO this needs to change for SEQ. We wont be using the batcher in the same way.
+	// TODO: this is a hack to route only batcher transactions through celestia
+	// SimpleTxManager is used by both batcher and proposer but since proposer
+	// writes to a smart contract, we overwrite _only_ batcher candidate as the
+	// frame pointer to celestia, while retaining the proposer pathway that
+	// writes the state commitment data to ethereum.
+	if candidate.To.Hex() == "0xfF00000000000000000000000000000000000000" {
+		dataBlob, err := blob.NewBlobV0(m.namespace.Bytes(), candidate.TxData)
+		com, err := blob.CreateCommitment(dataBlob)
+		if err != nil {
+			m.l.Warn("unable to create blob commitment to celestia", "err", err)
+			return nil, err
+		}
+		err = m.daClient.Header.SyncWait(ctx)
+		if err != nil {
+			m.l.Warn("unable to wait for celestia header sync", "err", err)
+			return nil, err
+		}
+		height, err := m.daClient.Blob.Submit(ctx, []*blob.Blob{dataBlob})
+		if err != nil {
+			m.l.Warn("unable to publish tx to celestia", "err", err)
+			return nil, err
+		}
+		fmt.Printf("height: %v\n", height)
+		if height == 0 {
+			m.l.Warn("unexpected response from celestia got", "height", height)
+			return nil, errors.New("unexpected response code")
+		}
+		frameRef := celestia.FrameRef{
+			BlockHeight: height,
+			TxCommitment: com,
+		}
+		frameRefData, _ := frameRef.MarshalBinary()
+		candidate = TxCandidate{TxData: frameRefData, To: candidate.To, GasLimit: candidate.GasLimit}
+	}
+
 	tx, err := retry.Do(ctx, 30, retry.Fixed(2*time.Second), func() (*types.Transaction, error) {
 		tx, err := m.craftTx(ctx, candidate)
 		if err != nil {
@@ -235,6 +303,7 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 			Data:      rawTx.Data,
 			Value:     rawTx.Value,
 		})
+		m.l.Warn("estimating gas", "candidate", candidate, "gasFeeCap", gasFeeCap, "gasTipCap", gasTipCap, "err", err)
 		if err != nil {
 			return nil, fmt.Errorf("failed to estimate gas: %w", err)
 		}

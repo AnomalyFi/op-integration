@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -16,15 +17,16 @@ import (
 )
 
 const (
-	L1InfoFuncSignature = "setL1BlockValues(uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256)"
+	L1InfoFuncSignature = "setL1BlockValues(uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256,bytes)"
 	L1InfoArguments     = 8
 	L1InfoLen           = 4 + 32*L1InfoArguments
 )
 
 var (
-	L1InfoFuncBytes4       = crypto.Keccak256([]byte(L1InfoFuncSignature))[:4]
-	L1InfoDepositerAddress = common.HexToAddress("0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001")
-	L1BlockAddress         = predeploys.L1BlockAddr
+	L1InfoFuncBytes4          = crypto.Keccak256([]byte(L1InfoFuncSignature))[:4]
+	L1InfoDepositerAddress    = common.HexToAddress("0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001")
+	L1InfoJustificationOffset = new(big.Int).SetUint64(288) // See Binary Format table below
+	L1BlockAddress            = predeploys.L1BlockAddr
 )
 
 const (
@@ -44,6 +46,7 @@ type L1BlockInfo struct {
 	BatcherAddr   common.Address
 	L1FeeOverhead eth.Bytes32
 	L1FeeScalar   eth.Bytes32
+	Justification *eth.L2BatchJustification `rlp:"nil"`
 }
 
 // Binary Format
@@ -59,10 +62,14 @@ type L1BlockInfo struct {
 // | 32      | BatcherAddr              |
 // | 32      | L1FeeOverhead            |
 // | 32      | L1FeeScalar              |
+// | 32      | L1InfoJustificationOffset|
+// | 		 | (this is how dynamic     |
+// | 		 | types are ABI encoded)   |
+// | variable| Justification            |
 // +---------+--------------------------+
 
 func (info *L1BlockInfo) MarshalBinary() ([]byte, error) {
-	w := bytes.NewBuffer(make([]byte, 0, L1InfoLen))
+	w := new(bytes.Buffer)
 	if err := solabi.WriteSignature(w, L1InfoFuncBytes4); err != nil {
 		return nil, err
 	}
@@ -90,13 +97,32 @@ func (info *L1BlockInfo) MarshalBinary() ([]byte, error) {
 	if err := solabi.WriteEthBytes32(w, info.L1FeeScalar); err != nil {
 		return nil, err
 	}
+
+	// For simplicity, we don't ABI-encode the whole structure of the Justification. We RLP-encode
+	// it and then ABI-encode the resulting byte string. This means the Justification can be
+	// accessed by parsing calldata, but cannot (easily) by inspected on-chain.
+	rlpBytes, err := rlp.EncodeToBytes(info.Justification)
+	if err != nil {
+		return nil, err
+	}
+	// The ABI-encoding of function parameters is that of a tuple, which requires that dynamic types
+	// (such as `bytes`) are represented in the initial list of items as a uint256 with the offset
+	// from the start of the encoding to the start of the payload of the dynamic type, which follows
+	// the initial list of static types and dynamic type offsets. In this case, we only have one
+	// item of dynamic type, and it is at the end of the list of items, so we will encode it by its
+	// offset, which is just the length of the static section of the list, followed by the item
+	// itself.
+	if err := solabi.WriteUint256(w, L1InfoJustificationOffset); err != nil {
+		return nil, err
+	}
+	if err := solabi.WriteBytes(w, rlpBytes); err != nil {
+		return nil, err
+	}
+
 	return w.Bytes(), nil
 }
 
 func (info *L1BlockInfo) UnmarshalBinary(data []byte) error {
-	if len(data) != L1InfoLen {
-		return fmt.Errorf("data is unexpected length: %d", len(data))
-	}
 	reader := bytes.NewReader(data)
 
 	var err error
@@ -127,10 +153,38 @@ func (info *L1BlockInfo) UnmarshalBinary(data []byte) error {
 	if info.L1FeeScalar, err = solabi.ReadEthBytes32(reader); err != nil {
 		return err
 	}
+
+	// Read the offset of the Justification bytes followed by the bytes themselves.
+	rlpOffset, err := solabi.ReadUint256(reader)
+	if err != nil {
+		return err
+	}
+	if rlpOffset.Cmp(L1InfoJustificationOffset) != 0 {
+		return fmt.Errorf("invalid justification offset (%d, expected %d)", rlpOffset, L1InfoJustificationOffset)
+	}
+	rlpBytes, err := solabi.ReadBytes(reader)
+	if err != nil {
+		return err
+	}
+	// If the remaining bytes are the RLP encoding of an empty list (0xc, which represents a `nil`
+	// pointer) skip the Justification. The RLP library automatically handles `nil` pointers as
+	// struct fields with the `rlp:"nil"` attribute, but here it is not a nested field which might
+	// be `nil` but the top-level object, and the RLP library does not allow that.
+	if !(len(rlpBytes) == 1 && rlpBytes[0] == 0xc0) {
+		if err := rlp.DecodeBytes(rlpBytes, &info.Justification); err != nil {
+			return err
+		}
+	}
+
 	if !solabi.EmptyReader(reader) {
 		return errors.New("too many bytes")
 	}
 	return nil
+}
+
+// Whether the rollup is using the NodeKit sequencer at this point in its history.
+func (info *L1BlockInfo) UsingNodeKit() bool {
+	return info.Justification != nil
 }
 
 // L1InfoDepositTxData is the inverse of L1InfoDeposit, to see where the L2 chain is derived from
@@ -142,7 +196,7 @@ func L1InfoDepositTxData(data []byte) (L1BlockInfo, error) {
 
 // L1InfoDeposit creates a L1 Info deposit transaction based on the L1 block,
 // and the L2 block-height difference with the start of the epoch.
-func L1InfoDeposit(seqNumber uint64, block eth.BlockInfo, sysCfg eth.SystemConfig, regolith bool) (*types.DepositTx, error) {
+func L1InfoDeposit(seqNumber uint64, block eth.BlockInfo, sysCfg eth.SystemConfig, justification *eth.L2BatchJustification, regolith bool) (*types.DepositTx, error) {
 	infoDat := L1BlockInfo{
 		Number:         block.NumberU64(),
 		Time:           block.Time(),
@@ -152,6 +206,7 @@ func L1InfoDeposit(seqNumber uint64, block eth.BlockInfo, sysCfg eth.SystemConfi
 		BatcherAddr:    sysCfg.BatcherAddr,
 		L1FeeOverhead:  sysCfg.Overhead,
 		L1FeeScalar:    sysCfg.Scalar,
+		Justification:  justification,
 	}
 	data, err := infoDat.MarshalBinary()
 	if err != nil {
@@ -183,8 +238,8 @@ func L1InfoDeposit(seqNumber uint64, block eth.BlockInfo, sysCfg eth.SystemConfi
 }
 
 // L1InfoDepositBytes returns a serialized L1-info attributes transaction.
-func L1InfoDepositBytes(seqNumber uint64, l1Info eth.BlockInfo, sysCfg eth.SystemConfig, regolith bool) ([]byte, error) {
-	dep, err := L1InfoDeposit(seqNumber, l1Info, sysCfg, regolith)
+func L1InfoDepositBytes(seqNumber uint64, l1Info eth.BlockInfo, sysCfg eth.SystemConfig, justification *eth.L2BatchJustification, regolith bool) ([]byte, error) {
+	dep, err := L1InfoDeposit(seqNumber, l1Info, sysCfg, justification, regolith)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create L1 info tx: %w", err)
 	}

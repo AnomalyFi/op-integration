@@ -75,6 +75,7 @@ func newTxMgrConfig(l1Addr string, privKey *ecdsa.PrivateKey) txmgr.CLIConfig {
 		ReceiptQueryInterval:      50 * time.Millisecond,
 		NetworkTimeout:            2 * time.Second,
 		TxNotInMempoolTimeout:     2 * time.Minute,
+		NamespaceId:               "000008e5f679bf7116cb",
 	}
 }
 
@@ -245,6 +246,9 @@ type System struct {
 
 	L2GenesisCfg *core.Genesis
 
+	NodeKit *NodeKit
+
+
 	// Connections to running nodes
 	EthInstances      map[string]EthInstance
 	Clients           map[string]*ethclient.Client
@@ -279,11 +283,144 @@ func (sys *System) Close() {
 	for _, node := range sys.RollupNodes {
 		node.Close()
 	}
+	if sys.NodeKit != nil {
+		sys.NodeKit.Close()
+}
 	for _, ei := range sys.EthInstances {
 		ei.Close()
 	}
 	sys.Mocknet.Close()
 }
+
+//TODO below this is new
+
+
+type NodeKit struct {
+	composeFile   string
+	projectName   string
+	sequencerPort uint16
+	proxyPort     uint16
+	logsProcess   *exec.Cmd
+}
+func (e *NodeKit) SequencerUrl() string {
+	//TODO may need to change this for SEQ
+	return fmt.Sprintf("http://localhost:%d", e.sequencerPort)
+}
+func (e *NodeKit) ProxyUrl() string {
+	return fmt.Sprintf("http://localhost:%d", e.proxyPort)
+}
+func (e *NodeKit) WaitForBlockHeight(ctx context.Context, height uint64) error {
+	//TODO need to change this for SEQ
+	url := e.SequencerUrl() + "/status/latest_block_height"
+	for {
+			res, err := http.Get(url)
+			if err == nil {
+					defer res.Body.Close()
+			}
+			if err == nil && res.StatusCode == 200 {
+					var currentHeight uint64
+					if err := json.NewDecoder(res.Body).Decode(&currentHeight); err != nil {
+							return err
+					}
+					if currentHeight >= height {
+							return nil
+					}
+					log.Info("waiting for Espresso block height", "current", currentHeight, "desired", height)
+			} else {
+					log.Warn("failed to get latest Espresso block height", "res", res, "err", err)
+			}
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+			select {
+			case <-ticker.C:
+					continue
+			case <-ctx.Done():
+					return ctx.Err()
+			}
+	}
+}
+func (e *NodeKit) StartGethProxy(sequencer EthInstance) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx,
+			"docker", "compose", "--project-name", e.projectName, "-f", e.composeFile,
+			"up", "op-geth-proxy", "-V", "--force-recreate", "--wait")
+	stderr := bytes.Buffer{}
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stderr
+	// Point the L2 RPC proxy at the OP sequencer Geth node.
+	cmd.Env = append(cmd.Env, fmt.Sprintf("OP_GETH_PROXY_GETH_ADDR=%s", httpEndpointForDocker(sequencer)))
+	// Enable INFO level logging for Rust services.
+	cmd.Env = append(cmd.Env, "RUST_LOG=info")
+	if err := cmd.Run(); err != nil {
+			return fmt.Errorf("docker compose up (%v) error: %w output: %s", cmd, err, stderr.String())
+	}
+	// Find the ports which were randomly assigned to the services.
+	proxyPort, err := dockerComposePort(e.projectName, e.composeFile, "op-geth-proxy", 9090)
+	if err != nil {
+			return err
+	}
+	e.proxyPort = proxyPort
+	return nil
+}
+func (e *NodeKit) PrintLogs() {
+	logs := exec.Command("docker", "compose", "--project-name", e.projectName, "-f", e.composeFile, "logs")
+	logs.Stdout = os.Stdout
+	logs.Stderr = os.Stderr
+	if err := logs.Run(); err != nil {
+			log.Error("failed to get docker-compose logs: %w", err)
+	}
+}
+func (e *NodeKit) AttachLogs() error {
+	// Forward service logs to our stdout.
+	logs := exec.Command("docker", "compose", "--project-name", e.projectName, "-f", e.composeFile, "logs", "-f")
+	logs.Stdout = os.Stdout
+	logs.Stderr = os.Stderr
+	if err := logs.Start(); err != nil {
+			return fmt.Errorf("failed to attach to docker compose logs (%v): %w", logs, err)
+	}
+	e.logsProcess = logs
+	return nil
+}
+func (e *NodeKit) Close() {
+	// Kill the docker-compose environment.
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "docker", "compose", "--project-name", e.projectName,
+			"-f", e.composeFile, "down", "-v")
+	if err := cmd.Run(); err != nil {
+			log.Error("failed to kill docker-compose", "err", err)
+	}
+	// Kill the logs process.
+	if e.logsProcess != nil {
+			if err := e.logsProcess.Process.Kill(); err != nil {
+					log.Error("failed to kill docker-compose logs", "err", err)
+			}
+			if err := e.logsProcess.Wait(); err != nil {
+					log.Error("failed to wait for docker-compose logs", "err", err)
+			}
+	}
+}
+func dockerComposePort(projectName string, composeFile string, service string, internalPort uint16) (uint16, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx,
+			"docker", "compose", "--project-name", projectName, "-f", composeFile, "port",
+			service, strconv.Itoa(int(internalPort)))
+	output, err := cmd.Output()
+	if err != nil {
+			return 0, fmt.Errorf("docker compose port failed: %w, %v", err, cmd)
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(strings.Split(string(output), ":")[1]))
+	if err != nil {
+			return 0, err
+	}
+	return uint16(port), nil
+}
+
+//TODO above this is new
+
+
 
 type systemConfigHook func(sCfg *SystemConfig, s *System)
 
@@ -372,6 +509,66 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		}
 	}
 
+	//TODO may want to add this back in
+	// Start an Espresso sequencer network, if required.
+	// if cfg.DeployConfig.Espresso {
+	// 	// Find the docker-compose file.
+	// 	cwd, err := os.Getwd()
+	// 	if err != nil {
+	// 			return nil, fmt.Errorf("failed to get cwd: %w", err)
+	// 	}
+	// 	root, err := config.FindMonorepoRoot(cwd)
+	// 	if err != nil {
+	// 			return nil, fmt.Errorf("failed to find monorepo root: %w", err)
+	// 	}
+	// 	composeFile := filepath.Join(root, "op-e2e", "docker-compose.yml")
+	// 	// Generate a random project name to distinguish this docker-compose network from that of
+	// 	// other tests running in parallel.
+	// 	projectName := fmt.Sprintf("e2e-tests-%d", prng.Int63())
+	// 	// Start the services.
+	// 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	// 	defer cancel()
+	// 	cmd := exec.CommandContext(ctx,
+	// 			"docker", "compose", "--project-name", projectName, "-f", composeFile,
+	// 			"up", "orchestrator", "da-server", "consensus-server", "sequencer0", "sequencer1", "commitment-task",
+	// 			"-V", "--force-recreate", "--wait")
+	// 	stderr := bytes.Buffer{}
+	// 	cmd.Stderr = &stderr
+	// 	cmd.Stdout = &stderr
+	// 	// Point the sequencer at the L1 Geth node.
+	// 	cmd.Env = append(cmd.Env, fmt.Sprintf("ESPRESSO_SEQUENCER_L1_PROVIDER=%s", httpEndpointForDocker(sys.EthInstances["l1"])))
+	// 	// Make the Espresso block time faster than the OP block time, or else tests will time out.
+	// 	cmd.Env = append(cmd.Env, fmt.Sprintf("ESPRESSO_ORCHESTRATOR_MAX_PROPOSE_TIME=%dms", cfg.DeployConfig.L2BlockTime*1000/2))
+	// 	cmd.Env = append(cmd.Env, "RUST_LOG=info")
+	// 	if err := cmd.Run(); err != nil {
+	// 			sys.Espresso = &EspressoSystem{
+	// 					projectName:   projectName,
+	// 					composeFile:   composeFile,
+	// 					sequencerPort: 0,
+	// 			}
+	// 			sys.Espresso.PrintLogs()
+	// 			return nil, fmt.Errorf("docker compose up (%v) error: %w output: %s", cmd, err, stderr.String())
+	// 	}
+	// 	// Find the ports which were randomly assigned to the services.
+	// 	sequencerPort, err := dockerComposePort(projectName, composeFile, "sequencer0", 8080)
+	// 	if err != nil {
+	// 			return nil, fmt.Errorf("failed to get sequencer0 port: %w", err)
+	// 	}
+	// 	sys.Espresso = &EspressoSystem{
+	// 			projectName:   projectName,
+	// 			composeFile:   composeFile,
+	// 			sequencerPort: sequencerPort,
+	// 	}
+	// 	// Wait for Espresso to start producing blocks. Because of pipelining, the first block can
+	// 	// take a few seconds, which we don't want to count against the test timeout.
+	// 	if err := sys.Espresso.WaitForBlockHeight(ctx, 1); err != nil {
+	// 			// If we never reached a height of a single block, something is probably wrong with the
+	// 			// Espresso configuration, and we will want to look at the logs.
+	// 			sys.Espresso.PrintLogs()
+	// 			return nil, fmt.Errorf("failed to reach Espresso block height: %w", err)
+	// 	}
+	// }
+
 	l1Block := l1Genesis.ToBlock()
 	l2Genesis, err := genesis.BuildL2Genesis(cfg.DeployConfig, l1Block)
 	if err != nil {
@@ -415,6 +612,7 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 			L1ChainID:               cfg.L1ChainIDBig(),
 			L2ChainID:               cfg.L2ChainIDBig(),
 			BatchInboxAddress:       cfg.DeployConfig.BatchInboxAddress,
+			SequencerContractAddress: cfg.DeployConfig.SequencerContractAddress,
 			DepositContractAddress:  cfg.DeployConfig.OptimismPortalProxy,
 			L1SystemConfigAddress:   cfg.DeployConfig.SystemConfigProxy,
 			RegolithTime:            cfg.DeployConfig.RegolithTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
@@ -427,6 +625,7 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	}
 	sys.RollupConfig = &defaultConfig
 
+	//TODO may need to elimiante this part
 	// Initialize nodes
 	l1Node, l1Backend, err := geth.InitL1(cfg.DeployConfig.L1ChainID, cfg.DeployConfig.L1BlockTime, l1Genesis, c, cfg.GethOptions["l1"]...)
 	if err != nil {
@@ -473,12 +672,24 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		sys.EthInstances[name] = ethClient
 	}
 
+	  // Now that the L2 nodes are running, start an Espresso proxy for the L2 sequencer Geth node.
+	  if sys.NodeKit != nil {
+		if err := sys.NodeKit.StartGethProxy(sys.EthInstances["sequencer"]); err != nil {
+				return nil, fmt.Errorf("failed to start Geth proxy: %w", err)
+		}
+		//TODO check if I need this
+		// // Now that all the Docker services are running, attach to logs.
+		// if err := sys.Espresso.AttachLogs(); err != nil {
+		// 		return nil, fmt.Errorf("failed to attach to Docker logs: %w", err)
+		// }
+}
+
 	// Configure connections to L1 and L2 for rollup nodes.
 	// TODO: refactor testing to allow use of in-process rpc connections instead
 	// of only websockets (which are required for external eth client tests).
 	for name, rollupCfg := range cfg.Nodes {
 		configureL1(rollupCfg, sys.EthInstances["l1"])
-		configureL2(rollupCfg, sys.EthInstances[name], cfg.JWTSecret)
+		configureL2(rollupCfg, sys.EthInstances[name], sys.NodeKit,  cfg.JWTSecret)
 
 		rollupCfg.L2Sync = &rollupNode.PreparedL2SyncEndpoint{
 			Client:   nil,
@@ -499,6 +710,15 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	sys.Clients["l1"] = l1Client
 	sys.RawClients["l1"] = rawL1Client
 	for name, ethInst := range sys.EthInstances {
+		var endpoint string
+		if sys.NodeKit != nil && name == "sequencer" {
+				// In Espresso mode, clients should talk to the sequencer through the proxy RPC, which
+				// forwards submitted transactions to the Espresso sequencer.
+				endpoint = sys.NodeKit.ProxyUrl()
+		} else {
+				endpoint = ethInst.WSEndpoint()
+		}
+
 		rawClient, err := rpc.DialContext(ctx, ethInst.WSEndpoint())
 		if err != nil {
 			didErrAfterStart = true
@@ -593,6 +813,14 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		}
 
 		c.Rollup.LogDescription(cfg.Loggers[name], chaincfg.L2ChainIDToNetworkDisplayName)
+
+		daCfg, err := rollup.NewDAConfig("http://127.0.0.1:26658", "0000e8e5f679bf7116cb", "")
+		if err != nil {
+			return nil, err
+		}
+
+		c.DAConfig = *daCfg
+
 
 		node, err := rollupNode.New(context.Background(), &c, cfg.Loggers[name], snapLog, "", metrics.NewMetrics(""))
 		if err != nil {
@@ -747,6 +975,16 @@ func selectEndpoint(node EthInstance) string {
 	return node.WSEndpoint()
 }
 
+func httpEndpointForDocker(node EthInstance) string {
+	url, err := url.Parse(node.HTTPEndpoint())
+	if err != nil {
+			panic(fmt.Sprintf("geth HTTPEndpoint returned malformed URL (%v)", err))
+	}
+	port := url.Port()
+	// This is how Docker containers address services running on the host.
+	return fmt.Sprintf("http://host.docker.internal:%s", port)
+}
+
 func configureL1(rollupNodeCfg *rollupNode.Config, l1Node EthInstance) {
 	l1EndpointConfig := selectEndpoint(l1Node)
 	rollupNodeCfg.L1 = &rollupNode.L1EndpointConfig{
@@ -764,7 +1002,7 @@ type WSOrHTTPEndpoint interface {
 	HTTPAuthEndpoint() string
 }
 
-func configureL2(rollupNodeCfg *rollupNode.Config, l2Node WSOrHTTPEndpoint, jwtSecret [32]byte) {
+func configureL2(rollupNodeCfg *rollupNode.Config, l2Node WSOrHTTPEndpoint, nodekit *NodeKit, jwtSecret [32]byte) {
 	useHTTP := os.Getenv("OP_E2E_USE_HTTP") == "true"
 	l2EndpointConfig := l2Node.WSAuthEndpoint()
 	if useHTTP {
@@ -774,6 +1012,9 @@ func configureL2(rollupNodeCfg *rollupNode.Config, l2Node WSOrHTTPEndpoint, jwtS
 	rollupNodeCfg.L2 = &rollupNode.L2EndpointConfig{
 		L2EngineAddr:      l2EndpointConfig,
 		L2EngineJWTSecret: jwtSecret,
+	}
+	if nodekit != nil {
+			rollupNodeCfg.NodeKitUrl = nodekit.SequencerUrl()
 	}
 }
 
