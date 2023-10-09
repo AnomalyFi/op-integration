@@ -47,6 +47,7 @@ contract DeployConfig is Script {
     uint256 public faultGameAbsolutePrestate;
     uint256 public faultGameMaxDepth;
     uint256 public faultGameMaxDuration;
+    bool public nodekit;
     uint256 public systemConfigStartBlock;
     uint256 public requiredProtocolVersion;
     uint256 public recommendedProtocolVersion;
@@ -96,6 +97,7 @@ contract DeployConfig is Script {
             faultGameAbsolutePrestate = stdJson.readUint(_json, "$.faultGameAbsolutePrestate");
             faultGameMaxDepth = stdJson.readUint(_json, "$.faultGameMaxDepth");
             faultGameMaxDuration = stdJson.readUint(_json, "$.faultGameMaxDuration");
+            nodekit = stdJson.readBool(_json, "$.nodekit");
             requiredProtocolVersion = stdJson.readUint(_json, "$.requiredProtocolVersion");
             recommendedProtocolVersion = stdJson.readUint(_json, "$.recommendedProtocolVersion");
         }

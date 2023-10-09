@@ -2,11 +2,11 @@ package derive
 
 import (
 	"context"
-
+	"fmt"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
-	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -40,16 +40,27 @@ const (
 // conform with the constraints of the derivation pipeline. The resulting L1 origin will always be
 // the same as parent's or one block after parent's, will always conform to the derivation
 // constraints, and is deterministic given `parent` and `suggested.`
-func NodeKitL1Origin(cfg *rollup.Config, parent eth.L2BlockRef, suggested eth.L1BlockRef) uint64 {
+func NodeKitL1Origin(cfg *rollup.Config, parent eth.L2BlockRef, suggested eth.L1BlockRef, fetchNextL1Block func() (eth.L1BlockRef, error), l log.Logger) (uint64, error) {
 	prev := parent.L1Origin
 	windowStart := parent.Time + cfg.BlockTime
 
 	// Constraint 1: the L1 origin must not skip an L1 block.
 	if suggested.Number > prev.Number+1 {
+		nextL1Block, err := fetchNextL1Block()
+		if err != nil {
+			return 0, fmt.Errorf("failed to fetch next possible L1 origin %d: %w", nextL1Block, err)
+		}
+		nextL1BlockEligible := nextL1Block.Time <= windowStart
 		// If we did skip an L1 block, that is NodeKit telling us that multiple new L1 blocks have
 		// already been produced. In this case, we will not block when fetching the next L1 origin,
 		// so advance as far as the derivation pipeline allows: one block.
-		return prev.Number + 1
+		if nextL1BlockEligible {
+			l.Info("We skipped an L1 block and the next L1 block is eligible as an origin, advancing by one")
+			return prev.Number + 1, nil
+		} else {
+			l.Info("We skipped an L1 block and the next L1 block is not eligible as an origin, using the old origin")
+			return prev.Number, nil
+		}
 	}
 	// Constraint 2: the L1 origin number decreased.
 	//
@@ -60,7 +71,8 @@ func NodeKitL1Origin(cfg *rollup.Config, parent eth.L2BlockRef, suggested eth.L1
 		// In this case, we have no indication that new L1 blocks are ready. We don't want to
 		// advance the L1 origin number and force the derivation pipeline to block waiting for a new
 		// L1 block to be produced, so just reuse the previous L1 origin.
-		return prev.Number
+		l.Info("L1 origin decreased, using the old origin")
+		return prev.Number, nil
 	}
 	// Constraint 3: the L1 origin is too old.
 	if suggested.Time+cfg.MaxSequencerDrift < windowStart {
@@ -68,7 +80,8 @@ func NodeKitL1Origin(cfg *rollup.Config, parent eth.L2BlockRef, suggested eth.L1
 		// forced to advance the L1 origin. At worst, the derivation pipeline may block until the
 		// next L1 origin is available, but if the chosen L1 origin is this old, it is likely that a
 		// new L1 block is available and NodeKit just hasn't seen it yet for some reason.
-		return prev.Number + 1
+		l.Info("L1 origin is too old, advancing by one")
+		return prev.Number + 1, nil
 	}
 	// Constraint 4: the L1 origin must not be newer than the L2 batch.
 	if suggested.Time > windowStart {
@@ -76,11 +89,12 @@ func NodeKitL1Origin(cfg *rollup.Config, parent eth.L2BlockRef, suggested eth.L1
 		// timestamp earlier than `prev`, and thus earlier than the current batch. NodeKit must be
 		// running ahead of the L2, which is fine, we'll just wait to advance the L1 origin until
 		// the L2 chain catches up.
-		return prev.Number
+		l.Info("L1 origin is newer than the L2 batch, use the previous origin")
+		return prev.Number, nil
 	}
 
 	// In all other cases, the suggested L1 origin is valid.
-	return suggested.Number
+	return suggested.Number, nil
 }
 
 func NodeKitBatchMustBeEmpty(cfg *rollup.Config, l1Origin eth.L1BlockRef, timestamp uint64) bool {
@@ -143,7 +157,16 @@ func CheckBatchNodeKit(cfg *rollup.Config, log log.Logger, l2SafeHead eth.L2Bloc
 		log.Warn("error reading suggested L1 origin", "err", err, "l1 head", jst.Next.L1Head)
 		return BatchUndecided
 	}
-	expectedL1Origin := NodeKitL1Origin(cfg, l2SafeHead, suggestedL1Origin)
+	nextL1Number := l2SafeHead.L1Origin.Number + 1
+	fetchNextL1Block := func() (eth.L1BlockRef, error) {
+		return l1.L1BlockRefByNumber(context.Background(), nextL1Number)
+	}
+	expectedL1Origin, err := NodeKitL1Origin(cfg, l2SafeHead, suggestedL1Origin, fetchNextL1Block, log)
+	if err != nil {
+		log.Warn("error reading next possible L1 origin", "err", err, "origin", nextL1Number)
+		return BatchUndecided
+	}
+
 	actualL1Origin := uint64(batch.Batch.EpochNum)
 	if expectedL1Origin != actualL1Origin {
 		log.Warn("dropping batch because L1 origin was not set correctly",
@@ -167,35 +190,35 @@ func CheckBatchNodeKit(cfg *rollup.Config, log log.Logger, l2SafeHead eth.L2Bloc
 			log.Warn("dropping batch because it must be empty but isn't")
 			return BatchDrop
 		}
-	} else {
-		//TODO I need to figure out if I need to implement nmt proofs on the L1 itself or not
-		roots := make([]*nodekit.NmtRoot, len(jst.Blocks))
-		proofs := make([]*nodekit.NmtProof, len(jst.Blocks))
-		for i, block := range jst.Blocks {
-			roots[i] = &block.Header.TransactionsRoot
-			proofs[i] = &block.Proof
-		}
-		txs := make([]nodekit.Bytes, len(batch.Batch.Transactions))
-		for i, tx := range batch.Batch.Transactions {
-			txs[i] = []byte(tx)
-		}
-		err = nodekit.ValidateBatchTransactions(cfg.L2ChainID.Uint64(), roots, proofs, txs)
-		if err != nil {
-			log.Warn("dropping batch because of invalid NMT proofs", "err", err)
-			return BatchDrop
-		}
 	}
+	// else {
+	// 	//TODO I need to figure out if I need to implement nmt proofs on the L1 itself or not
+	// 	roots := make([]*nodekit.NmtRoot, len(jst.Blocks))
+	// 	proofs := make([]*nodekit.NmtProof, len(jst.Blocks))
+	// 	for i, block := range jst.Blocks {
+	// 		roots[i] = &block.Header.TransactionsRoot
+	// 		proofs[i] = &block.Proof
+	// 	}
+	// 	txs := make([]nodekit.Bytes, len(batch.Batch.Transactions))
+	// 	for i, tx := range batch.Batch.Transactions {
+	// 		txs[i] = []byte(tx)
+	// 	}
+	// 	err = nodekit.ValidateBatchTransactions(cfg.L2ChainID.Uint64(), roots, proofs, txs)
+	// 	if err != nil {
+	// 		log.Warn("dropping batch because of invalid NMT proofs", "err", err)
+	// 		return BatchDrop
+	// 	}
+	// }
 
 	return BatchAccept
 }
 
 //TODO above this is new
 
-
 // CheckBatch checks if the given batch can be applied on top of the given l2SafeHead, given the contextual L1 blocks the batch was included in.
 // The first entry of the l1Blocks should match the origin of the l2SafeHead. One or more consecutive l1Blocks should be provided.
 // In case of only a single L1 block, the decision whether a batch is valid may have to stay undecided.
-func CheckBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1BlockRef, l2SafeHead eth.L2BlockRef, batch *BatchWithL1InclusionBlock, usingNodeKit bool, l1 NodeKitL1Provider) BatchValidity {	// add details to the log
+func CheckBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1BlockRef, l2SafeHead eth.L2BlockRef, batch *BatchWithL1InclusionBlock, usingNodeKit bool, l1 NodeKitL1Provider) BatchValidity { // add details to the log
 	log = log.New(
 		"batch_timestamp", batch.Batch.Timestamp,
 		"parent_number", l2SafeHead.Number,
@@ -317,7 +340,6 @@ func CheckBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1BlockRef, l
 }
 
 //TODO below this is new
-
 
 // Check that the starting or ending bookend blocks of an NodeKit block range surround the given
 // starting or ending timestamp.

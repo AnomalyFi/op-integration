@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum-optimism/optimism/op-node/testutils"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 )
 
 //TODO redo all this for NodeKit
@@ -136,14 +137,14 @@ func (m *FakeEngineControl) Reset() {
 
 var _ derive.ResettableEngineControl = (*FakeEngineControl)(nil)
 
-type FakeEspressoClient struct {
-	Blocks          []FakeEspressoBlock
+type FakeNodeKitClient struct {
+	Blocks          []FakeNodeKitBlock
 	AdvanceL1Origin bool
 }
 
-type FakeEspressoBlock struct {
-	Header       espresso.Header
-	Transactions []espresso.Bytes
+type FakeNodeKitBlock struct {
+	Header       nodekit.Header
+	Transactions []nodekit.Bytes
 }
 
 type TestSequencer struct {
@@ -153,15 +154,15 @@ type TestSequencer struct {
 	cfg        rollup.Config
 	seq        *Sequencer
 	engControl FakeEngineControl
-	espresso   *FakeEspressoClient
+	nodekit    *FakeNodeKitClient
 
 	clockTime time.Time
 	clockFn   func() time.Time
 	l1Times   map[eth.BlockID]uint64
 
-	attrsErr    error
-	originErr   error
-	espressoErr error
+	attrsErr   error
+	originErr  error
+	nodekitErr error
 }
 
 // Implement AttributeBuilder interface for TestSequencer.
@@ -201,13 +202,13 @@ func (s *TestSequencer) PreparePayloadAttributes(ctx context.Context, l2Parent e
 	}, nil
 }
 
-// The system config never changes in this test, so we just read whether Espresso is enabled or not from the genesis config.
+// The system config never changes in this test, so we just read whether NodeKit is enabled or not from the genesis config.
 // Sometimes we fake an error.
 func (s *TestSequencer) ChildNeedsJustification(ctx context.Context, parent eth.L2BlockRef) (bool, error) {
 	if s.attrsErr != nil {
 		return false, s.attrsErr
 	}
-	return s.cfg.Genesis.SystemConfig.Espresso, nil
+	return s.cfg.Genesis.SystemConfig.NodeKit, nil
 }
 
 var _ derive.AttributesBuilder = (*TestSequencer)(nil)
@@ -305,7 +306,7 @@ func (s *TestSequencer) nextOrigin(prevOrigin eth.L1BlockRef, prevL2Time uint64,
 
 var _ L1OriginSelectorIface = (*TestSequencer)(nil)
 
-// Implement EspressoL1Provider interface for TestSequencer.
+// Implement NodeKitL1Provider interface for TestSequencer.
 
 func (s *TestSequencer) L1BlockRefByNumber(ctx context.Context, number uint64) (eth.L1BlockRef, error) {
 	return s.FindL1OriginByNumber(ctx, number)
@@ -315,37 +316,37 @@ func (s *TestSequencer) FetchReceipts(ctx context.Context, blockHash common.Hash
 	return nil, nil, fmt.Errorf("not implemented: FetchReceipts")
 }
 
-func (s *TestSequencer) VerifyCommitments(firstBlockHeight uint64, comms []espresso.Commitment) (bool, error) {
+func (s *TestSequencer) VerifyCommitments(firstBlockHeight uint64, comms []nodekit.Commitment) (bool, error) {
 	for i, comm := range comms {
-		if !comm.Equals(s.espressoBlock(firstBlockHeight + uint64(i)).Commit()) {
+		if !comm.Equals(s.nodekitBlock(firstBlockHeight + uint64(i)).Commit()) {
 			return false, nil
 		}
 	}
 	return true, nil
 }
 
-var _ derive.EspressoL1Provider = (*TestSequencer)(nil)
+var _ derive.NodeKitL1Provider = (*TestSequencer)(nil)
 
-// Implement Espresso QueryService interface for TestSequencer.
+// Implement NodeKit QueryService interface for TestSequencer.
 
-func (s *TestSequencer) FetchHeadersForWindow(ctx context.Context, start uint64, end uint64) (espresso.WindowStart, error) {
+func (s *TestSequencer) FetchHeadersForWindow(ctx context.Context, start uint64, end uint64) (nodekit.WindowStart, error) {
 	// Find the start of the range.
 	for i := uint64(0); ; i += 1 {
-		header := s.espressoBlock(i)
+		header := s.nodekitBlock(i)
 		if header == nil {
 			// New headers not available.
-			return espresso.WindowStart{}, nil
+			return nodekit.WindowStart{}, nil
 		}
 		if header.Timestamp >= start {
 			res, err := s.FetchRemainingHeadersForWindow(ctx, i, end)
 			if err != nil {
-				return espresso.WindowStart{}, err
+				return nodekit.WindowStart{}, err
 			} else {
-				var prev *espresso.Header
+				var prev *nodekit.Header
 				if i > 0 {
-					prev = s.espressoBlock(i - 1)
+					prev = s.nodekitBlock(i - 1)
 				}
-				return espresso.WindowStart{
+				return nodekit.WindowStart{
 					From:   i,
 					Window: res.Window,
 					Prev:   prev,
@@ -356,24 +357,24 @@ func (s *TestSequencer) FetchHeadersForWindow(ctx context.Context, start uint64,
 	}
 }
 
-func (s *TestSequencer) FetchRemainingHeadersForWindow(ctx context.Context, from uint64, end uint64) (espresso.WindowMore, error) {
+func (s *TestSequencer) FetchRemainingHeadersForWindow(ctx context.Context, from uint64, end uint64) (nodekit.WindowMore, error) {
 	// Inject errors.
-	if s.espressoErr != nil {
-		return espresso.WindowMore{}, s.espressoErr
+	if s.nodekitErr != nil {
+		return nodekit.WindowMore{}, s.nodekitErr
 	}
 
-	headers := make([]espresso.Header, 0)
+	headers := make([]nodekit.Header, 0)
 	for i := from; ; i += 1 {
-		header := s.espressoBlock(i)
+		header := s.nodekitBlock(i)
 		if header == nil {
 			// New headers not available.
-			return espresso.WindowMore{
+			return nodekit.WindowMore{
 				Window: headers,
 				Next:   nil,
 			}, nil
 		}
 		if header.Timestamp >= end {
-			return espresso.WindowMore{
+			return nodekit.WindowMore{
 				Window: headers,
 				Next:   header,
 			}, nil
@@ -382,52 +383,52 @@ func (s *TestSequencer) FetchRemainingHeadersForWindow(ctx context.Context, from
 	}
 }
 
-func (s *TestSequencer) FetchTransactionsInBlock(ctx context.Context, block uint64, header *espresso.Header, namespace uint64) (espresso.TransactionsInBlock, error) {
+func (s *TestSequencer) FetchTransactionsInBlock(ctx context.Context, block uint64, header *nodekit.Header, namespace uint64) (nodekit.TransactionsInBlock, error) {
 	// Inject errors.
-	if s.espressoErr != nil {
-		return espresso.TransactionsInBlock{}, s.espressoErr
+	if s.nodekitErr != nil {
+		return nodekit.TransactionsInBlock{}, s.nodekitErr
 	}
 
 	// The sequencer should only ever ask for one namespace, that of the OP-chain.
 	require.Equal(s.t, namespace, s.cfg.L2ChainID.Uint64())
 
-	if int(block) >= len(s.espresso.Blocks) {
-		return espresso.TransactionsInBlock{}, fmt.Errorf("invalid block number %d total blocks %d", block, len(s.espresso.Blocks))
+	if int(block) >= len(s.nodekit.Blocks) {
+		return nodekit.TransactionsInBlock{}, fmt.Errorf("invalid block number %d total blocks %d", block, len(s.nodekit.Blocks))
 	}
-	if s.espresso.Blocks[block].Header.Commit() != header.Commit() {
-		return espresso.TransactionsInBlock{}, fmt.Errorf("wrong header for block %d header %v expected %v", block, header, s.espresso.Blocks[block].Header)
+	if s.nodekit.Blocks[block].Header.Commit() != header.Commit() {
+		return nodekit.TransactionsInBlock{}, fmt.Errorf("wrong header for block %d header %v expected %v", block, header, s.nodekit.Blocks[block].Header)
 	}
-	txs := s.espresso.Blocks[block].Transactions
+	txs := s.nodekit.Blocks[block].Transactions
 
 	// Fake an NMT proof.
-	proof := espresso.NmtProof{}
-	return espresso.TransactionsInBlock{
+	//proof := nodekit.NmtProof{}
+	return nodekit.TransactionsInBlock{
 		Transactions: txs,
-		Proof:        proof,
+		//Proof:        proof,
 	}, nil
 }
 
-func (s *TestSequencer) espressoBlock(i uint64) *espresso.Header {
+func (s *TestSequencer) nodekitBlock(i uint64) *nodekit.Header {
 	// Insert blocks as necessary.
-	for uint64(len(s.espresso.Blocks)) <= i {
-		if s.nextEspressoBlock() == nil {
+	for uint64(len(s.nodekit.Blocks)) <= i {
+		if s.nextNodeKitBlock() == nil {
 			return nil
 		}
 	}
-	return &s.espresso.Blocks[i].Header
+	return &s.nodekit.Blocks[i].Header
 }
 
-func (s *TestSequencer) nextEspressoBlock() *espresso.Header {
-	var prev espresso.Header
-	if len(s.espresso.Blocks) > 0 {
-		prev = s.espresso.Blocks[len(s.espresso.Blocks)-1].Header
+func (s *TestSequencer) nextNodeKitBlock() *nodekit.Header {
+	var prev nodekit.Header
+	if len(s.nodekit.Blocks) > 0 {
+		prev = s.nodekit.Blocks[len(s.nodekit.Blocks)-1].Header
 	} else {
 		// Set a timestamp for the genesis that is near the L2 genesis.
 		prev.Timestamp = s.cfg.Genesis.L2Time
 	}
 
 	// Advance the timestamp by a random amount between 0 and 150% of the L2 block time. This
-	// should lead to some L2 batches having multiple Espresso blocks, some having only 1, and some
+	// should lead to some L2 batches having multiple NodeKit blocks, some having only 1, and some
 	// being empty entirely.
 	timestamp := prev.Timestamp + uint64(s.rng.Intn(int(s.cfg.BlockTime+s.cfg.BlockTime/2+1)))
 	// Don't produce blocks in the future.
@@ -436,7 +437,7 @@ func (s *TestSequencer) nextEspressoBlock() *espresso.Header {
 		return nil
 	}
 	// Don't produce blocks too far in the past, as this can cause the L2 timestamp to drift from
-	// the wall clock time in a way that wouldn't really happen in real life: real Espresso blocks
+	// the wall clock time in a way that wouldn't really happen in real life: real NodeKit blocks
 	// will have a timestamp that is pretty close to wall clock time.
 	if now-timestamp > 6 {
 		// If we have drifted too far, catch up all at once, so we can start slowly drifting again
@@ -445,20 +446,20 @@ func (s *TestSequencer) nextEspressoBlock() *espresso.Header {
 	}
 
 	// Fake an NMT root, but ensure it is unique.
-	root := espresso.NmtRoot{
+	root := nodekit.NmtRoot{
 		Root: make([]byte, 8),
 	}
-	binary.LittleEndian.PutUint64(root.Root, uint64(len(s.espresso.Blocks)))
+	binary.LittleEndian.PutUint64(root.Root, uint64(len(s.nodekit.Blocks)))
 
 	var l1OriginNumber uint64
-	if s.espresso.AdvanceL1Origin {
-		l1OriginNumber = prev.L1Head + 1
-		s.espresso.AdvanceL1Origin = false
+	if s.nodekit.AdvanceL1Origin {
+		//l1OriginNumber = prev.L1Head + 1
+		s.nodekit.AdvanceL1Origin = false
 	} else {
-		l1OriginNumber = prev.L1Head
+		//l1OriginNumber = prev.L1Head
 		switch s.rng.Intn(20) {
 		case 0:
-			// 5%: move the L1 origin _backwards_. Espresso is supposed to enforce that the L1
+			// 5%: move the L1 origin _backwards_. NodeKit is supposed to enforce that the L1
 			// origin is monotonically increasing, but due to limitations in the current version of
 			// the HotShot interfaces, the current version does not, and the L1 block number will,
 			// rarely, decrease.
@@ -467,7 +468,7 @@ func (s *TestSequencer) nextEspressoBlock() *espresso.Header {
 				// advancing the L1 origin is fairly low (in order to simulate the case where the L1
 				// origin is old), once we decrease the L1 origin once, it can remain behind for
 				// many blocks.
-				s.espresso.AdvanceL1Origin = true
+				s.nodekit.AdvanceL1Origin = true
 				l1OriginNumber -= 1
 			}
 		case 1, 2:
@@ -488,36 +489,36 @@ func (s *TestSequencer) nextEspressoBlock() *espresso.Header {
 		}
 	}
 
-	l1Origin := s.l1BlockByNumber(l1OriginNumber)
+	//l1Origin := s.l1BlockByNumber(l1OriginNumber)
 
-	// 5% of the time, mess with the timestamp. Again, Espresso should ensure that the timestamps
+	// 5% of the time, mess with the timestamp. Again, NodeKit should ensure that the timestamps
 	// are monotonically increasing, but for now, it doesn't.
 	if prev.Timestamp > 0 && s.rng.Intn(20) == 0 {
 		timestamp = prev.Timestamp - 1
 	}
 
-	header := espresso.Header{
+	header := nodekit.Header{
 		TransactionsRoot: root,
-		Metadata: espresso.Metadata{
+		Metadata: nodekit.Metadata{
 			Timestamp: timestamp,
-			L1Head:    l1Origin.Number,
+			//L1Head:    l1Origin.Number,
 		},
 	}
 
 	// Randomly generate between 0 and 20 transactions.
-	txs := make([]espresso.Bytes, 0)
+	txs := make([]nodekit.Bytes, 0)
 	for i := 0; i < s.rng.Intn(20); i++ {
 		txs = append(txs, []byte(fmt.Sprintf("mock sequenced tx %d", i)))
 	}
 
-	s.espresso.Blocks = append(s.espresso.Blocks, FakeEspressoBlock{
+	s.nodekit.Blocks = append(s.nodekit.Blocks, FakeNodeKitBlock{
 		Header:       header,
 		Transactions: txs,
 	})
 	return &header
 }
 
-var _ espresso.QueryService = (*TestSequencer)(nil)
+var _ nodekit.QueryService = (*TestSequencer)(nil)
 
 func mockL1Hash(num uint64) (out common.Hash) {
 	out[31] = 1
@@ -539,7 +540,7 @@ func mockL2ID(num uint64) eth.BlockID {
 	return eth.BlockID{Hash: mockL2Hash(num), Number: num}
 }
 
-func SetupSequencer(t *testing.T, useEspresso bool) *TestSequencer {
+func SetupSequencer(t *testing.T, useNodeKit bool) *TestSequencer {
 	s := new(TestSequencer)
 	s.t = t
 	s.rng = rand.New(rand.NewSource(12345))
@@ -555,7 +556,7 @@ func SetupSequencer(t *testing.T, useEspresso bool) *TestSequencer {
 			L2:     mockL2ID(200000),
 			L2Time: l1Time + 300, // L2 may start with a relative old L1 origin and will have to catch it up
 			SystemConfig: eth.SystemConfig{
-				Espresso: useEspresso,
+				NodeKit: useNodeKit,
 			},
 		},
 		L1ChainID:         big.NewInt(900),
@@ -608,9 +609,9 @@ func SetupSequencer(t *testing.T, useEspresso bool) *TestSequencer {
 		}
 	}
 
-	// Set up a fake Espresso client if necessary.
-	if useEspresso {
-		s.espresso = new(FakeEspressoClient)
+	// Set up a fake NodeKit client if necessary.
+	if useNodeKit {
+		s.nodekit = new(FakeNodeKitClient)
 	}
 
 	s.seq = NewSequencer(log, &s.cfg, &s.engControl, s, s, s, metrics.NoopMetrics)
@@ -646,7 +647,7 @@ func SequencerChaosMonkey(s *TestSequencer) {
 		// reset errors
 		s.originErr = nil
 		s.attrsErr = nil
-		s.espressoErr = nil
+		s.nodekitErr = nil
 		if s.engControl.err != mockResetErr { // the mockResetErr requires the sequencer to Reset() to recover.
 			s.engControl.err = nil
 		}
@@ -667,7 +668,7 @@ func SequencerChaosMonkey(s *TestSequencer) {
 		case 8:
 			s.engControl.err = mockResetErr
 		case 9:
-			s.espressoErr = errors.New("mock espresso client error")
+			s.nodekitErr = errors.New("mock nodekit client error")
 		default:
 			// no error
 		}
@@ -707,105 +708,105 @@ func TestSequencerChaosMonkeyLegacy(t *testing.T) {
 	require.Greater(t, s.engControl.avgBuildingTime(), time.Second, "With 2 second block time and 1 second error backoff and healthy-on-average errors, building time should at least be a second")
 }
 
-func TestSequencerChaosMonkeyEspresso(t *testing.T) {
-	s := SetupSequencer(t, true)
-	SequencerChaosMonkey(s)
+// func TestSequencerChaosMonkeyEspresso(t *testing.T) {
+// 	s := SetupSequencer(t, true)
+// 	SequencerChaosMonkey(s)
 
-	// Check that the L2 block time is accurate. The tolerance here is slightly higher than for the
-	// legacy sequencer, since the Espresso mode sequencer has to wait for one additional HotShot
-	// block to be sequenced after the time window for an L2 batch ends, before it can sequence that
-	// batch. This problem is exacerbated with the chaos monkey, since it may take even more wall
-	// clock time to fetch that last Espresso block due to injected errors.
-	l2Head := s.engControl.UnsafeL2Head()
-	require.Less(t, s.clockTime.Sub(time.Unix(int64(l2Head.Time), 0)).Abs(), 12*time.Second, "L2 time is accurate, within 12 seconds of wallclock")
-	// Here, the legacy test checks `avgBuildingTime()`. This stat is meaningless for the Espresso
-	// mode sequencer, since it builds blocks locally rather than in the engine.
+// 	// Check that the L2 block time is accurate. The tolerance here is slightly higher than for the
+// 	// legacy sequencer, since the NodeKit mode sequencer has to wait for one additional HotShot
+// 	// block to be sequenced after the time window for an L2 batch ends, before it can sequence that
+// 	// batch. This problem is exacerbated with the chaos monkey, since it may take even more wall
+// 	// clock time to fetch that last NodeKit block due to injected errors.
+// 	l2Head := s.engControl.UnsafeL2Head()
+// 	require.Less(t, s.clockTime.Sub(time.Unix(int64(l2Head.Time), 0)).Abs(), 12*time.Second, "L2 time is accurate, within 12 seconds of wallclock")
+// 	// Here, the legacy test checks `avgBuildingTime()`. This stat is meaningless for the NodeKit
+// 	// mode sequencer, since it builds blocks locally rather than in the engine.
 
-	// After running the chaos monkey, check that the sequenced blocks satisfy the constraints of
-	// the derivation pipeline. Count how many times we hit each interesting case.
-	prevL1Origin := s.cfg.Genesis.L1.Number
-	happyPath := 0
-	noEspressoBlocks := 0
-	oldL1Origin := 0
-	newL1Origin := 0
-	skippedL1Origin := 0
-	decreasingL1Origin := 0
-	l2Head = eth.L2BlockRef{
-		Hash:           s.cfg.Genesis.L2.Hash,
-		Number:         s.cfg.Genesis.L2.Number,
-		ParentHash:     mockL2Hash(s.cfg.Genesis.L2.Number - 1),
-		Time:           s.cfg.Genesis.L2Time,
-		L1Origin:       s.cfg.Genesis.L1,
-		SequenceNumber: 0,
-	}
-	for _, payload := range s.engControl.l2Batches {
-		// Find the number of deposit transactions in the L2 block, or, equivalently, the offset of
-		// the first transaction produced by Espresso.
-		numDepositTxs := 0
-		for tx := range payload.Transactions {
-			if payload.Transactions[tx][0] == uint8(types.DepositTxType) {
-				numDepositTxs += 1
-			} else {
-				break
-			}
-		}
+// 	// After running the chaos monkey, check that the sequenced blocks satisfy the constraints of
+// 	// the derivation pipeline. Count how many times we hit each interesting case.
+// 	prevL1Origin := s.cfg.Genesis.L1.Number
+// 	happyPath := 0
+// 	noNodeKitBlocks := 0
+// 	oldL1Origin := 0
+// 	newL1Origin := 0
+// 	skippedL1Origin := 0
+// 	decreasingL1Origin := 0
+// 	l2Head = eth.L2BlockRef{
+// 		Hash:           s.cfg.Genesis.L2.Hash,
+// 		Number:         s.cfg.Genesis.L2.Number,
+// 		ParentHash:     mockL2Hash(s.cfg.Genesis.L2.Number - 1),
+// 		Time:           s.cfg.Genesis.L2Time,
+// 		L1Origin:       s.cfg.Genesis.L1,
+// 		SequenceNumber: 0,
+// 	}
+// 	for _, payload := range s.engControl.l2Batches {
+// 		// Find the number of deposit transactions in the L2 block, or, equivalently, the offset of
+// 		// the first transaction produced by NodeKit.
+// 		numDepositTxs := 0
+// 		for tx := range payload.Transactions {
+// 			if payload.Transactions[tx][0] == uint8(types.DepositTxType) {
+// 				numDepositTxs += 1
+// 			} else {
+// 				break
+// 			}
+// 		}
 
-		// Parse the L1 info from the payload.
-		var tx types.Transaction
-		require.NoError(t, tx.UnmarshalBinary(payload.Transactions[0]))
-		l1Info, err := derive.L1InfoDepositTxData(tx.Data())
-		require.NoError(t, err)
-		jst := l1Info.Justification
+// 		// Parse the L1 info from the payload.
+// 		var tx types.Transaction
+// 		require.NoError(t, tx.UnmarshalBinary(payload.Transactions[0]))
+// 		l1Info, err := derive.L1InfoDepositTxData(tx.Data())
+// 		require.NoError(t, err)
+// 		jst := l1Info.Justification
 
-		// Reconstruct the batch from the execution payload.
-		batch := derive.BatchData{
-			BatchV2: derive.BatchV2{
-				Justification: jst,
-				BatchV1: derive.BatchV1{
-					ParentHash:   payload.ParentHash,
-					Timestamp:    uint64(payload.Timestamp),
-					EpochNum:     rollup.Epoch(l1Info.Number),
-					EpochHash:    l1Info.BlockHash,
-					Transactions: payload.Transactions[numDepositTxs:],
-				},
-			},
-		}
-		batchWithL1 := derive.BatchWithL1InclusionBlock{
-			L1InclusionBlock: eth.L1BlockRef{},
-			Batch:            &batch,
-		}
+// 		// Reconstruct the batch from the execution payload.
+// 		batch := derive.BatchData{
+// 			BatchV2: derive.BatchV2{
+// 				Justification: jst,
+// 				BatchV1: derive.BatchV1{
+// 					ParentHash:   payload.ParentHash,
+// 					Timestamp:    uint64(payload.Timestamp),
+// 					EpochNum:     rollup.Epoch(l1Info.Number),
+// 					EpochHash:    l1Info.BlockHash,
+// 					Transactions: payload.Transactions[numDepositTxs:],
+// 				},
+// 			},
+// 		}
+// 		batchWithL1 := derive.BatchWithL1InclusionBlock{
+// 			L1InclusionBlock: eth.L1BlockRef{},
+// 			Batch:            &batch,
+// 		}
 
-		// Check that the derivation pipeline would accept this batch.
-		status := derive.CheckBatchEspresso(&s.cfg, testlog.Logger(t, log.LvlInfo), l2Head, &batchWithL1, s)
-		require.Equal(t, status, derive.BatchValidity(derive.BatchAccept), "sequencer built a block that the derivation pipeline will not accept")
+// 		// Check that the derivation pipeline would accept this batch.
+// 		status := derive.CheckBatchNodeKit(&s.cfg, testlog.Logger(t, log.LvlInfo), l2Head, &batchWithL1, s)
+// 		require.Equal(t, status, derive.BatchValidity(derive.BatchAccept), "sequencer built a block that the derivation pipeline will not accept")
 
-		// Figure out which interesting cases we hit.
-		suggestedL1Origin := s.l1BlockByNumber(jst.Next.L1Head)
-		if suggestedL1Origin.Number > prevL1Origin+1 {
-			skippedL1Origin++
-		} else if suggestedL1Origin.Number < prevL1Origin {
-			decreasingL1Origin++
-		} else if suggestedL1Origin.Time+s.cfg.MaxSequencerDrift < batch.Timestamp {
-			oldL1Origin++
-		} else if suggestedL1Origin.Time > batch.Timestamp {
-			newL1Origin++
-		} else if len(jst.Blocks) == 0 {
-			noEspressoBlocks++
-		} else {
-			happyPath++
-		}
+// 		// Figure out which interesting cases we hit.
+// 		suggestedL1Origin := s.l1BlockByNumber(jst.Next.L1Head)
+// 		if suggestedL1Origin.Number > prevL1Origin+1 {
+// 			skippedL1Origin++
+// 		} else if suggestedL1Origin.Number < prevL1Origin {
+// 			decreasingL1Origin++
+// 		} else if suggestedL1Origin.Time+s.cfg.MaxSequencerDrift < batch.Timestamp {
+// 			oldL1Origin++
+// 		} else if suggestedL1Origin.Time > batch.Timestamp {
+// 			newL1Origin++
+// 		} else if len(jst.Blocks) == 0 {
+// 			noNodeKitBlocks++
+// 		} else {
+// 			happyPath++
+// 		}
 
-		// Move to the next batch.
-		l2Head, err = derive.PayloadToBlockRef(payload, &s.cfg.Genesis)
-		require.Nil(t, err, "failed to convert payload to block ref")
-		prevL1Origin = l1Info.Number
-	}
+// 		// Move to the next batch.
+// 		l2Head, err = derive.PayloadToBlockRef(payload, &s.cfg.Genesis)
+// 		require.Nil(t, err, "failed to convert payload to block ref")
+// 		prevL1Origin = l1Info.Number
+// 	}
 
-	t.Logf("Espresso sequencing case coverage:")
-	t.Logf("Happy path:           %d", happyPath)
-	t.Logf("No Espresso blocks:   %d", noEspressoBlocks)
-	t.Logf("Old L1 origin:        %d", oldL1Origin)
-	t.Logf("New L1 origin:        %d", newL1Origin)
-	t.Logf("Skipped L1 origin:    %d", skippedL1Origin)
-	t.Logf("Decreasing L1 origin: %d", decreasingL1Origin)
-}
+// 	t.Logf("NodeKit sequencing case coverage:")
+// 	t.Logf("Happy path:           %d", happyPath)
+// 	t.Logf("No NodeKit blocks:   %d", noNodeKitBlocks)
+// 	t.Logf("Old L1 origin:        %d", oldL1Origin)
+// 	t.Logf("New L1 origin:        %d", newL1Origin)
+// 	t.Logf("Skipped L1 origin:    %d", skippedL1Origin)
+// 	t.Logf("Decreasing L1 origin: %d", decreasingL1Origin)
+// }

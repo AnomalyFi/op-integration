@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 
-	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -83,6 +83,6 @@ func (o *OracleL1Client) InfoAndTxsByHash(ctx context.Context, hash common.Hash)
 	return info, txs, nil
 }
 
-func (o *OracleL1Client) L1HotShotCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error) {
+func (o *OracleL1Client) L1SequencerCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error) {
 	return []nodekit.Commitment{}, nil
 }

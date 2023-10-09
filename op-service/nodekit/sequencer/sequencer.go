@@ -29,18 +29,6 @@ var (
 	_ = abi.ConvertType
 )
 
-// SequencerG2Point is an auto generated low-level Go binding around an user-defined struct.
-type SequencerG2Point struct {
-	Data []byte
-}
-
-// SequencerRiscBlock is an auto generated low-level Go binding around an user-defined struct.
-type SequencerRiscBlock struct {
-	Key []byte
-	Sig []byte
-	Wb  []byte
-}
-
 // SequencerWarpBlock is an auto generated low-level Go binding around an user-defined struct.
 type SequencerWarpBlock struct {
 	Height     *big.Int
@@ -50,7 +38,7 @@ type SequencerWarpBlock struct {
 
 // SequencerMetaData contains all meta data concerning the Sequencer contract.
 var SequencerMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"contractIBonsaiRelay\",\"name\":\"bonsaiRelay\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"_blsImageId\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"expectedBlockNumber\",\"type\":\"uint256\"}],\"name\":\"IncorrectBlockNumber\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NoKeySelected\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotEnoughStake\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"numBlocks\",\"type\":\"uint256\"}],\"name\":\"TooManyBlocks\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"contractIBonsaiRelay\",\"name\":\"expected\",\"type\":\"address\"},{\"internalType\":\"contractIBonsaiRelay\",\"name\":\"found\",\"type\":\"address\"}],\"name\":\"UnauthorizedCallbackSource\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"expected\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"found\",\"type\":\"bytes32\"}],\"name\":\"UnexpectedImageId\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"name\":\"NewBlock\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"indexed\":false,\"internalType\":\"structSequencer.G2Point\",\"name\":\"stakingKey\",\"type\":\"tuple\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"NewStakingKey\",\"type\":\"event\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"key\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"sig\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"wb\",\"type\":\"bytes\"}],\"internalType\":\"structSequencer.RiscBlock\",\"name\":\"risc\",\"type\":\"tuple\"}],\"name\":\"addBlockDemo\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"internalType\":\"structSequencer.G2Point\",\"name\":\"stakingKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"addNewStakingKey\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"blockHeight\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"blsImageId\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"bonsaiRelay\",\"outputs\":[{\"internalType\":\"contractIBonsaiRelay\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"blockHeight\",\"type\":\"uint256\"}],\"name\":\"commitments\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"commitment\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"getStakingKey\",\"outputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"internalType\":\"structSequencer.G2Point\",\"name\":\"\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"block_root\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"parent_root\",\"type\":\"uint256\"}],\"internalType\":\"structSequencer.WarpBlock\",\"name\":\"warp\",\"type\":\"tuple\"}],\"name\":\"storeResult\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"expectedBlockNumber\",\"type\":\"uint256\"}],\"name\":\"IncorrectBlockNumber\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NoKeySelected\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotEnoughStake\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"numBlocks\",\"type\":\"uint256\"}],\"name\":\"TooManyBlocks\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"blockNumber\",\"type\":\"uint256\"}],\"name\":\"NewBlock\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"firstBlockNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"numBlocks\",\"type\":\"uint256\"}],\"name\":\"NewBlocks\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"MAX_BLOCKS\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"blockRoot\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"parentRoot\",\"type\":\"uint256\"}],\"internalType\":\"structSequencer.WarpBlock\",\"name\":\"warp\",\"type\":\"tuple\"}],\"name\":\"addBlock\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"blockHeight\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"blockHeight\",\"type\":\"uint256\"}],\"name\":\"commitments\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"commitment\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"blockRoot\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"parentRoot\",\"type\":\"uint256\"}],\"internalType\":\"structSequencer.WarpBlock[]\",\"name\":\"blocks\",\"type\":\"tuple[]\"}],\"name\":\"newBlocks\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // SequencerABI is the input ABI used to generate the binding from.
@@ -199,6 +187,37 @@ func (_Sequencer *SequencerTransactorRaw) Transact(opts *bind.TransactOpts, meth
 	return _Sequencer.Contract.contract.Transact(opts, method, params...)
 }
 
+// MAXBLOCKS is a free data retrieval call binding the contract method 0x26833dcc.
+//
+// Solidity: function MAX_BLOCKS() view returns(uint256)
+func (_Sequencer *SequencerCaller) MAXBLOCKS(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Sequencer.contract.Call(opts, &out, "MAX_BLOCKS")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// MAXBLOCKS is a free data retrieval call binding the contract method 0x26833dcc.
+//
+// Solidity: function MAX_BLOCKS() view returns(uint256)
+func (_Sequencer *SequencerSession) MAXBLOCKS() (*big.Int, error) {
+	return _Sequencer.Contract.MAXBLOCKS(&_Sequencer.CallOpts)
+}
+
+// MAXBLOCKS is a free data retrieval call binding the contract method 0x26833dcc.
+//
+// Solidity: function MAX_BLOCKS() view returns(uint256)
+func (_Sequencer *SequencerCallerSession) MAXBLOCKS() (*big.Int, error) {
+	return _Sequencer.Contract.MAXBLOCKS(&_Sequencer.CallOpts)
+}
+
 // BlockHeight is a free data retrieval call binding the contract method 0xf44ff712.
 //
 // Solidity: function blockHeight() view returns(uint256)
@@ -228,68 +247,6 @@ func (_Sequencer *SequencerSession) BlockHeight() (*big.Int, error) {
 // Solidity: function blockHeight() view returns(uint256)
 func (_Sequencer *SequencerCallerSession) BlockHeight() (*big.Int, error) {
 	return _Sequencer.Contract.BlockHeight(&_Sequencer.CallOpts)
-}
-
-// BlsImageId is a free data retrieval call binding the contract method 0x65a12dde.
-//
-// Solidity: function blsImageId() view returns(bytes32)
-func (_Sequencer *SequencerCaller) BlsImageId(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _Sequencer.contract.Call(opts, &out, "blsImageId")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// BlsImageId is a free data retrieval call binding the contract method 0x65a12dde.
-//
-// Solidity: function blsImageId() view returns(bytes32)
-func (_Sequencer *SequencerSession) BlsImageId() ([32]byte, error) {
-	return _Sequencer.Contract.BlsImageId(&_Sequencer.CallOpts)
-}
-
-// BlsImageId is a free data retrieval call binding the contract method 0x65a12dde.
-//
-// Solidity: function blsImageId() view returns(bytes32)
-func (_Sequencer *SequencerCallerSession) BlsImageId() ([32]byte, error) {
-	return _Sequencer.Contract.BlsImageId(&_Sequencer.CallOpts)
-}
-
-// BonsaiRelay is a free data retrieval call binding the contract method 0xe70ffd4b.
-//
-// Solidity: function bonsaiRelay() view returns(address)
-func (_Sequencer *SequencerCaller) BonsaiRelay(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _Sequencer.contract.Call(opts, &out, "bonsaiRelay")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// BonsaiRelay is a free data retrieval call binding the contract method 0xe70ffd4b.
-//
-// Solidity: function bonsaiRelay() view returns(address)
-func (_Sequencer *SequencerSession) BonsaiRelay() (common.Address, error) {
-	return _Sequencer.Contract.BonsaiRelay(&_Sequencer.CallOpts)
-}
-
-// BonsaiRelay is a free data retrieval call binding the contract method 0xe70ffd4b.
-//
-// Solidity: function bonsaiRelay() view returns(address)
-func (_Sequencer *SequencerCallerSession) BonsaiRelay() (common.Address, error) {
-	return _Sequencer.Contract.BonsaiRelay(&_Sequencer.CallOpts)
 }
 
 // Commitments is a free data retrieval call binding the contract method 0x49ce8997.
@@ -323,99 +280,46 @@ func (_Sequencer *SequencerCallerSession) Commitments(blockHeight *big.Int) (*bi
 	return _Sequencer.Contract.Commitments(&_Sequencer.CallOpts, blockHeight)
 }
 
-// GetStakingKey is a free data retrieval call binding the contract method 0x67a21e70.
+// AddBlock is a paid mutator transaction binding the contract method 0x2c1b92b6.
 //
-// Solidity: function getStakingKey(uint256 index) view returns((bytes), uint256)
-func (_Sequencer *SequencerCaller) GetStakingKey(opts *bind.CallOpts, index *big.Int) (SequencerG2Point, *big.Int, error) {
-	var out []interface{}
-	err := _Sequencer.contract.Call(opts, &out, "getStakingKey", index)
-
-	if err != nil {
-		return *new(SequencerG2Point), *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(SequencerG2Point)).(*SequencerG2Point)
-	out1 := *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-
-	return out0, out1, err
-
+// Solidity: function addBlock((uint256,uint256,uint256) warp) returns()
+func (_Sequencer *SequencerTransactor) AddBlock(opts *bind.TransactOpts, warp SequencerWarpBlock) (*types.Transaction, error) {
+	return _Sequencer.contract.Transact(opts, "addBlock", warp)
 }
 
-// GetStakingKey is a free data retrieval call binding the contract method 0x67a21e70.
+// AddBlock is a paid mutator transaction binding the contract method 0x2c1b92b6.
 //
-// Solidity: function getStakingKey(uint256 index) view returns((bytes), uint256)
-func (_Sequencer *SequencerSession) GetStakingKey(index *big.Int) (SequencerG2Point, *big.Int, error) {
-	return _Sequencer.Contract.GetStakingKey(&_Sequencer.CallOpts, index)
+// Solidity: function addBlock((uint256,uint256,uint256) warp) returns()
+func (_Sequencer *SequencerSession) AddBlock(warp SequencerWarpBlock) (*types.Transaction, error) {
+	return _Sequencer.Contract.AddBlock(&_Sequencer.TransactOpts, warp)
 }
 
-// GetStakingKey is a free data retrieval call binding the contract method 0x67a21e70.
+// AddBlock is a paid mutator transaction binding the contract method 0x2c1b92b6.
 //
-// Solidity: function getStakingKey(uint256 index) view returns((bytes), uint256)
-func (_Sequencer *SequencerCallerSession) GetStakingKey(index *big.Int) (SequencerG2Point, *big.Int, error) {
-	return _Sequencer.Contract.GetStakingKey(&_Sequencer.CallOpts, index)
+// Solidity: function addBlock((uint256,uint256,uint256) warp) returns()
+func (_Sequencer *SequencerTransactorSession) AddBlock(warp SequencerWarpBlock) (*types.Transaction, error) {
+	return _Sequencer.Contract.AddBlock(&_Sequencer.TransactOpts, warp)
 }
 
-// AddBlockDemo is a paid mutator transaction binding the contract method 0x9a53e3ec.
+// NewBlocks is a paid mutator transaction binding the contract method 0xff3379f7.
 //
-// Solidity: function addBlockDemo((bytes,bytes,bytes) risc) returns()
-func (_Sequencer *SequencerTransactor) AddBlockDemo(opts *bind.TransactOpts, risc SequencerRiscBlock) (*types.Transaction, error) {
-	return _Sequencer.contract.Transact(opts, "addBlockDemo", risc)
+// Solidity: function newBlocks((uint256,uint256,uint256)[] blocks) returns()
+func (_Sequencer *SequencerTransactor) NewBlocks(opts *bind.TransactOpts, blocks []SequencerWarpBlock) (*types.Transaction, error) {
+	return _Sequencer.contract.Transact(opts, "newBlocks", blocks)
 }
 
-// AddBlockDemo is a paid mutator transaction binding the contract method 0x9a53e3ec.
+// NewBlocks is a paid mutator transaction binding the contract method 0xff3379f7.
 //
-// Solidity: function addBlockDemo((bytes,bytes,bytes) risc) returns()
-func (_Sequencer *SequencerSession) AddBlockDemo(risc SequencerRiscBlock) (*types.Transaction, error) {
-	return _Sequencer.Contract.AddBlockDemo(&_Sequencer.TransactOpts, risc)
+// Solidity: function newBlocks((uint256,uint256,uint256)[] blocks) returns()
+func (_Sequencer *SequencerSession) NewBlocks(blocks []SequencerWarpBlock) (*types.Transaction, error) {
+	return _Sequencer.Contract.NewBlocks(&_Sequencer.TransactOpts, blocks)
 }
 
-// AddBlockDemo is a paid mutator transaction binding the contract method 0x9a53e3ec.
+// NewBlocks is a paid mutator transaction binding the contract method 0xff3379f7.
 //
-// Solidity: function addBlockDemo((bytes,bytes,bytes) risc) returns()
-func (_Sequencer *SequencerTransactorSession) AddBlockDemo(risc SequencerRiscBlock) (*types.Transaction, error) {
-	return _Sequencer.Contract.AddBlockDemo(&_Sequencer.TransactOpts, risc)
-}
-
-// AddNewStakingKey is a paid mutator transaction binding the contract method 0xb7a909fd.
-//
-// Solidity: function addNewStakingKey((bytes) stakingKey, uint256 amount) returns()
-func (_Sequencer *SequencerTransactor) AddNewStakingKey(opts *bind.TransactOpts, stakingKey SequencerG2Point, amount *big.Int) (*types.Transaction, error) {
-	return _Sequencer.contract.Transact(opts, "addNewStakingKey", stakingKey, amount)
-}
-
-// AddNewStakingKey is a paid mutator transaction binding the contract method 0xb7a909fd.
-//
-// Solidity: function addNewStakingKey((bytes) stakingKey, uint256 amount) returns()
-func (_Sequencer *SequencerSession) AddNewStakingKey(stakingKey SequencerG2Point, amount *big.Int) (*types.Transaction, error) {
-	return _Sequencer.Contract.AddNewStakingKey(&_Sequencer.TransactOpts, stakingKey, amount)
-}
-
-// AddNewStakingKey is a paid mutator transaction binding the contract method 0xb7a909fd.
-//
-// Solidity: function addNewStakingKey((bytes) stakingKey, uint256 amount) returns()
-func (_Sequencer *SequencerTransactorSession) AddNewStakingKey(stakingKey SequencerG2Point, amount *big.Int) (*types.Transaction, error) {
-	return _Sequencer.Contract.AddNewStakingKey(&_Sequencer.TransactOpts, stakingKey, amount)
-}
-
-// StoreResult is a paid mutator transaction binding the contract method 0x32c8da6f.
-//
-// Solidity: function storeResult((uint256,uint256,uint256) warp) returns()
-func (_Sequencer *SequencerTransactor) StoreResult(opts *bind.TransactOpts, warp SequencerWarpBlock) (*types.Transaction, error) {
-	return _Sequencer.contract.Transact(opts, "storeResult", warp)
-}
-
-// StoreResult is a paid mutator transaction binding the contract method 0x32c8da6f.
-//
-// Solidity: function storeResult((uint256,uint256,uint256) warp) returns()
-func (_Sequencer *SequencerSession) StoreResult(warp SequencerWarpBlock) (*types.Transaction, error) {
-	return _Sequencer.Contract.StoreResult(&_Sequencer.TransactOpts, warp)
-}
-
-// StoreResult is a paid mutator transaction binding the contract method 0x32c8da6f.
-//
-// Solidity: function storeResult((uint256,uint256,uint256) warp) returns()
-func (_Sequencer *SequencerTransactorSession) StoreResult(warp SequencerWarpBlock) (*types.Transaction, error) {
-	return _Sequencer.Contract.StoreResult(&_Sequencer.TransactOpts, warp)
+// Solidity: function newBlocks((uint256,uint256,uint256)[] blocks) returns()
+func (_Sequencer *SequencerTransactorSession) NewBlocks(blocks []SequencerWarpBlock) (*types.Transaction, error) {
+	return _Sequencer.Contract.NewBlocks(&_Sequencer.TransactOpts, blocks)
 }
 
 // SequencerNewBlockIterator is returned from FilterNewBlock and is used to iterate over the raw logs and unpacked data for NewBlock events raised by the Sequencer contract.
@@ -552,9 +456,9 @@ func (_Sequencer *SequencerFilterer) ParseNewBlock(log types.Log) (*SequencerNew
 	return event, nil
 }
 
-// SequencerNewStakingKeyIterator is returned from FilterNewStakingKey and is used to iterate over the raw logs and unpacked data for NewStakingKey events raised by the Sequencer contract.
-type SequencerNewStakingKeyIterator struct {
-	Event *SequencerNewStakingKey // Event containing the contract specifics and raw log
+// SequencerNewBlocksIterator is returned from FilterNewBlocks and is used to iterate over the raw logs and unpacked data for NewBlocks events raised by the Sequencer contract.
+type SequencerNewBlocksIterator struct {
+	Event *SequencerNewBlocks // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -568,7 +472,7 @@ type SequencerNewStakingKeyIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SequencerNewStakingKeyIterator) Next() bool {
+func (it *SequencerNewBlocksIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -577,7 +481,7 @@ func (it *SequencerNewStakingKeyIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SequencerNewStakingKey)
+			it.Event = new(SequencerNewBlocks)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -592,7 +496,7 @@ func (it *SequencerNewStakingKeyIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SequencerNewStakingKey)
+		it.Event = new(SequencerNewBlocks)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -608,43 +512,42 @@ func (it *SequencerNewStakingKeyIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SequencerNewStakingKeyIterator) Error() error {
+func (it *SequencerNewBlocksIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SequencerNewStakingKeyIterator) Close() error {
+func (it *SequencerNewBlocksIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SequencerNewStakingKey represents a NewStakingKey event raised by the Sequencer contract.
-type SequencerNewStakingKey struct {
-	StakingKey SequencerG2Point
-	Amount     *big.Int
-	Index      *big.Int
-	Raw        types.Log // Blockchain specific contextual infos
+// SequencerNewBlocks represents a NewBlocks event raised by the Sequencer contract.
+type SequencerNewBlocks struct {
+	FirstBlockNumber *big.Int
+	NumBlocks        *big.Int
+	Raw              types.Log // Blockchain specific contextual infos
 }
 
-// FilterNewStakingKey is a free log retrieval operation binding the contract event 0x7e041e0080ea314ab8d172bc7d1dcb2d96189e010969562cc950e66055385274.
+// FilterNewBlocks is a free log retrieval operation binding the contract event 0x8203a21e4f95f72e5081d5e0929b1a8c52141e123f9a14e1e74b0260fa5f52f1.
 //
-// Solidity: event NewStakingKey((bytes) stakingKey, uint256 amount, uint256 index)
-func (_Sequencer *SequencerFilterer) FilterNewStakingKey(opts *bind.FilterOpts) (*SequencerNewStakingKeyIterator, error) {
+// Solidity: event NewBlocks(uint256 firstBlockNumber, uint256 numBlocks)
+func (_Sequencer *SequencerFilterer) FilterNewBlocks(opts *bind.FilterOpts) (*SequencerNewBlocksIterator, error) {
 
-	logs, sub, err := _Sequencer.contract.FilterLogs(opts, "NewStakingKey")
+	logs, sub, err := _Sequencer.contract.FilterLogs(opts, "NewBlocks")
 	if err != nil {
 		return nil, err
 	}
-	return &SequencerNewStakingKeyIterator{contract: _Sequencer.contract, event: "NewStakingKey", logs: logs, sub: sub}, nil
+	return &SequencerNewBlocksIterator{contract: _Sequencer.contract, event: "NewBlocks", logs: logs, sub: sub}, nil
 }
 
-// WatchNewStakingKey is a free log subscription operation binding the contract event 0x7e041e0080ea314ab8d172bc7d1dcb2d96189e010969562cc950e66055385274.
+// WatchNewBlocks is a free log subscription operation binding the contract event 0x8203a21e4f95f72e5081d5e0929b1a8c52141e123f9a14e1e74b0260fa5f52f1.
 //
-// Solidity: event NewStakingKey((bytes) stakingKey, uint256 amount, uint256 index)
-func (_Sequencer *SequencerFilterer) WatchNewStakingKey(opts *bind.WatchOpts, sink chan<- *SequencerNewStakingKey) (event.Subscription, error) {
+// Solidity: event NewBlocks(uint256 firstBlockNumber, uint256 numBlocks)
+func (_Sequencer *SequencerFilterer) WatchNewBlocks(opts *bind.WatchOpts, sink chan<- *SequencerNewBlocks) (event.Subscription, error) {
 
-	logs, sub, err := _Sequencer.contract.WatchLogs(opts, "NewStakingKey")
+	logs, sub, err := _Sequencer.contract.WatchLogs(opts, "NewBlocks")
 	if err != nil {
 		return nil, err
 	}
@@ -654,8 +557,8 @@ func (_Sequencer *SequencerFilterer) WatchNewStakingKey(opts *bind.WatchOpts, si
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SequencerNewStakingKey)
-				if err := _Sequencer.contract.UnpackLog(event, "NewStakingKey", log); err != nil {
+				event := new(SequencerNewBlocks)
+				if err := _Sequencer.contract.UnpackLog(event, "NewBlocks", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -676,12 +579,12 @@ func (_Sequencer *SequencerFilterer) WatchNewStakingKey(opts *bind.WatchOpts, si
 	}), nil
 }
 
-// ParseNewStakingKey is a log parse operation binding the contract event 0x7e041e0080ea314ab8d172bc7d1dcb2d96189e010969562cc950e66055385274.
+// ParseNewBlocks is a log parse operation binding the contract event 0x8203a21e4f95f72e5081d5e0929b1a8c52141e123f9a14e1e74b0260fa5f52f1.
 //
-// Solidity: event NewStakingKey((bytes) stakingKey, uint256 amount, uint256 index)
-func (_Sequencer *SequencerFilterer) ParseNewStakingKey(log types.Log) (*SequencerNewStakingKey, error) {
-	event := new(SequencerNewStakingKey)
-	if err := _Sequencer.contract.UnpackLog(event, "NewStakingKey", log); err != nil {
+// Solidity: event NewBlocks(uint256 firstBlockNumber, uint256 numBlocks)
+func (_Sequencer *SequencerFilterer) ParseNewBlocks(log types.Log) (*SequencerNewBlocks, error) {
+	event := new(SequencerNewBlocks)
+	if err := _Sequencer.contract.UnpackLog(event, "NewBlocks", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

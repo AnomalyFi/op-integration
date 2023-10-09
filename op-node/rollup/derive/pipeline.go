@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/common"
-
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 )
 
 type Metrics interface {
@@ -225,7 +225,6 @@ func (dp *DerivationPipeline) Step(ctx context.Context) error {
 		return nil
 	}
 }
-
 
 type SequencerContractProvider interface {
 	// Verifies that a sequence of consecutive NodeKit commitments matches a trusted sequence.

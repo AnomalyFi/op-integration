@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum-optimism/optimism/op-node/testutils"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -23,18 +24,18 @@ import (
 
 //TODO this entire file needs to be fixed for NodeKit
 
-type EspressoValidBatchTestCase struct {
+type NodeKitValidBatchTestCase struct {
 	Name       string
 	L1Blocks   []eth.L1BlockRef
 	L2SafeHead eth.L2BlockRef
 	Batch      BatchWithL1InclusionBlock
 	Expected   BatchValidity
-	Headers    []espresso.Header
+	Headers    []nodekit.Header
 }
 
 type mockL1Provider struct {
 	L1Blocks []eth.L1BlockRef
-	Headers  []espresso.Header
+	Headers  []nodekit.Header
 }
 
 func (m *mockL1Provider) L1BlockRefByNumber(ctx context.Context, num uint64) (eth.L1BlockRef, error) {
@@ -48,7 +49,7 @@ func (m *mockL1Provider) FetchReceipts(ctx context.Context, blockHash common.Has
 	return nil, nil, fmt.Errorf("not implemented: FetchReceipts")
 }
 
-func (m *mockL1Provider) VerifyCommitments(firstBlockHeight uint64, comms []espresso.Commitment) (bool, error) {
+func (m *mockL1Provider) VerifyCommitments(firstBlockHeight uint64, comms []nodekit.Commitment) (bool, error) {
 	if int(firstBlockHeight)+len(comms) > len(m.Headers) {
 		return false, NewCriticalError(errors.New("Headers unavailable"))
 	}
@@ -65,19 +66,19 @@ func (m *mockL1Provider) setBlocks(blocks []eth.L1BlockRef) {
 	m.L1Blocks = blocks
 }
 
-func (m *mockL1Provider) setHeaders(headers []espresso.Header) {
+func (m *mockL1Provider) setHeaders(headers []nodekit.Header) {
 	m.Headers = headers
 }
 
-func makeHeader(timestamp uint64) espresso.Header {
-	return espresso.Header{
-		Metadata: espresso.Metadata{
+func makeHeader(timestamp uint64) nodekit.Header {
+	return nodekit.Header{
+		Metadata: nodekit.Metadata{
 			Timestamp: timestamp,
 		},
 	}
 }
 
-func TestValidBatchEspresso(t *testing.T) {
+func TestValidBatchNodeKit(t *testing.T) {
 	conf := rollup.Config{
 		Genesis: rollup.Genesis{
 			L2Time: 31, // a genesis time that itself does not align to make it more interesting
@@ -155,7 +156,7 @@ func TestValidBatchEspresso(t *testing.T) {
 	}
 
 	// Three valid windows, with varying numbers of HotShot blocks in the window.
-	hotshotHeaders := []espresso.Header{
+	hotshotHeaders := []nodekit.Header{
 		makeHeader(l2A1.Time - 1),
 		makeHeader(l2A1.Time),
 		makeHeader(l2A2.Time),
@@ -167,41 +168,39 @@ func TestValidBatchEspresso(t *testing.T) {
 	}
 
 	// Hotshot skipped an L1 block
-	hotshotSkippedHeaders := []espresso.Header{
+	hotshotSkippedHeaders := []nodekit.Header{
 		makeHeader(
 			l2B0.Time - 1,
 		),
 		{
-			Metadata: espresso.Metadata{
+			Metadata: nodekit.Metadata{
 				Timestamp: l2B0.Time,
-				L1Head:    l2A3.L1Origin.Number + 2,
 			},
 		},
 		{
-			Metadata: espresso.Metadata{
+			Metadata: nodekit.Metadata{
 				Timestamp: l2B0.Time + conf.BlockTime,
-				L1Head:    l2A3.L1Origin.Number + 2,
 			},
 		},
 	}
 
 	// Case where Hotshot window is genuinely empty
 	emptyHotshotWindowHeaders :=
-		[]espresso.Header{
+		[]nodekit.Header{
 			makeHeader(l2A1.Time - 1),
 			makeHeader(l2A1.Time + 1000),
 		}
 
-	// Case where Espresso tries to fool validator by providing a previous batch last block
+	// Case where NodeKit tries to fool validator by providing a previous batch last block
 	// That is greater than the window range.
 	hotshotDishonestHeaders :=
-		[]espresso.Header{
+		[]nodekit.Header{
 			makeHeader(l2B0.Time - 1),
 			makeHeader(l2B0.Time + 1000),
 			makeHeader(l2B0.Time + 1001),
 		}
 
-	testCases := []EspressoValidBatchTestCase{
+	testCases := []NodeKitValidBatchTestCase{
 		{
 			Name:       "valid batch where one hotshot block falls within the window",
 			L1Blocks:   []eth.L1BlockRef{l1A, l1B, l1C},
@@ -219,10 +218,9 @@ func TestValidBatchEspresso(t *testing.T) {
 					Justification: &eth.L2BatchJustification{
 						Prev: &hotshotHeaders[0],
 						From: 1,
-						Blocks: []eth.EspressoBlockJustification{
+						Blocks: []eth.NodeKitBlockJustification{
 							{
 								Header: hotshotHeaders[1],
-								Proof:  nil,
 							},
 						},
 						Next: &hotshotHeaders[2],
@@ -248,14 +246,12 @@ func TestValidBatchEspresso(t *testing.T) {
 					Justification: &eth.L2BatchJustification{
 						Prev: &hotshotHeaders[1],
 						From: 2,
-						Blocks: []eth.EspressoBlockJustification{
+						Blocks: []eth.NodeKitBlockJustification{
 							{
 								Header: hotshotHeaders[2],
-								Proof:  nil,
 							},
 							{
 								Header: hotshotHeaders[3],
-								Proof:  nil,
 							},
 						},
 						Next: &hotshotHeaders[4],
@@ -281,18 +277,15 @@ func TestValidBatchEspresso(t *testing.T) {
 					Justification: &eth.L2BatchJustification{
 						Prev: &hotshotHeaders[3],
 						From: 4,
-						Blocks: []eth.EspressoBlockJustification{
+						Blocks: []eth.NodeKitBlockJustification{
 							{
 								Header: hotshotHeaders[4],
-								Proof:  nil,
 							},
 							{
 								Header: hotshotHeaders[5],
-								Proof:  nil,
 							},
 							{
 								Header: hotshotHeaders[6],
-								Proof:  nil,
 							},
 						},
 						Next: &hotshotHeaders[7],
@@ -341,10 +334,9 @@ func TestValidBatchEspresso(t *testing.T) {
 					},
 					Justification: &eth.L2BatchJustification{
 						Prev: &hotshotSkippedHeaders[0],
-						Blocks: []eth.EspressoBlockJustification{
+						Blocks: []eth.NodeKitBlockJustification{
 							{
 								Header: hotshotSkippedHeaders[1],
-								Proof:  nil,
 							},
 						},
 						Next: &hotshotSkippedHeaders[2],
@@ -380,7 +372,7 @@ func TestValidBatchEspresso(t *testing.T) {
 			Expected: BatchDrop,
 		},
 		{
-			Name:       "invalid batch due to espresso providing a previous batch header outside of the window range",
+			Name:       "invalid batch due to nodekit providing a previous batch header outside of the window range",
 			L1Blocks:   []eth.L1BlockRef{l1A, l1B, l1C},
 			L2SafeHead: l2A3,
 			Headers:    hotshotDishonestHeaders,
@@ -396,10 +388,9 @@ func TestValidBatchEspresso(t *testing.T) {
 					},
 					Justification: &eth.L2BatchJustification{
 						Prev: &hotshotDishonestHeaders[0],
-						Blocks: []eth.EspressoBlockJustification{
+						Blocks: []eth.NodeKitBlockJustification{
 							{
 								Header: hotshotDishonestHeaders[1],
-								Proof:  nil,
 							},
 						},
 						Next: &hotshotDishonestHeaders[2],
@@ -427,10 +418,9 @@ func TestValidBatchEspresso(t *testing.T) {
 					},
 					Justification: &eth.L2BatchJustification{
 						Prev: &hotshotSkippedHeaders[0],
-						Blocks: []eth.EspressoBlockJustification{
+						Blocks: []eth.NodeKitBlockJustification{
 							{
 								Header: hotshotSkippedHeaders[1],
-								Proof:  nil,
 							},
 						},
 						Next: &hotshotSkippedHeaders[2],
@@ -456,15 +446,13 @@ func TestValidBatchEspresso(t *testing.T) {
 					},
 					Justification: &eth.L2BatchJustification{
 						Prev: &hotshotHeaders[0],
-						Blocks: []eth.EspressoBlockJustification{
+						Blocks: []eth.NodeKitBlockJustification{
 							{
 								Header: hotshotHeaders[1],
-								Proof:  nil,
 							},
 							// Include an extra block that is outside the window
 							{
 								Header: hotshotHeaders[2],
-								Proof:  nil,
 							},
 						},
 						From: 1,
@@ -533,6 +521,6 @@ func TestValidBatchEspresso(t *testing.T) {
 	}
 }
 
-func TestDefaultBatchCasesEspresso(t *testing.T) {
+func TestDefaultBatchCasesNodeKit(t *testing.T) {
 	ValidBatch(t, true)
 }

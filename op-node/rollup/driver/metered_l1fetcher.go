@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
-	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -58,9 +58,9 @@ func (m *MeteredL1Fetcher) FetchReceipts(ctx context.Context, blockHash common.H
 	return m.inner.FetchReceipts(ctx, blockHash)
 }
 
-func (m *MeteredL1Fetcher) L1HotShotCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error) {
+func (m *MeteredL1Fetcher) L1SequencerCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error) {
 	defer m.recordTime("L1SequencerCommitmentsFromHeight")()
-	return m.inner.L1HotShotCommitmentsFromHeight(firstBlockHeight, numHeaders, sequencerAddr)
+	return m.inner.L1SequencerCommitmentsFromHeight(firstBlockHeight, numHeaders, sequencerAddr)
 }
 
 var _ derive.L1Fetcher = (*MeteredL1Fetcher)(nil)

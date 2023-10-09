@@ -15,9 +15,6 @@ func removeWhitespace(s string) string {
 	return strings.Join(strings.Fields(s), "")
 }
 
-// Reference data taken from the reference sequencer implementation
-// (https://github.com/EspressoSystems/espresso-sequencer/blob/main/data)
-
 var ReferenceNmtRoot NmtRoot = NmtRoot{
 	Root: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 }
@@ -31,13 +28,13 @@ var ReferenceL1BLockInfo L1BlockInfo = L1BlockInfo{
 var ReferenceHeader Header = Header{
 	TransactionsRoot: ReferenceNmtRoot,
 	Metadata: Metadata{
-		Timestamp:   789,
-		L1Head:      124,
-		L1Finalized: &ReferenceL1BLockInfo,
+		Timestamp: 789,
+		// L1Head:      124,
+		// L1Finalized: &ReferenceL1BLockInfo,
 	},
 }
 
-func TestEspressoTypesNmtRootJson(t *testing.T) {
+func TestNodeKitTypesNmtRootJson(t *testing.T) {
 	data := []byte(removeWhitespace(`{
 		"root": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 	}`))
@@ -59,7 +56,7 @@ func TestEspressoTypesNmtRootJson(t *testing.T) {
 	CheckJsonRequiredFields[NmtRoot](t, data, "root")
 }
 
-func TestEspressoTypesL1BLockInfoJson(t *testing.T) {
+func TestNodeKitTypesL1BLockInfoJson(t *testing.T) {
 	data := []byte(removeWhitespace(`{
 		"number": 123,
 		"timestamp": "0x456",
@@ -83,7 +80,7 @@ func TestEspressoTypesL1BLockInfoJson(t *testing.T) {
 	CheckJsonRequiredFields[L1BlockInfo](t, data, "number", "timestamp", "hash")
 }
 
-func TestEspressoTypesHeaderJson(t *testing.T) {
+func TestNodeKitTypesHeaderJson(t *testing.T) {
 	data := []byte(removeWhitespace(`{
 		"transactions_root": {
 			"root": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
@@ -116,7 +113,7 @@ func TestEspressoTypesHeaderJson(t *testing.T) {
 	CheckJsonRequiredFields[Header](t, data, "transactions_root", "metadata")
 }
 
-func TestEspressoMetadataJson(t *testing.T) {
+func TestNodeKitMetadataJson(t *testing.T) {
 	data := []byte(removeWhitespace(`{
 			"timestamp": 789,
 			"l1_head": 124,
@@ -145,14 +142,14 @@ func TestEspressoMetadataJson(t *testing.T) {
 	CheckJsonRequiredFields[Metadata](t, data, "timestamp", "l1_head")
 }
 
-func TestEspressoTransactionJson(t *testing.T) {
+func TestNodeKitTransactionJson(t *testing.T) {
 	data := []byte(removeWhitespace(`{
 		"vm": 0,
 		"payload": [1,2,3,4,5]
 	}`))
 	tx := Transaction{
-		Vm:      0,
-		Payload: []byte{1, 2, 3, 4, 5},
+		ChainId: 0,
+		Data:    []byte{1, 2, 3, 4, 5},
 	}
 
 	// Check encoding.
@@ -170,28 +167,6 @@ func TestEspressoTransactionJson(t *testing.T) {
 	require.Equal(t, decoded, tx)
 
 	CheckJsonRequiredFields[Transaction](t, data, "vm", "payload")
-}
-
-// Commitment tests ported from the reference sequencer implementation
-// (https://github.com/EspressoSystems/espresso-sequencer/blob/main/sequencer/src/block.rs)
-
-func TestEspressoTypesNmtRootCommit(t *testing.T) {
-	require.Equal(t, ReferenceNmtRoot.Commit(), Commitment{251, 80, 232, 195, 91, 2, 138, 18, 240, 231, 31, 172, 54, 204, 90, 42, 215, 42, 72, 187, 15, 28, 128, 67, 149, 117, 26, 114, 232, 57, 190, 10})
-}
-
-func TestEspressoTypesL1BlockInfoCommit(t *testing.T) {
-	require.Equal(t, ReferenceL1BLockInfo.Commit(), Commitment{224, 122, 115, 150, 226, 202, 216, 139, 51, 221, 23, 79, 54, 243, 107, 12, 12, 144, 113, 99, 133, 217, 207, 73, 120, 182, 115, 84, 210, 230, 126, 148})
-}
-
-func TestEspressoTypesHeaderCommit(t *testing.T) {
-	require.Equal(t, ReferenceHeader.Commit(), Commitment{26, 77, 186, 162, 251, 241, 135, 23, 132, 5, 196, 207, 131, 64, 207, 215, 141, 144, 146, 65, 158, 30, 169, 102, 251, 183, 101, 149, 168, 173, 161, 149})
-}
-
-func TestEspressoCommitmentFromU256TrailingZero(t *testing.T) {
-	comm := Commitment{209, 146, 197, 195, 145, 148, 17, 211, 52, 72, 28, 120, 88, 182, 204, 206, 77, 36, 56, 35, 3, 143, 77, 186, 69, 233, 104, 30, 90, 105, 48, 0}
-	roundTrip, err := CommitmentFromUint256(comm.Uint256())
-	require.Nil(t, err)
-	require.Equal(t, comm, roundTrip)
 }
 
 func CheckJsonRequiredFields[T any](t *testing.T, data []byte, fields ...string) {

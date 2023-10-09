@@ -52,7 +52,7 @@ type BatchV2 struct {
 }
 
 type BatchData struct {
-	BatchV1
+	BatchV2
 	// batches may contain additional data with new upgrades
 }
 
@@ -78,7 +78,7 @@ func (b *BatchData) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-//TODO does this need to change for v2?
+// TODO does this need to change for v2?
 func (b *BatchData) encodeTyped(buf *bytes.Buffer) error {
 	if b.Justification == nil {
 		buf.WriteByte(BatchV1Type)

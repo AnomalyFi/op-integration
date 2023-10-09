@@ -45,10 +45,10 @@ var (
 		Value:   6 * time.Second,
 		EnvVars: prefixEnvVars("POLL_INTERVAL"),
 	}
-	DaRpcFlag = cli.StringFlag{
-		Name:     "da-rpc",
-		Usage:    "HTTP provider URL for DA node",
-		EnvVar:   prefixEnvVars("DA_RPC"),
+	DaRpcFlag = &cli.StringFlag{
+		Name:    "da-rpc",
+		Usage:   "HTTP provider URL for DA node",
+		EnvVars: prefixEnvVars("DA_RPC"),
 	}
 	AllowNonFinalizedFlag = &cli.BoolFlag{
 		Name:    "allow-non-finalized",

@@ -40,6 +40,6 @@ func (m *MockL1Source) ExpectL1BlockRefByHash(hash common.Hash, ref eth.L1BlockR
 	m.Mock.On("L1BlockRefByHash", hash).Once().Return(ref, &err)
 }
 
-func (m *MockL1Source) L1HotShotCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error) {
+func (m *MockL1Source) L1SequencerCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error) {
 	return []nodekit.Commitment{}, nil
 }

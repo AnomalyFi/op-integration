@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// Interface to the Espresso Sequencer query service.
+// Interface to the NodeKit Sequencer query service.
 type QueryService interface {
 	// Get all the available headers whose timestamps fall in the window [start, end).
 	FetchHeadersForWindow(ctx context.Context, start uint64, end uint64) (WindowStart, error)
@@ -100,14 +100,14 @@ type TransactionsInBlock struct {
 	// The transactions.
 	Transactions []Bytes `json:"transactions"`
 	// A proof that these are all the transactions in the block with the requested namespace.
-	Proof NmtProof `json:"proof"`
+	//Proof NmtProof `json:"proof"`
 }
 
 func (t *TransactionsInBlock) UnmarshalJSON(b []byte) error {
 	// Parse using pointers so we can distinguish between missing and default fields.
 	type Dec struct {
-		Transactions *[]Bytes  `json:"transactions"`
-		Proof        *NmtProof `json:"proof"`
+		Transactions *[]Bytes `json:"transactions"`
+		//Proof        *NmtProof `json:"proof"`
 	}
 
 	var dec Dec
@@ -120,10 +120,10 @@ func (t *TransactionsInBlock) UnmarshalJSON(b []byte) error {
 	}
 	t.Transactions = *dec.Transactions
 
-	if dec.Proof == nil {
-		return fmt.Errorf("Field proof of type TransactionsInBlock is required")
-	}
-	t.Proof = *dec.Proof
+	// if dec.Proof == nil {
+	// 	return fmt.Errorf("Field proof of type TransactionsInBlock is required")
+	// }
+	//t.Proof = *dec.Proof
 
 	return nil
 }

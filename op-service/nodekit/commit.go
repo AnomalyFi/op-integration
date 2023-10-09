@@ -37,6 +37,7 @@ func CommitmentFromUint256(n *U256) (Commitment, error) {
 }
 
 func (c Commitment) Uint256() *U256 {
+	//! TODO I may not do this for mine
 	var bigEndian [32]byte
 	for i, b := range c {
 		// HotShot interprets the commitment as a little-endian integer. `SetBytes` takes the bytes
@@ -111,7 +112,7 @@ func (b *RawCommitmentBuilder) Uint256(n *U256) *RawCommitmentBuilder {
 	bytes := make([]byte, 32)
 	n.FillBytes(bytes)
 
-	// `FillBytes` uses big endian byte ordering, but the Espresso commitment scheme uses little
+	// `FillBytes` uses big endian byte ordering, but the SEQ commitment scheme uses little
 	// endian, so we need to reverse the bytes.
 	for i, j := 0, len(bytes)-1; i < j; i, j = i+1, j-1 {
 		bytes[i], bytes[j] = bytes[j], bytes[i]

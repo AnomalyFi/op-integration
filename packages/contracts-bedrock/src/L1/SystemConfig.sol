@@ -20,7 +20,8 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         BATCHER,
         GAS_CONFIG,
         GAS_LIMIT,
-        UNSAFE_BLOCK_SIGNER
+        UNSAFE_BLOCK_SIGNER,
+        NODEKIT
     }
 
     /// @notice Struct representing the addresses of L1 system contracts. These should be the
@@ -83,6 +84,10 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
 
     /// @notice L2 block gas limit.
     uint64 public gasLimit;
+
+    /// @notice Is NodeKit SEQ being used or not
+    bool public nodekit;
+
 
     /// @notice The configuration for the deposit fee market.
     ///         Used by the OptimismPortal to meter the cost of buying L2 gas on L1.
@@ -156,6 +161,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         uint256 _scalar,
         bytes32 _batcherHash,
         uint64 _gasLimit,
+        bool _nodekit,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config,
         uint256 _startBlock,
@@ -173,6 +179,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         _setGasConfig({ _overhead: _overhead, _scalar: _scalar });
         _setGasLimit(_gasLimit);
         _setUnsafeBlockSigner(_unsafeBlockSigner);
+        _setNodeKit(_nodekit);
 
         _setAddress(_batchInbox, BATCH_INBOX_SLOT);
         _setAddress(_addresses.l1CrossDomainMessenger, L1_CROSS_DOMAIN_MESSENGER_SLOT);
@@ -298,6 +305,17 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
 
         bytes memory data = abi.encode(_unsafeBlockSigner);
         emit ConfigUpdate(VERSION, UpdateType.UNSAFE_BLOCK_SIGNER, data);
+    }
+
+    function setNodeKit(bool _nodekit) external onlyOwner {
+        _setNodeKit(_nodekit);
+    }
+
+    function _setNodeKit(bool _nodekit) internal {
+        nodekit = _nodekit;
+
+        bytes memory data = abi.encode(_nodekit);
+        emit ConfigUpdate(VERSION, UpdateType.NODEKIT, data);
     }
 
     /// @notice Updates the batcher hash. Can only be called by the owner.

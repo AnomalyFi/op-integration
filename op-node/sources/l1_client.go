@@ -15,9 +15,9 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/sources/caching"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum-optimism/optimism/op-service/nodekit/sequencer"
-	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 type L1ClientConfig struct {
@@ -120,19 +120,19 @@ func (s *L1Client) L1BlockRefByHash(ctx context.Context, hash common.Hash) (eth.
 	return ref, nil
 }
 
-//TODO fix the below stuff
+// TODO fix the below stuff
 // L1HotShotCommitmentsFromHeight returns an array of HotShot commitments to sequencer blocks
-// This is used in the derivation pipeline to validate sequencer batches in Espresso mode
-func (s *L1Client) L1HotShotCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, hotshotAddr common.Address) ([]espresso.Commitment, error) {
-	var comms []espresso.Commitment
+// This is used in the derivation pipeline to validate sequencer batches in NodeKit mode
+func (s *L1Client) L1SequencerCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, seqAddr common.Address) ([]nodekit.Commitment, error) {
+	var comms []nodekit.Commitment
 	client := ethclient.NewClient(s.client.RawClient())
-	hotshot, err := hotshot.NewHotshot(hotshotAddr, client)
+	seq, err := sequencer.NewSequencer(seqAddr, client)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if the requested commitments are even available yet on L1.
-	blockHeight, err := hotshot.HotshotCaller.BlockHeight(nil)
+	blockHeight, err := seq.SequencerCaller.BlockHeight(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (s *L1Client) L1HotShotCommitmentsFromHeight(firstBlockHeight uint64, numHe
 
 	for i := 0; i < int(numHeaders); i++ {
 		height := big.NewInt(int64(firstBlockHeight + uint64(i)))
-		commAsInt, err := hotshot.HotshotCaller.Commitments(nil, height)
+		commAsInt, err := seq.SequencerCaller.Commitments(nil, height)
 		if err != nil {
 			return comms, err
 		}
@@ -160,7 +160,7 @@ func (s *L1Client) L1HotShotCommitmentsFromHeight(firstBlockHeight uint64, numHe
 			// trying to read on the current fork of L1.
 			return nil, fmt.Errorf("read 0 for commitment %d below block height %d, this indicates an L1 reorg", firstBlockHeight+uint64(i), blockHeight)
 		}
-		comm, err := espresso.CommitmentFromUint256(espresso.NewU256().SetBigInt(commAsInt))
+		comm, err := nodekit.CommitmentFromUint256(nodekit.NewU256().SetBigInt(commAsInt))
 		if err != nil {
 			return comms, err
 		}

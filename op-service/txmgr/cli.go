@@ -124,15 +124,15 @@ func CLIFlags(envPrefix string) []cli.Flag {
 			EnvVars: prefixEnvVars("TXMGR_RECEIPT_QUERY_INTERVAL"),
 		},
 		&cli.StringFlag{
-			Name:   NamespaceIdFlagName,
-			Usage:  "Namespace ID of the DA layer",
-			Value:  "000008e5f679bf7116cb",
+			Name:    NamespaceIdFlagName,
+			Usage:   "Namespace ID of the DA layer",
+			Value:   "000008e5f679bf7116cb",
 			EnvVars: prefixEnvVars("NAMESPACE_ID"),
 		},
 		&cli.StringFlag{
-			Name:   AuthTokenFlagName,
-			Usage:  "Authentication Token of the DA layer",
-			Value:  "",
+			Name:    AuthTokenFlagName,
+			Usage:   "Authentication Token of the DA layer",
+			Value:   "",
 			EnvVars: prefixEnvVars("AUTH_TOKEN"),
 		},
 	}, client.CLIFlags(envPrefix)...)
@@ -216,9 +216,9 @@ func ReadCLIConfig(ctx *cli.Context) CLIConfig {
 		NetworkTimeout:            ctx.Duration(NetworkTimeoutFlagName),
 		TxSendTimeout:             ctx.Duration(TxSendTimeoutFlagName),
 		TxNotInMempoolTimeout:     ctx.Duration(TxNotInMempoolTimeoutFlagName),
-		DaRpc:                     ctx.GlobalString(DaRpcFlagName),
-		NamespaceId:               ctx.GlobalString(NamespaceIdFlagName),
-		AuthToken:               ctx.GlobalString(AuthTokenFlagName),
+		DaRpc:                     ctx.String(DaRpcFlagName),
+		NamespaceId:               ctx.String(NamespaceIdFlagName),
+		AuthToken:                 ctx.String(AuthTokenFlagName),
 	}
 }
 

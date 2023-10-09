@@ -249,7 +249,7 @@ type NodeKitBlockJustification struct {
 	// Proof that a certain range of transactions corresponds to the NodeKit block with Header.
 	// This proof may be empty in the case where the L2 batch is forced to be empty due to its L1
 	// origin being too old.
-	Proof nodekit.NmtProof `json:"proof"`
+	//Proof nodekit.NmtProof `json:"proof"`
 }
 
 // Justification for the inclusion of a range of NodeKit blocks in an L2 batch.
@@ -328,7 +328,7 @@ type SystemConfig struct {
 	Overhead Bytes32 `json:"overhead"`
 	// Scalar identifies the L1 fee scalar, and is passed through opaquely to op-geth.
 	Scalar Bytes32 `json:"scalar"`
-	// Whether to use the Espresso sequencer
+	// Whether to use NodeKit SEQ
 	NodeKit bool `json:"nodekit"`
 	// GasLimit identifies the L2 block gas limit
 	GasLimit uint64 `json:"gasLimit"`

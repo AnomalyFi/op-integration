@@ -1,6 +1,8 @@
 COMPOSEFLAGS=-d
 ITESTS_L2_HOST=http://localhost:9545
 BEDROCK_TAGS_REMOTE?=origin
+DEVNET_NODEKIT_FLAGS=--nodekit --deploy-config="devnetL1-nodekit.json" --deploy-config-template="devnetL1-nodekit-template.json" --deployment="devnetL1-nodekit" --devnet-dir=".devnet-nodekit" --l2-provider-url="http://localhost:19090"
+monorepo-base := $(realpath .)
 
 build: build-go build-ts
 .PHONY: build
@@ -31,6 +33,13 @@ op-bindings:
 	make -C ./op-bindings
 .PHONY: op-bindings
 
+make op-bindings-docker:
+	docker run -v $(monorepo-base):/work -it us-docker.pkg.dev/oplabs-tools-artifacts/images/ci-builder make -C /work op-bindings
+	echo "Asking for root permissions to set owner of files to ${USER} after docker run"
+	sudo chown -R ${USER} $(monorepo-base)
+
+.PHONY: op-bindings-docker
+
 op-node:
 	make -C ./op-node op-node
 .PHONY: op-node
@@ -58,6 +67,10 @@ op-challenger:
 op-program:
 	make -C ./op-program op-program
 .PHONY: op-program
+
+op-geth-proxy:
+	make -C ./op-geth-proxy op-geth-proxy
+.PHONY: op-geth-proxy
 
 cannon:
 	make -C ./cannon cannon
@@ -96,6 +109,15 @@ devnet-up:
 	PYTHONPATH=./bedrock-devnet python3 ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
 
+devnet-up-nodekit:
+	$(shell ./ops/scripts/newer-file.sh .devnet-nodekit/allocs-l1.json ./packages/contracts-bedrock)
+	if [ $(.SHELLSTATUS) -ne 0 ]; then \
+		make devnet-allocs-nodekit; \
+	fi
+	PYTHONPATH=./bedrock-devnet python3 ./bedrock-devnet/main.py --monorepo-dir=. $(DEVNET_NODEKIT_FLAGS)
+.PHONY: devnet-up-nodekit
+
+
 # alias for devnet-up
 devnet-up-deploy: devnet-up
 
@@ -104,12 +126,14 @@ devnet-test:
 .PHONY: devnet-test
 
 devnet-down:
-	@(cd ./ops-bedrock && GENESIS_TIMESTAMP=$(shell date +%s) docker compose stop)
+	@(cd ./ops-bedrock && GENESIS_TIMESTAMP=$(shell date +%s) docker compose down -v)
 .PHONY: devnet-down
 
 devnet-clean:
 	rm -rf ./packages/contracts-bedrock/deployments/devnetL1
+	rm -rf ./packages/contracts-bedrock/deployments/devnetL1-nodekit
 	rm -rf ./.devnet
+	rm -rf ./.devnet-nodekit
 	cd ./ops-bedrock && docker compose down
 	docker image ls 'ops-bedrock*' --format='{{.Repository}}' | xargs -r docker rmi
 	docker volume ls --filter name=ops-bedrock --format='{{.Name}}' | xargs -r docker volume rm
@@ -118,9 +142,24 @@ devnet-clean:
 devnet-allocs:
 	PYTHONPATH=./bedrock-devnet python3 ./bedrock-devnet/main.py --monorepo-dir=. --allocs
 
+devnet-allocs-nodekit:
+	PYTHONPATH=./bedrock-devnet python3 ./bedrock-devnet/main.py --monorepo-dir=. $(DEVNET_NODEKIT_FLAGS) --allocs
+
 devnet-logs:
 	@(cd ./ops-bedrock && docker compose logs -f)
-	.PHONY: devnet-logs
+.PHONY: devnet-logs
+
+devnet-build:
+	@(cd ./ops-bedrock && docker compose build)
+.PHONY: devnet-build
+
+devnet-pull:
+	@(cd ./ops-bedrock && docker compose pull)
+.PHONY: devnet-pull
+
+e2e-pull:
+	@(cd ./op-e2e && docker-compose pull)
+.PHONY: e2e-pull
 
 test-unit:
 	make -C ./op-node test
@@ -160,3 +199,13 @@ bedrock-markdown-links:
 
 install-geth:
 	go install github.com/ethereum/go-ethereum/cmd/geth@v1.12.0
+
+generate-sequencer-binding:
+# solc --abi Sequencer.sol -o ~/code/nodekit-zk
+	abigen --abi ./op-service/nodekit/sequencer/Sequencer.abi.json --pkg sequencer --out ./op-service/nodekit/sequencer/sequencer.go
+	rm ./op-service/nodekit/sequencer/Sequencer.abi.json
+
+
+#TODO this is how I deploy
+#export MNEMONIC="test test test test test test test test test test test junk"
+# forge script DeploySequencer --broadcast --rpc-url http://192.168.0.230:8545

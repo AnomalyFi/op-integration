@@ -2,6 +2,7 @@ package txmgr
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -22,9 +23,9 @@ import (
 	openrpcns "github.com/rollkit/celestia-openrpc/types/namespace"
 	"github.com/rollkit/celestia-openrpc/types/share"
 
+	"github.com/ethereum-optimism/optimism/op-celestia/celestia"
 	"github.com/ethereum-optimism/optimism/op-service/retry"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
-	"github.com/ethereum-optimism/optimism/op-celestia/celestia"
 )
 
 const (
@@ -131,15 +132,15 @@ func NewSimpleTxManagerFromConfig(name string, l log.Logger, m metrics.TxMetrice
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	daClient, err := openrpc.NewClient(context.Background(), cfg.DaRpc, cfg.AuthToken)
+	daClient, err := openrpc.NewClient(context.Background(), conf.DaRpc, conf.AuthToken)
 	if err != nil {
 		return nil, err
 	}
 
-	if cfg.NamespaceId == "" {
+	if conf.NamespaceId == "" {
 		return nil, errors.New("namespace id cannot be blank")
 	}
-	nsBytes, err := hex.DecodeString(cfg.NamespaceId)
+	nsBytes, err := hex.DecodeString(conf.NamespaceId)
 	if err != nil {
 		return nil, err
 	}
@@ -150,14 +151,14 @@ func NewSimpleTxManagerFromConfig(name string, l log.Logger, m metrics.TxMetrice
 	}
 
 	return &SimpleTxManager{
-		chainID: conf.ChainID,
+		chainID:   conf.ChainID,
 		daClient:  daClient,
 		namespace: namespace.ToAppNamespace(),
-		name:    name,
-		cfg:     conf,
-		backend: conf.Backend,
-		l:       l.New("service", name),
-		metr:    m,
+		name:      name,
+		cfg:       conf,
+		backend:   conf.Backend,
+		l:         l.New("service", name),
+		metr:      m,
 	}, nil
 }
 
@@ -235,7 +236,7 @@ func (m *SimpleTxManager) send(ctx context.Context, candidate TxCandidate) (*typ
 			m.l.Warn("unable to wait for celestia header sync", "err", err)
 			return nil, err
 		}
-		height, err := m.daClient.Blob.Submit(ctx, []*blob.Blob{dataBlob})
+		height, err := m.daClient.Blob.Submit(ctx, []*blob.Blob{dataBlob}, nil)
 		if err != nil {
 			m.l.Warn("unable to publish tx to celestia", "err", err)
 			return nil, err
@@ -246,7 +247,7 @@ func (m *SimpleTxManager) send(ctx context.Context, candidate TxCandidate) (*typ
 			return nil, errors.New("unexpected response code")
 		}
 		frameRef := celestia.FrameRef{
-			BlockHeight: height,
+			BlockHeight:  height,
 			TxCommitment: com,
 		}
 		frameRefData, _ := frameRef.MarshalBinary()
