@@ -193,7 +193,7 @@ func (t *Transaction) UnmarshalJSON(b []byte) error {
 type BatchMerkleProof = Bytes
 
 // A bytes type which serializes to JSON as an array, rather than a base64 string. This ensures
-// compatibility with the Espresso APIs.
+// compatibility with the NodeKit APIs.
 type Bytes []byte
 
 // TODO do I want this or can I use a base64?
