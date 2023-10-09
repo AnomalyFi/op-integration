@@ -148,7 +148,7 @@ func TestNodeKitTransactionJson(t *testing.T) {
 		"payload": [1,2,3,4,5]
 	}`))
 	tx := Transaction{
-		ChainId: 0,
+		ChainId: string(0),
 		Data:    []byte{1, 2, 3, 4, 5},
 	}
 

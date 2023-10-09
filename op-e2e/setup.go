@@ -5,17 +5,13 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"math/big"
-	prng "math/rand"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -615,17 +611,17 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 				L2Time:       l2Genesis.Timestamp,
 				SystemConfig: e2eutils.SystemConfigFromDeployConfig(cfg.DeployConfig),
 			},
-			BlockTime:              cfg.DeployConfig.L2BlockTime,
-			MaxSequencerDrift:      cfg.DeployConfig.MaxSequencerDrift,
-			SeqWindowSize:          cfg.DeployConfig.SequencerWindowSize,
-			ChannelTimeout:         cfg.DeployConfig.ChannelTimeout,
-			L1ChainID:              cfg.L1ChainIDBig(),
-			L2ChainID:              cfg.L2ChainIDBig(),
-			BatchInboxAddress:      cfg.DeployConfig.BatchInboxAddress,
-			HotShotContractAddress: cfg.DeployConfig.HotShotContractAddress,
-			DepositContractAddress: cfg.DeployConfig.OptimismPortalProxy,
-			L1SystemConfigAddress:  cfg.DeployConfig.SystemConfigProxy,
-			RegolithTime:           cfg.DeployConfig.RegolithTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
+			BlockTime:                cfg.DeployConfig.L2BlockTime,
+			MaxSequencerDrift:        cfg.DeployConfig.MaxSequencerDrift,
+			SeqWindowSize:            cfg.DeployConfig.SequencerWindowSize,
+			ChannelTimeout:           cfg.DeployConfig.ChannelTimeout,
+			L1ChainID:                cfg.L1ChainIDBig(),
+			L2ChainID:                cfg.L2ChainIDBig(),
+			BatchInboxAddress:        cfg.DeployConfig.BatchInboxAddress,
+			SequencerContractAddress: cfg.DeployConfig.SequencerContractAddress,
+			DepositContractAddress:   cfg.DeployConfig.OptimismPortalProxy,
+			L1SystemConfigAddress:    cfg.DeployConfig.SystemConfigProxy,
+			RegolithTime:             cfg.DeployConfig.RegolithTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
 		}
 	}
 	defaultConfig := makeRollupConfig()

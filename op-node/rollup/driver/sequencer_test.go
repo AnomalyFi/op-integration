@@ -21,11 +21,11 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum-optimism/optimism/op-node/testutils"
-	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 )
 
-//TODO fix this file
+// TODO fix this file
 var mockResetErr = fmt.Errorf("mock reset err: %w", derive.ErrReset)
 
 type FakeEngineControl struct {
@@ -153,14 +153,14 @@ type TestSequencer struct {
 	cfg        rollup.Config
 	seq        *Sequencer
 	engControl FakeEngineControl
-	nodekit   *FakeNodeKitClient
+	nodekit    *FakeNodeKitClient
 
 	clockTime time.Time
 	clockFn   func() time.Time
 	l1Times   map[eth.BlockID]uint64
 
-	attrsErr    error
-	originErr   error
+	attrsErr   error
+	originErr  error
 	nodekitErr error
 }
 
@@ -400,10 +400,10 @@ func (s *TestSequencer) FetchTransactionsInBlock(ctx context.Context, block uint
 	txs := s.nodekit.Blocks[block].Transactions
 
 	// Fake an NMT proof.
-	proof := nodekit.NmtProof{}
+	//proof := nodekit.NmtProof{}
 	return nodekit.TransactionsInBlock{
 		Transactions: txs,
-		Proof:        proof,
+		//	Proof:        proof,
 	}, nil
 }
 
