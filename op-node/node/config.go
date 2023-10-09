@@ -24,8 +24,6 @@ type Config struct {
 
 	Rollup rollup.Config
 
-	DAConfig rollup.DAConfig
-
 	// Address of NodeKit sequencer
 	NodeKitUrl string
 

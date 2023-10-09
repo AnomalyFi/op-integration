@@ -13,7 +13,6 @@ RUN go mod download
 
 # build op-batcher with the shared go.mod & go.sum files
 COPY ./op-batcher /app/op-batcher
-COPY ./op-celestia /app/op-celestia
 COPY ./op-bindings /app/op-bindings
 COPY ./op-node /app/op-node
 COPY ./op-service /app/op-service

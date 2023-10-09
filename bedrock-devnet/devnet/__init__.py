@@ -212,7 +212,7 @@ def devnet_deploy(paths, args):
     l2 = args.l2
     l2_provider_url = args.l2_provider_url
     compose_file = args.compose_file
-    celestia_node_auth_token = ""
+    #celestia_node_auth_token = ""
 
 
     if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
@@ -246,19 +246,19 @@ def devnet_deploy(paths, args):
     else:
         # Deploy DA
         log.info('Starting L1.')
-        run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'da'], cwd=paths.ops_bedrock_dir, env={
-            'PWD': paths.ops_bedrock_dir,
-            'DEVNET_DIR': paths.devnet_dir
-        })
+        # run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'da'], cwd=paths.ops_bedrock_dir, env={
+        #     'PWD': paths.ops_bedrock_dir,
+        #     'DEVNET_DIR': paths.devnet_dir
+        # })
 
-        wait_up_da('http://localhost:26659')
+        # wait_up_da('http://localhost:26659')
 
-        res = run_command(
-            ["docker", "exec", "ops-bedrock-da-1", "celestia", "bridge", "auth", "admin", "--node.store", "/bridge"],
-            capture_output=True,
-        )
+        # res = run_command(
+        #     ["docker", "exec", "ops-bedrock-da-1", "celestia", "bridge", "auth", "admin", "--node.store", "/bridge"],
+        #     capture_output=True,
+        # )
 
-        celestia_node_auth_token = str(res.stdout.strip())
+        # celestia_node_auth_token = str(res.stdout.strip())
 
 
     # Re-build the L2 genesis unconditionally in NodeKit mode, since we require the timestamps to be recent.
@@ -306,7 +306,7 @@ def devnet_deploy(paths, args):
         'L2OO_ADDRESS': l2_output_oracle,
         'SEQUENCER_BATCH_INBOX_ADDRESS': batch_inbox_address,
         'DEVNET_DIR': paths.devnet_dir,
-        'OP_BATCHER_AUTH_TOKEN': celestia_node_auth_token
+        #'OP_BATCHER_AUTH_TOKEN': celestia_node_auth_token
     })
 
     log.info('Starting block explorer')
@@ -421,23 +421,23 @@ def wait_up(port, retries=10, wait_secs=1):
 
     raise Exception(f'Timed out waiting for port {port}.')
 
-def wait_up_da(url):
-    log.info(f'Waiting for RPC server at {url}')
+# def wait_up_da(url):
+#     log.info(f'Waiting for RPC server at {url}')
 
-    conn = http.client.HTTPConnection(url)
+#     conn = http.client.HTTPConnection(url)
 
-    while True:
-        try:
-            conn.request('GET', '/header/1')
-            response = conn.getresponse()
-            conn.close()
-            if response.status < 300:
-                log.info(f'DA server at {url} ready')
-                return
-        except Exception as e:
-            log.info(f'Error connecting to DA: {e}')
-            log.info(f'Waiting for DA server at {url}')
-            time.sleep(1)
+#     while True:
+#         try:
+#             conn.request('GET', '/header/1')
+#             response = conn.getresponse()
+#             conn.close()
+#             if response.status < 300:
+#                 log.info(f'DA server at {url} ready')
+#                 return
+#         except Exception as e:
+#             log.info(f'Error connecting to DA: {e}')
+#             log.info(f'Waiting for DA server at {url}')
+#             time.sleep(1)
 
 def write_json(path, data):
     with open(path, 'w+') as f:

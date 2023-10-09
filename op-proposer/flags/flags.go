@@ -45,11 +45,6 @@ var (
 		Value:   6 * time.Second,
 		EnvVars: prefixEnvVars("POLL_INTERVAL"),
 	}
-	DaRpcFlag = &cli.StringFlag{
-		Name:    "da-rpc",
-		Usage:   "HTTP provider URL for DA node",
-		EnvVars: prefixEnvVars("DA_RPC"),
-	}
 	AllowNonFinalizedFlag = &cli.BoolFlag{
 		Name:    "allow-non-finalized",
 		Usage:   "Allow the proposer to submit proposals for L2 blocks derived from non-finalized L1 blocks.",
@@ -67,7 +62,6 @@ var requiredFlags = []cli.Flag{
 
 var optionalFlags = []cli.Flag{
 	PollIntervalFlag,
-	DaRpcFlag,
 	AllowNonFinalizedFlag,
 	L2OutputHDPathFlag,
 }

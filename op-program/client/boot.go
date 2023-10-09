@@ -36,8 +36,6 @@ type BootInfo struct {
 
 	L2ChainConfig *params.ChainConfig
 	RollupConfig  *rollup.Config
-	DAConfig      *rollup.DAConfig
-
 }
 
 type oracleClient interface {
@@ -52,7 +50,7 @@ func NewBootstrapClient(r oracleClient) *BootstrapClient {
 	return &BootstrapClient{r: r}
 }
 
-//TODO will need to change this for DAConfig
+// TODO will need to change this for DAConfig
 func (br *BootstrapClient) BootInfo() *BootInfo {
 	l1Head := common.BytesToHash(br.r.Get(L1HeadLocalIndex))
 	l2OutputRoot := common.BytesToHash(br.r.Get(L2OutputRootLocalIndex))

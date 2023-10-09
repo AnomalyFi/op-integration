@@ -39,24 +39,6 @@ var (
 		Usage:   "Rollup chain parameters",
 		EnvVars: prefixEnvVars("ROLLUP_CONFIG"),
 	}
-	DaRPC = cli.StringFlag{
-		Name:   "da-rpc",
-		Usage:  "Data Availability RPC",
-		Value:  "http://da:26658",
-		EnvVar: prefixEnvVar("DA_RPC"),
-	}
-	NamespaceId = cli.StringFlag{
-		Name:   "namespace-id",
-		Usage:  "Namespace ID for DA node",
-		Value:  "000008e5f679bf7116cb",
-		EnvVar: prefixEnvVar("NAMESPACE_ID"),
-	}
-	AuthToken = cli.StringFlag{
-		Name: "auth-token",
-		Usage: "Authentication Token for DA node",
-		Value: "",
-		EnvVar: prefixEnvVar("AUTH_TOKEN"),
-	}
 	Network = &cli.StringFlag{
 		Name:    "network",
 		Usage:   fmt.Sprintf("Predefined network selection. Available networks: %s", strings.Join(chaincfg.AvailableNetworks(), ", ")),
@@ -291,9 +273,6 @@ var optionalFlags = []cli.Flag{
 	NodeKitUrl,
 	RPCListenAddr,
 	RPCListenPort,
-	DaRPC,
-	NamespaceId,
-	AuthToken,
 	RollupConfig,
 	Network,
 	L1TrustRPC,
