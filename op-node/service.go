@@ -65,7 +65,7 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 		L1:          l1Endpoint,
 		L2:          l2Endpoint,
 		L2Sync:      l2SyncEndpoint,
-		EspressoUrl: ctx.String(flags.EspressoUrl.Name),
+		NodeKitUrl: ctx.String(flags.NodeKitUrl.Name),
 		Rollup:      *rollupConfig,
 		Driver:      *driverConfig,
 		RPC: node.RPCConfig{
