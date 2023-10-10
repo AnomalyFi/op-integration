@@ -19,7 +19,6 @@ import (
 const (
 	L1InfoFuncSignature = "setL1BlockValues(uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256,bytes)"
 	L1InfoArguments     = 8
-	L1InfoLen           = 4 + 32*L1InfoArguments
 )
 
 var (

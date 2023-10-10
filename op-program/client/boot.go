@@ -50,7 +50,6 @@ func NewBootstrapClient(r oracleClient) *BootstrapClient {
 	return &BootstrapClient{r: r}
 }
 
-// TODO will need to change this for DAConfig
 func (br *BootstrapClient) BootInfo() *BootInfo {
 	l1Head := common.BytesToHash(br.r.Get(L1HeadLocalIndex))
 	l2OutputRoot := common.BytesToHash(br.r.Get(L2OutputRootLocalIndex))

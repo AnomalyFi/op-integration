@@ -112,7 +112,6 @@ func NewSimpleTxManager(name string, l log.Logger, m metrics.TxMetricer, cfg CLI
 	if err != nil {
 		return nil, err
 	}
-
 	return NewSimpleTxManagerFromConfig(name, l, m, conf)
 }
 
@@ -121,7 +120,6 @@ func NewSimpleTxManagerFromConfig(name string, l log.Logger, m metrics.TxMetrice
 	if err := conf.Check(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
-
 	return &SimpleTxManager{
 		chainID: conf.ChainID,
 		name:    name,
@@ -187,7 +185,6 @@ func (m *SimpleTxManager) send(ctx context.Context, candidate TxCandidate) (*typ
 		ctx, cancel = context.WithTimeout(ctx, m.cfg.TxSendTimeout)
 		defer cancel()
 	}
-
 	tx, err := retry.Do(ctx, 30, retry.Fixed(2*time.Second), func() (*types.Transaction, error) {
 		tx, err := m.craftTx(ctx, candidate)
 		if err != nil {

@@ -492,7 +492,7 @@ func TestSystemMockP2P(t *testing.T) {
 	verifierPeerID := sys.RollupNodes["verifier"].P2P().Host().ID()
 	check := func() bool {
 		sequencerBlocksTopicPeers := sys.RollupNodes["sequencer"].P2P().GossipOut().BlocksTopicPeers()
-		return slices.Contains[peer.ID](sequencerBlocksTopicPeers, verifierPeerID)
+		return slices.Contains[[]peer.ID](sequencerBlocksTopicPeers, verifierPeerID)
 	}
 
 	// poll to see if the verifier node is connected & meshed on gossip.
@@ -553,6 +553,7 @@ func TestSystemRPCAltSync(t *testing.T) {
 	cfg.DisableBatcher = true
 
 	var published, received []string
+	receivedSet := make(map[string]bool)
 	seqTracer, verifTracer := new(FnTracer), new(FnTracer)
 	// The sequencer still publishes the blocks to the tracer, even if they do not reach the network due to disabled P2P
 	seqTracer.OnPublishL2PayloadFn = func(ctx context.Context, payload *eth.ExecutionPayload) {

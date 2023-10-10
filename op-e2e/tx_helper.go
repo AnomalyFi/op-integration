@@ -40,7 +40,7 @@ func SendDepositTx(t *testing.T, cfg SystemConfig, l1Client *ethclient.Client, l
 	require.Nil(t, err, "with deposit tx")
 
 	// Wait for transaction on L1
-	l1Receipt, err := geth.WaitForTransaction(tx.Hash(), l1Client, 15*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
+	l1Receipt, err := geth.WaitForTransaction(tx.Hash(), l1Client, 10*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
 	require.Nil(t, err, "Waiting for deposit tx on L1")
 
 	// Wait for transaction to be included on L2
@@ -96,7 +96,7 @@ func SendL2Tx(t *testing.T, cfg SystemConfig, l2Client *ethclient.Client, privKe
 	err := l2Client.SendTransaction(ctx, tx)
 	require.NoError(t, err, "Sending L2 tx")
 
-	receipt, err := geth.WaitForTransaction(tx.Hash(), l2Client, 10*time.Duration(cfg.DeployConfig.L2BlockTime)*time.Second)
+	receipt, err := geth.WaitForTransaction(tx.Hash(), l2Client, 15*time.Duration(cfg.DeployConfig.L2BlockTime)*time.Second)
 	require.NoError(t, err, "Waiting for L2 tx")
 	require.Equal(t, opts.ExpectedStatus, receipt.Status, "TX should have expected status")
 

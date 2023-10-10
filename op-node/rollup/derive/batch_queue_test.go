@@ -258,7 +258,7 @@ func TestBatchQueueInvalidInternalAdvance(t *testing.T) {
 	safeHead.Time += 2
 	safeHead.Hash = mockHash(b.Timestamp, 2)
 	safeHead.L1Origin = b.Epoch()
-	b, e = bq.NextBatch(context.Background(), safeHead)
+	b, e = bq.NextBatch(context.Background(), safeHead, false)
 	require.ErrorIs(t, e, io.EOF)
 	require.Nil(t, b)
 

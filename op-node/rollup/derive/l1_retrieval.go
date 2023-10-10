@@ -54,9 +54,6 @@ func (l1r *L1Retrieval) NextData(ctx context.Context) ([]byte, error) {
 			return nil, err
 		}
 		l1r.datas = l1r.dataSrc.OpenData(ctx, next.ID(), l1r.prev.SystemConfig().BatcherAddr)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	l1r.log.Debug("fetching next piece of data")
