@@ -265,8 +265,8 @@ abstract contract Deployer is Script {
             '"',
             vm.toString(_addr),
             '"',
-            ') | select(.transactionType == "CREATE"',
-            ' or .transactionType == "CREATE2"',
+            ") | select(.transactionType == ",
+            '"CREATE"',
             ")' < ",
             deployPath
         );

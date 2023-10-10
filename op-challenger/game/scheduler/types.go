@@ -4,12 +4,10 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
-
-	"github.com/ethereum-optimism/optimism/op-challenger/game/types"
 )
 
 type GamePlayer interface {
-	ProgressGame(ctx context.Context) types.GameStatus
+	ProgressGame(ctx context.Context) bool
 }
 
 type DiskManager interface {
@@ -18,7 +16,7 @@ type DiskManager interface {
 }
 
 type job struct {
-	addr   common.Address
-	player GamePlayer
-	status types.GameStatus
+	addr     common.Address
+	player   GamePlayer
+	resolved bool
 }

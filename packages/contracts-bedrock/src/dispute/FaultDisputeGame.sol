@@ -85,7 +85,7 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, Semver {
     /// @param _blockOracle The block oracle, used for loading block hashes further back
     ///                     than the `BLOCKHASH` opcode allows as well as their estimated
     ///                     timestamps.
-    /// @custom:semver 0.0.9
+    /// @custom:semver 0.0.7
     constructor(
         GameType _gameType,
         Claim _absolutePrestate,
@@ -95,7 +95,7 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, Semver {
         L2OutputOracle _l2oo,
         BlockOracle _blockOracle
     )
-        Semver(0, 0, 9)
+        Semver(0, 0, 8)
     {
         GAME_TYPE = _gameType;
         ABSOLUTE_PRESTATE = _absolutePrestate;
@@ -149,11 +149,7 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, Semver {
 
         // INVARIANT: The prestate is always invalid if the passed `_stateData` is not the
         //            preimage of the prestate claim hash.
-        //            We ignore the highest order byte of the digest because it is used to
-        //            indicate the VM Status and is added after the digest is computed.
-        if (keccak256(_stateData) << 8 != Claim.unwrap(preStateClaim) << 8) {
-            revert InvalidPrestate();
-        }
+        if (keccak256(_stateData) != Claim.unwrap(preStateClaim)) revert InvalidPrestate();
 
         // INVARIANT: If a step is an attack, the poststate is valid if the step produces
         //            the same poststate hash as the parent claim's value.
@@ -438,17 +434,8 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, Semver {
     function initialize() external {
         // SAFETY: Any revert in this function will bubble up to the DisputeGameFactory and
         // prevent the game from being created.
-        //
         // Implicit assumptions:
         // - The `gameStatus` state variable defaults to 0, which is `GameStatus.IN_PROGRESS`
-
-        // The VMStatus must indicate (1) 'invalid', to argue that disputed thing is invalid.
-        // Games that agree with the existing outcome are not allowed.
-        // NOTE(clabby): This assumption will change in Alpha Chad.
-        uint8 vmStatus = uint8(Claim.unwrap(rootClaim())[0]);
-        if (!(vmStatus == VMStatus.unwrap(VMStatuses.INVALID) || vmStatus == VMStatus.unwrap(VMStatuses.PANIC))) {
-            revert UnexpectedRootClaim(rootClaim());
-        }
 
         // Set the game's starting timestamp
         createdAt = Timestamp.wrap(uint64(block.timestamp));

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { Types } from "src/libraries/Types.sol";
-import { Hashing } from "src/libraries/Hashing.sol";
-import { Encoding } from "src/libraries/Encoding.sol";
-import { Burn } from "src/libraries/Burn.sol";
-import { ISemver } from "src/universal/ISemver.sol";
+import { Types } from "../libraries/Types.sol";
+import { Hashing } from "../libraries/Hashing.sol";
+import { Encoding } from "../libraries/Encoding.sol";
+import { Burn } from "../libraries/Burn.sol";
+import { Semver } from "../universal/Semver.sol";
 
 /// @custom:proxied
 /// @custom:predeploy 0x4200000000000000000000000000000000000016
@@ -13,7 +13,7 @@ import { ISemver } from "src/universal/ISemver.sol";
 /// @notice The L2ToL1MessagePasser is a dedicated contract where messages that are being sent from
 ///         L2 to L1 can be stored. The storage root of this contract is pulled up to the top level
 ///         of the L2 output to reduce the cost of proving the existence of sent messages.
-contract L2ToL1MessagePasser is ISemver {
+contract L2ToL1MessagePasser is Semver {
     /// @notice The L1 gas limit set when eth is withdrawn using the receive() function.
     uint256 internal constant RECEIVE_DEFAULT_GAS_LIMIT = 100_000;
 
@@ -48,8 +48,9 @@ contract L2ToL1MessagePasser is ISemver {
     /// @param amount Amount of ETh that was burned.
     event WithdrawerBalanceBurnt(uint256 indexed amount);
 
-    /// @custom:semver 1.1.0
-    string public constant version = "1.1.0";
+    /// @custom:semver 1.0.2
+    /// @notice Constructs the L2ToL1MessagePasser contract.
+    constructor() Semver(1, 0, 2) { }
 
     /// @notice Allows users to withdraw ETH by sending directly to this contract.
     receive() external payable {

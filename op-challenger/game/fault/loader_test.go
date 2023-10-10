@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
-	gameTypes "github.com/ethereum-optimism/optimism/op-challenger/game/types"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,15 +30,15 @@ func TestLoader_GetGameStatus(t *testing.T) {
 	}{
 		{
 			name:   "challenger won status",
-			status: uint8(gameTypes.GameStatusChallengerWon),
+			status: uint8(types.GameStatusChallengerWon),
 		},
 		{
 			name:   "defender won status",
-			status: uint8(gameTypes.GameStatusDefenderWon),
+			status: uint8(types.GameStatusDefenderWon),
 		},
 		{
 			name:   "in progress status",
-			status: uint8(gameTypes.GameStatusInProgress),
+			status: uint8(types.GameStatusInProgress),
 		},
 		{
 			name:          "error bubbled up",
@@ -58,7 +57,7 @@ func TestLoader_GetGameStatus(t *testing.T) {
 				require.ErrorIs(t, err, mockStatusError)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, gameTypes.GameStatus(test.status), status)
+				require.Equal(t, types.GameStatus(test.status), status)
 			}
 		})
 	}

@@ -2,14 +2,14 @@
 pragma solidity 0.8.15;
 
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { ISemver } from "../universal/ISemver.sol";
+import { Semver } from "../universal/Semver.sol";
 import { ResourceMetering } from "./ResourceMetering.sol";
 
 /// @title SystemConfig
 /// @notice The SystemConfig contract is used to manage configuration of an Optimism network.
 ///         All configuration is stored on L1 and picked up by L2 as part of the derviation of
 ///         the L2 chain.
-contract SystemConfig is OwnableUpgradeable, ISemver {
+contract SystemConfig is OwnableUpgradeable, Semver {
     /// @notice Enum representing different types of updates.
     /// @custom:value BATCHER              Represents an update to the batcher hash.
     /// @custom:value GAS_CONFIG           Represents an update to txn fee config on L2.
@@ -21,7 +21,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         GAS_CONFIG,
         GAS_LIMIT,
         UNSAFE_BLOCK_SIGNER,
-        NODEKIT
+        ESPRESSO
     }
 
     /// @notice Struct representing the addresses of L1 system contracts. These should be the
@@ -85,9 +85,8 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @notice L2 block gas limit.
     uint64 public gasLimit;
 
-    /// @notice Is NodeKit SEQ being used or not
-    bool public nodekit;
-
+    /// @notice Whether the Espresso Sequencer is enabled.
+    bool public espresso;
 
     /// @notice The configuration for the deposit fee market.
     ///         Used by the OptimismPortal to meter the cost of buying L2 gas on L1.
@@ -103,20 +102,18 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @notice The block at which the op-node can start searching for logs from.
     uint256 public startBlock;
 
-    /// @notice Semantic version.
-    /// @custom:semver 1.7.0
-    string public constant version = "1.7.0";
-
+    /// @custom:semver 1.6.0
     /// @notice Constructs the SystemConfig contract. Cannot set
     ///         the owner to `address(0)` due to the Ownable contract's
     ///         implementation, so set it to `address(0xdEaD)`
-    constructor() {
+    constructor() Semver(1, 6, 0) {
         initialize({
             _owner: address(0xdEaD),
             _overhead: 0,
             _scalar: 0,
             _batcherHash: bytes32(0),
             _gasLimit: 1,
+            _espresso: false,
             _unsafeBlockSigner: address(0),
             _config: ResourceMetering.ResourceConfig({
                 maxResourceLimit: 1,
@@ -161,7 +158,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         uint256 _scalar,
         bytes32 _batcherHash,
         uint64 _gasLimit,
-        bool _nodekit,
+        bool _espresso,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config,
         uint256 _startBlock,
@@ -179,7 +176,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         _setGasConfig({ _overhead: _overhead, _scalar: _scalar });
         _setGasLimit(_gasLimit);
         _setUnsafeBlockSigner(_unsafeBlockSigner);
-        _setNodeKit(_nodekit);
+        _setEspresso(_espresso);
 
         _setAddress(_batchInbox, BATCH_INBOX_SLOT);
         _setAddress(_addresses.l1CrossDomainMessenger, L1_CROSS_DOMAIN_MESSENGER_SLOT);
@@ -307,15 +304,15 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         emit ConfigUpdate(VERSION, UpdateType.UNSAFE_BLOCK_SIGNER, data);
     }
 
-    function setNodeKit(bool _nodekit) external onlyOwner {
-        _setNodeKit(_nodekit);
+    function setEspresso(bool _espresso) external onlyOwner {
+        _setEspresso(_espresso);
     }
 
-    function _setNodeKit(bool _nodekit) internal {
-        nodekit = _nodekit;
+    function _setEspresso(bool _espresso) internal {
+        espresso = _espresso;
 
-        bytes memory data = abi.encode(_nodekit);
-        emit ConfigUpdate(VERSION, UpdateType.NODEKIT, data);
+        bytes memory data = abi.encode(_espresso);
+        emit ConfigUpdate(VERSION, UpdateType.ESPRESSO, data);
     }
 
     /// @notice Updates the batcher hash. Can only be called by the owner.

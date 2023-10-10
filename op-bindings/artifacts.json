@@ -35,6 +35,5 @@
   "PreimageOracle",
   "BlockOracle",
   "EAS",
-  "SchemaRegistry",
-  "ProtocolVersions"
+  "SchemaRegistry"
 ]

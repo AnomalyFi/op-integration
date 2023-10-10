@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type CrossDomainMessengerSentMessage struct {
@@ -58,10 +57,5 @@ func CrossDomainMessengerSentMessageHash(sentMessage *bindings.CrossDomainMessen
 		return common.Hash{}, err
 	}
 
-	calldata, err := contracts.CrossDomainMessageCalldata(abi, sentMessage, value)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return crypto.Keccak256Hash(calldata), nil
+	return contracts.CrossDomainMessageHash(abi, sentMessage, value)
 }

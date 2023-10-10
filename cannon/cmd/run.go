@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
 
@@ -28,7 +29,7 @@ var (
 	}
 	RunOutputFlag = &cli.PathFlag{
 		Name:      "output",
-		Usage:     "path of output JSON state. Not written if empty, use - to write to Stdout.",
+		Usage:     "path of output JSON state. Stdout if left empty.",
 		TakesFile: true,
 		Value:     "out.json",
 		Required:  false,
@@ -42,7 +43,7 @@ var (
 	}
 	RunProofFmtFlag = &cli.StringFlag{
 		Name:     "proof-fmt",
-		Usage:    "format for proof data output file names. Proof data is written to stdout if -.",
+		Usage:    "format for proof data output file names. Proof data is written to stdout if empty.",
 		Value:    "proof-%d.json",
 		Required: false,
 	}
@@ -66,7 +67,7 @@ var (
 	}
 	RunMetaFlag = &cli.PathFlag{
 		Name:     "meta",
-		Usage:    "path to metadata file for symbol lookup for enhanced debugging info during execution.",
+		Usage:    "path to metadata file for symbol lookup for enhanced debugging info durign execution.",
 		Value:    "meta.json",
 		Required: false,
 	}
@@ -324,24 +325,18 @@ func Run(ctx *cli.Context) error {
 		}
 
 		if snapshotAt(state) {
-			if err := writeJSON(fmt.Sprintf(snapshotFmt, step), state); err != nil {
+			if err := writeJSON(fmt.Sprintf(snapshotFmt, step), state, false); err != nil {
 				return fmt.Errorf("failed to write state snapshot: %w", err)
 			}
 		}
 
 		if proofAt(state) {
-			preStateHash, err := state.EncodeWitness().StateHash()
-			if err != nil {
-				return fmt.Errorf("failed to hash prestate witness: %w", err)
-			}
+			preStateHash := crypto.Keccak256Hash(state.EncodeWitness())
 			witness, err := stepFn(true)
 			if err != nil {
 				return fmt.Errorf("failed at proof-gen step %d (PC: %08x): %w", step, state.PC, err)
 			}
-			postStateHash, err := state.EncodeWitness().StateHash()
-			if err != nil {
-				return fmt.Errorf("failed to hash poststate witness: %w", err)
-			}
+			postStateHash := crypto.Keccak256Hash(state.EncodeWitness())
 			proof := &Proof{
 				Step:      step,
 				Pre:       preStateHash,
@@ -360,7 +355,7 @@ func Run(ctx *cli.Context) error {
 				proof.OracleValue = witness.PreimageValue
 				proof.OracleOffset = witness.PreimageOffset
 			}
-			if err := writeJSON(fmt.Sprintf(proofFmt, step), proof); err != nil {
+			if err := writeJSON(fmt.Sprintf(proofFmt, step), proof, true); err != nil {
 				return fmt.Errorf("failed to write proof data: %w", err)
 			}
 		} else {
@@ -371,7 +366,7 @@ func Run(ctx *cli.Context) error {
 		}
 	}
 
-	if err := writeJSON(ctx.Path(RunOutputFlag.Name), state); err != nil {
+	if err := writeJSON(ctx.Path(RunOutputFlag.Name), state, true); err != nil {
 		return fmt.Errorf("failed to write state output: %w", err)
 	}
 	return nil

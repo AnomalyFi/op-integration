@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/cannon"
-	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/challenger"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
@@ -41,7 +40,7 @@ func (g *CannonGameHelper) CreateHonestActor(ctx context.Context, rollupCfg *rol
 	opts = append(opts, options...)
 	cfg := challenger.NewChallengerConfig(g.t, l1Endpoint, opts...)
 	logger := testlog.Logger(g.t, log.LvlInfo).New("role", "CorrectTrace")
-	provider, err := cannon.NewTraceProvider(ctx, logger, metrics.NoopMetrics, cfg, l1Client, filepath.Join(cfg.Datadir, "honest"), g.addr)
+	provider, err := cannon.NewTraceProvider(ctx, logger, cfg, l1Client, filepath.Join(cfg.Datadir, "honest"), g.addr)
 	g.require.NoError(err, "create cannon trace provider")
 
 	return &HonestHelper{

@@ -9,15 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/cannon/mipsevm"
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/deployer"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/genesis"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/alphabet"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/cannon"
-	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/challenger"
-	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/l2oo"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/transactions"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/wait"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
@@ -67,7 +64,7 @@ type FactoryHelper struct {
 	factoryAddr common.Address
 	factory     *bindings.DisputeGameFactory
 	blockOracle *bindings.BlockOracle
-	l2ooHelper  *l2oo.L2OOHelper
+	l2oo        *bindings.L2OutputOracleCaller
 }
 
 func NewFactoryHelper(t *testing.T, ctx context.Context, deployments *genesis.L1Deployments, client *ethclient.Client) *FactoryHelper {
@@ -83,6 +80,8 @@ func NewFactoryHelper(t *testing.T, ctx context.Context, deployments *genesis.L1
 	require.NoError(err)
 	blockOracle, err := bindings.NewBlockOracle(deployments.BlockOracle, client)
 	require.NoError(err)
+	l2oo, err := bindings.NewL2OutputOracleCaller(deployments.L2OutputOracleProxy, client)
+	require.NoError(err, "Error creating l2oo caller")
 
 	return &FactoryHelper{
 		t:           t,
@@ -92,7 +91,7 @@ func NewFactoryHelper(t *testing.T, ctx context.Context, deployments *genesis.L1
 		factory:     factory,
 		factoryAddr: factoryAddr,
 		blockOracle: blockOracle,
-		l2ooHelper:  l2oo.NewL2OOHelperReadOnly(t, deployments, client),
+		l2oo:        l2oo,
 	}
 }
 
@@ -100,7 +99,7 @@ func (h *FactoryHelper) StartAlphabetGame(ctx context.Context, claimedAlphabet s
 	l2BlockNumber := h.waitForProposals(ctx)
 	l1Head := h.checkpointL1Block(ctx)
 
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
 	trace := alphabet.NewTraceProvider(claimedAlphabet, alphabetGameDepth)
@@ -150,8 +149,12 @@ func (h *FactoryHelper) StartCannonGameWithCorrectRoot(ctx context.Context, roll
 	challengerOpts = append(challengerOpts, options...)
 	cfg := challenger.NewChallengerConfig(h.t, l1Endpoint, challengerOpts...)
 	opts := &bind.CallOpts{Context: ctx}
-	challengedOutput := h.l2ooHelper.GetL2OutputAfter(ctx, l2BlockNumber)
-	agreedOutput := h.l2ooHelper.GetL2OutputBefore(ctx, l2BlockNumber)
+	outputIdx, err := h.l2oo.GetL2OutputIndexAfter(opts, new(big.Int).SetUint64(l2BlockNumber))
+	h.require.NoError(err, "Fetch challenged output index")
+	challengedOutput, err := h.l2oo.GetL2Output(opts, outputIdx)
+	h.require.NoError(err, "Fetch challenged output")
+	agreedOutput, err := h.l2oo.GetL2Output(opts, new(big.Int).Sub(outputIdx, common.Big1))
+	h.require.NoError(err, "Fetch agreed output")
 	l1BlockInfo, err := h.blockOracle.Load(opts, l1Head)
 	h.require.NoError(err, "Fetch L1 block info")
 
@@ -172,12 +175,9 @@ func (h *FactoryHelper) StartCannonGameWithCorrectRoot(ctx context.Context, roll
 		L2Claim:       challengedOutput.OutputRoot,
 		L2BlockNumber: challengedOutput.L2BlockNumber,
 	}
-	provider := cannon.NewTraceProviderFromInputs(testlog.Logger(h.t, log.LvlInfo).New("role", "CorrectTrace"), metrics.NoopMetrics, cfg, inputs, cfg.Datadir)
+	provider := cannon.NewTraceProviderFromInputs(testlog.Logger(h.t, log.LvlInfo).New("role", "CorrectTrace"), cfg, inputs, cfg.Datadir)
 	rootClaim, err := provider.Get(ctx, math.MaxUint64)
 	h.require.NoError(err, "Compute correct root hash")
-	// Override the VM status to claim the root is invalid
-	// Otherwise creating the game will fail
-	rootClaim[0] = mipsevm.VMStatusInvalid
 
 	game := h.createCannonGame(ctx, l2BlockNumber, l1Head, rootClaim)
 	honestHelper := &HonestHelper{
@@ -245,8 +245,26 @@ func (h *FactoryHelper) prepareCannonGame(ctx context.Context) (uint64, *big.Int
 func (h *FactoryHelper) waitForProposals(ctx context.Context) uint64 {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	latestOutputIdx := h.l2ooHelper.WaitForProposals(ctx, 2)
-	return h.l2ooHelper.GetL2Output(ctx, latestOutputIdx).L2BlockNumber.Uint64()
+	opts := &bind.CallOpts{Context: ctx}
+	latestOutputIndex, err := wait.AndGet(
+		ctx,
+		time.Second,
+		func() (*big.Int, error) {
+			index, err := h.l2oo.LatestOutputIndex(opts)
+			if err != nil {
+				h.t.Logf("Could not get latest output index: %v", err.Error())
+				return nil, nil
+			}
+			h.t.Logf("Latest output index: %v", index)
+			return index, nil
+		},
+		func(index *big.Int) bool {
+			return index != nil && index.Cmp(big.NewInt(1)) >= 0
+		})
+	h.require.NoError(err, "Did not get two output roots")
+	output, err := h.l2oo.GetL2Output(opts, latestOutputIndex)
+	h.require.NoErrorf(err, "Could not get latst output root index: %v", latestOutputIndex)
+	return output.L2BlockNumber.Uint64()
 }
 
 // checkpointL1Block stores the current L1 block in the oracle

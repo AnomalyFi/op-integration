@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
 	"github.com/ethereum-optimism/optimism/op-service/nodekit"
-
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
@@ -83,7 +82,6 @@ type SequencerIface interface {
 	PlanNextSequencerAction() time.Duration
 	RunNextSequencerAction(ctx context.Context) (*eth.ExecutionPayload, error)
 	BuildingOnto() eth.L2BlockRef
-	CancelBuildingBlock(ctx context.Context)
 }
 
 type Network interface {

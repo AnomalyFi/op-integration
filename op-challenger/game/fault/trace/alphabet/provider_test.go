@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 
 func alphabetClaim(index uint64, letter string) common.Hash {
-	return alphabetStateHash(BuildAlphabetPreimage(index, letter))
+	return crypto.Keccak256Hash(BuildAlphabetPreimage(index, letter))
 }
 
 // TestAlphabetProvider_Get_ClaimsByTraceIndex tests the [fault.AlphabetProvider] Get function.
@@ -59,7 +60,7 @@ func FuzzIndexToBytes(f *testing.F) {
 // returns the correct pre-image for a index.
 func TestGetStepData_Succeeds(t *testing.T) {
 	ap := NewTraceProvider("abc", 2)
-	expected := BuildAlphabetPreimage(0, "a")
+	expected := BuildAlphabetPreimage(0, "a'")
 	retrieved, proof, data, err := ap.GetStepData(context.Background(), uint64(1))
 	require.NoError(t, err)
 	require.Equal(t, expected, retrieved)

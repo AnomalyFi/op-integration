@@ -4,13 +4,14 @@ pragma solidity 0.8.19;
 import { Semver } from "../../universal/Semver.sol";
 
 import { IEAS, Attestation } from "../IEAS.sol";
-import { AccessDenied, InvalidEAS, InvalidLength, uncheckedInc } from "../Common.sol";
+import { InvalidEAS, uncheckedInc } from "../Common.sol";
 
 import { ISchemaResolver } from "./ISchemaResolver.sol";
 
 /// @title SchemaResolver
 /// @notice The base schema resolver contract.
 abstract contract SchemaResolver is ISchemaResolver, Semver {
+    error AccessDenied();
     error InsufficientValue();
     error NotPayable();
 
@@ -19,7 +20,7 @@ abstract contract SchemaResolver is ISchemaResolver, Semver {
 
     /// @dev Creates a new resolver.
     /// @param eas The address of the global EAS contract.
-    constructor(IEAS eas) Semver(1, 2, 0) {
+    constructor(IEAS eas) Semver(1, 0, 1) {
         if (address(eas) == address(0)) {
             revert InvalidEAS();
         }
@@ -62,9 +63,6 @@ abstract contract SchemaResolver is ISchemaResolver, Semver {
         returns (bool)
     {
         uint256 length = attestations.length;
-        if (length != values.length) {
-            revert InvalidLength();
-        }
 
         // We are keeping track of the remaining ETH amount that can be sent to resolvers and will keep deducting
         // from it to verify that there isn't any attempt to send too much ETH to resolvers. Please note that unless
@@ -79,7 +77,7 @@ abstract contract SchemaResolver is ISchemaResolver, Semver {
                 revert InsufficientValue();
             }
 
-            // Forward the attestation to the underlying resolver and return false in case it isn't approved.
+            // Forward the attestation to the underlying resolver and revert in case it isn't approved.
             if (!onAttest(attestations[i], value)) {
                 return false;
             }
@@ -109,9 +107,6 @@ abstract contract SchemaResolver is ISchemaResolver, Semver {
         returns (bool)
     {
         uint256 length = attestations.length;
-        if (length != values.length) {
-            revert InvalidLength();
-        }
 
         // We are keeping track of the remaining ETH amount that can be sent to resolvers and will keep deducting
         // from it to verify that there isn't any attempt to send too much ETH to resolvers. Please note that unless
@@ -126,7 +121,7 @@ abstract contract SchemaResolver is ISchemaResolver, Semver {
                 revert InsufficientValue();
             }
 
-            // Forward the revocation to the underlying resolver and return false in case it isn't approved.
+            // Forward the revocation to the underlying resolver and revert in case it isn't approved.
             if (!onRevoke(attestations[i], value)) {
                 return false;
             }

@@ -1,4 +1,4 @@
-FROM ghcr.io/anomalyfi/op-integration/op-geth:integration
+FROM ghcr.io/espressosystems/op-espresso-integration/op-geth:integration
 
 RUN apk add --no-cache jq
 

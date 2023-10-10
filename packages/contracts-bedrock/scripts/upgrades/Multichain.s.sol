@@ -440,7 +440,7 @@ contract Multichain is SafeBuilder {
                 cfg.gasPriceOracleScalar(),
                 bytes32(uint256(uint160(cfg.batchSenderAddress()))),
                 uint64(cfg.l2GenesisBlockGasLimit()),
-                cfg.nodekit(),
+                cfg.espresso(),
                 cfg.p2pSequencerAddress(),
                 Constants.DEFAULT_RESOURCE_CONFIG(),
                 cfg.systemConfigStartBlock(),
@@ -455,7 +455,6 @@ contract Multichain is SafeBuilder {
                 })
             )
         );
-
         calls[5] = IMulticall3.Call3({
             target: _proxyAdmin,
             allowFailure: false,

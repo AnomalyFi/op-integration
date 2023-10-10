@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ethereum-optimism/optimism/indexer/bigint"
 	"github.com/ethereum-optimism/optimism/indexer/config"
 	"github.com/ethereum-optimism/optimism/indexer/database"
 	"github.com/ethereum-optimism/optimism/indexer/node"
@@ -18,7 +17,7 @@ import (
 	"testing"
 )
 
-func TestL1ETLConstruction(t *testing.T) {
+func Test_L1ETL_Construction(t *testing.T) {
 	etlMetrics := NewMetrics(metrics.NewRegistry(), "l1")
 
 	type testSuite struct {
@@ -40,10 +39,11 @@ func TestL1ETLConstruction(t *testing.T) {
 				db := database.NewMockDB()
 
 				testStart := big.NewInt(100)
+
 				db.MockBlocks.On("L1LatestBlockHeader").Return(nil, nil)
 
 				client.On("BlockHeaderByNumber", mock.MatchedBy(
-					bigint.Matcher(100))).Return(
+					node.BigIntMatcher(100))).Return(
 					&types.Header{
 						ParentHash: common.HexToHash("0x69"),
 					}, nil)
@@ -51,12 +51,10 @@ func TestL1ETLConstruction(t *testing.T) {
 				client.On("GethEthClient").Return(nil)
 
 				return &testSuite{
-					db:     db,
-					client: client,
-					start:  testStart,
-
-					// utilize sample l1 contract configuration (optimism)
-					contracts: config.Presets[10].ChainConfig.L1Contracts,
+					db:        db,
+					client:    client,
+					start:     testStart,
+					contracts: config.L1Contracts{},
 				}
 			},
 			assertion: func(etl *L1ETL, err error) {
@@ -83,12 +81,10 @@ func TestL1ETLConstruction(t *testing.T) {
 				client.On("GethEthClient").Return(nil)
 
 				return &testSuite{
-					db:     db,
-					client: client,
-					start:  testStart,
-
-					// utilize sample l1 contract configuration (optimism)
-					contracts: config.Presets[10].ChainConfig.L1Contracts,
+					db:        db,
+					client:    client,
+					start:     testStart,
+					contracts: config.L1Contracts{},
 				}
 			},
 			assertion: func(etl *L1ETL, err error) {

@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-challenger/game/types"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,17 +20,17 @@ func TestWorkerShouldProcessJobsUntilContextDone(t *testing.T) {
 	go progressGames(ctx, in, out, &wg)
 
 	in <- job{
-		player: &stubPlayer{status: types.GameStatusInProgress},
+		player: &stubPlayer{done: false},
 	}
 	in <- job{
-		player: &stubPlayer{status: types.GameStatusDefenderWon},
+		player: &stubPlayer{done: true},
 	}
 
 	result1 := readWithTimeout(t, out)
 	result2 := readWithTimeout(t, out)
 
-	require.Equal(t, result1.status, types.GameStatusInProgress)
-	require.Equal(t, result2.status, types.GameStatusDefenderWon)
+	require.Equal(t, result1.resolved, false)
+	require.Equal(t, result2.resolved, true)
 
 	// Cancel the context which should exit the worker
 	cancel()
@@ -40,11 +38,11 @@ func TestWorkerShouldProcessJobsUntilContextDone(t *testing.T) {
 }
 
 type stubPlayer struct {
-	status types.GameStatus
+	done bool
 }
 
-func (s *stubPlayer) ProgressGame(ctx context.Context) types.GameStatus {
-	return s.status
+func (s *stubPlayer) ProgressGame(ctx context.Context) bool {
+	return s.done
 }
 
 func readWithTimeout[T any](t *testing.T, ch <-chan T) T {

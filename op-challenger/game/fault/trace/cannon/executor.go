@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/config"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
@@ -31,7 +30,6 @@ type cmdExecutor func(ctx context.Context, l log.Logger, binary string, args ...
 
 type Executor struct {
 	logger           log.Logger
-	metrics          CannonMetricer
 	l1               string
 	l2               string
 	inputs           LocalGameInputs
@@ -47,10 +45,9 @@ type Executor struct {
 	cmdExecutor      cmdExecutor
 }
 
-func NewExecutor(logger log.Logger, m CannonMetricer, cfg *config.Config, inputs LocalGameInputs) *Executor {
+func NewExecutor(logger log.Logger, cfg *config.Config, inputs LocalGameInputs) *Executor {
 	return &Executor{
 		logger:           logger,
-		metrics:          m,
 		l1:               cfg.L1EthRpc,
 		l2:               cfg.CannonL2,
 		inputs:           inputs,
@@ -122,10 +119,7 @@ func (e *Executor) GenerateProof(ctx context.Context, dir string, i uint64) erro
 		return fmt.Errorf("could not create proofs directory %v: %w", proofDir, err)
 	}
 	e.logger.Info("Generating trace", "proof", i, "cmd", e.cannon, "args", strings.Join(args, ", "))
-	execStart := time.Now()
-	err = e.cmdExecutor(ctx, e.logger.New("proof", i), e.cannon, args...)
-	e.metrics.RecordCannonExecutionTime(time.Since(execStart).Seconds())
-	return err
+	return e.cmdExecutor(ctx, e.logger.New("proof", i), e.cannon, args...)
 }
 
 func runCmd(ctx context.Context, l log.Logger, binary string, args ...string) error {

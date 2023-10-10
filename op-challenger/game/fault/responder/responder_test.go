@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
-	gameTypes "github.com/ethereum-optimism/optimism/op-challenger/game/types"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 
@@ -33,7 +32,7 @@ func TestCallResolve(t *testing.T) {
 		mockTxMgr.callFails = true
 		status, err := responder.CallResolve(context.Background())
 		require.ErrorIs(t, err, mockCallError)
-		require.Equal(t, gameTypes.GameStatusInProgress, status)
+		require.Equal(t, types.GameStatusInProgress, status)
 		require.Equal(t, 0, mockTxMgr.calls)
 	})
 
@@ -42,7 +41,7 @@ func TestCallResolve(t *testing.T) {
 		mockTxMgr.callBytes = []byte{0x00, 0x01}
 		status, err := responder.CallResolve(context.Background())
 		require.Error(t, err)
-		require.Equal(t, gameTypes.GameStatusInProgress, status)
+		require.Equal(t, types.GameStatusInProgress, status)
 		require.Equal(t, 1, mockTxMgr.calls)
 	})
 
@@ -50,7 +49,7 @@ func TestCallResolve(t *testing.T) {
 		responder, mockTxMgr := newTestFaultResponder(t)
 		status, err := responder.CallResolve(context.Background())
 		require.NoError(t, err)
-		require.Equal(t, gameTypes.GameStatusInProgress, status)
+		require.Equal(t, types.GameStatusInProgress, status)
 		require.Equal(t, 1, mockTxMgr.calls)
 	})
 }
@@ -74,98 +73,73 @@ func TestResolve(t *testing.T) {
 }
 
 // TestRespond tests the [Responder.Respond] method.
-func TestPerformAction(t *testing.T) {
+func TestRespond(t *testing.T) {
 	t.Run("send fails", func(t *testing.T) {
 		responder, mockTxMgr := newTestFaultResponder(t)
 		mockTxMgr.sendFails = true
-		err := responder.PerformAction(context.Background(), types.Action{
-			Type:      types.ActionTypeMove,
-			ParentIdx: 123,
-			IsAttack:  true,
-			Value:     common.Hash{0xaa},
-		})
+		err := responder.Respond(context.Background(), generateMockResponseClaim())
 		require.ErrorIs(t, err, mockSendError)
 		require.Equal(t, 0, mockTxMgr.sends)
 	})
 
 	t.Run("sends response", func(t *testing.T) {
 		responder, mockTxMgr := newTestFaultResponder(t)
-		err := responder.PerformAction(context.Background(), types.Action{
-			Type:      types.ActionTypeMove,
-			ParentIdx: 123,
-			IsAttack:  true,
-			Value:     common.Hash{0xaa},
-		})
+		err := responder.Respond(context.Background(), generateMockResponseClaim())
 		require.NoError(t, err)
 		require.Equal(t, 1, mockTxMgr.sends)
 	})
+}
 
+// TestBuildTx tests the [Responder.BuildTx] method.
+func TestBuildTx(t *testing.T) {
 	t.Run("attack", func(t *testing.T) {
-		responder, mockTxMgr := newTestFaultResponder(t)
-		action := types.Action{
-			Type:      types.ActionTypeMove,
-			ParentIdx: 123,
-			IsAttack:  true,
-			Value:     common.Hash{0xaa},
-		}
-		err := responder.PerformAction(context.Background(), action)
+		responder, _ := newTestFaultResponder(t)
+		responseClaim := generateMockResponseClaim()
+		responseClaim.ParentContractIndex = 7
+		tx, err := responder.BuildTx(context.Background(), responseClaim)
 		require.NoError(t, err)
 
 		// Pack the tx data manually.
 		fdgAbi, err := bindings.FaultDisputeGameMetaData.GetAbi()
 		require.NoError(t, err)
-		expected, err := fdgAbi.Pack("attack", big.NewInt(int64(action.ParentIdx)), action.Value)
-		require.NoError(t, err)
+		parent := big.NewInt(int64(7))
+		claim := responseClaim.ValueBytes()
+		expected, err := fdgAbi.Pack("attack", parent, claim)
 
-		require.Len(t, mockTxMgr.sent, 1)
-		require.Equal(t, expected, mockTxMgr.sent[0].TxData)
+		require.NoError(t, err)
+		require.Equal(t, expected, tx)
 	})
 
 	t.Run("defend", func(t *testing.T) {
-		responder, mockTxMgr := newTestFaultResponder(t)
-		action := types.Action{
-			Type:      types.ActionTypeMove,
-			ParentIdx: 123,
-			IsAttack:  false,
-			Value:     common.Hash{0xaa},
+		responder, _ := newTestFaultResponder(t)
+		responseClaim := types.Claim{
+			ClaimData: types.ClaimData{
+				Value:    common.Hash{0x01},
+				Position: types.NewPositionFromGIndex(3),
+			},
+			Parent: types.ClaimData{
+				Value:    common.Hash{0x02},
+				Position: types.NewPositionFromGIndex(6),
+			},
+			ContractIndex:       0,
+			ParentContractIndex: 7,
 		}
-		err := responder.PerformAction(context.Background(), action)
+		tx, err := responder.BuildTx(context.Background(), responseClaim)
 		require.NoError(t, err)
 
 		// Pack the tx data manually.
 		fdgAbi, err := bindings.FaultDisputeGameMetaData.GetAbi()
 		require.NoError(t, err)
-		expected, err := fdgAbi.Pack("defend", big.NewInt(int64(action.ParentIdx)), action.Value)
-		require.NoError(t, err)
+		parent := big.NewInt(int64(7))
+		claim := responseClaim.ValueBytes()
+		expected, err := fdgAbi.Pack("defend", parent, claim)
 
-		require.Len(t, mockTxMgr.sent, 1)
-		require.Equal(t, expected, mockTxMgr.sent[0].TxData)
-	})
-
-	t.Run("step", func(t *testing.T) {
-		responder, mockTxMgr := newTestFaultResponder(t)
-		action := types.Action{
-			Type:      types.ActionTypeStep,
-			ParentIdx: 123,
-			IsAttack:  true,
-			PreState:  []byte{1, 2, 3},
-			ProofData: []byte{4, 5, 6},
-		}
-		err := responder.PerformAction(context.Background(), action)
 		require.NoError(t, err)
-
-		// Pack the tx data manually.
-		fdgAbi, err := bindings.FaultDisputeGameMetaData.GetAbi()
-		require.NoError(t, err)
-		expected, err := fdgAbi.Pack("step", big.NewInt(int64(action.ParentIdx)), true, action.PreState, action.ProofData)
-		require.NoError(t, err)
-
-		require.Len(t, mockTxMgr.sent, 1)
-		require.Equal(t, expected, mockTxMgr.sent[0].TxData)
+		require.Equal(t, expected, tx)
 	})
 }
 
-func newTestFaultResponder(t *testing.T) (*FaultResponder, *mockTxManager) {
+func newTestFaultResponder(t *testing.T) (*faultResponder, *mockTxManager) {
 	log := testlog.Logger(t, log.LvlError)
 	mockTxMgr := &mockTxManager{}
 	responder, err := NewFaultResponder(log, mockTxMgr, mockFdgAddress)
@@ -176,7 +150,6 @@ func newTestFaultResponder(t *testing.T) (*FaultResponder, *mockTxManager) {
 type mockTxManager struct {
 	from      common.Address
 	sends     int
-	sent      []txmgr.TxCandidate
 	calls     int
 	sendFails bool
 	callFails bool
@@ -188,7 +161,6 @@ func (m *mockTxManager) Send(ctx context.Context, candidate txmgr.TxCandidate) (
 		return nil, mockSendError
 	}
 	m.sends++
-	m.sent = append(m.sent, candidate)
 	return ethtypes.NewReceipt(
 		[]byte{},
 		false,
@@ -215,4 +187,19 @@ func (m *mockTxManager) BlockNumber(ctx context.Context) (uint64, error) {
 
 func (m *mockTxManager) From() common.Address {
 	return m.from
+}
+
+func generateMockResponseClaim() types.Claim {
+	return types.Claim{
+		ClaimData: types.ClaimData{
+			Value:    common.Hash{0x01},
+			Position: types.NewPositionFromGIndex(2),
+		},
+		Parent: types.ClaimData{
+			Value:    common.Hash{0x02},
+			Position: types.NewPositionFromGIndex(1),
+		},
+		ContractIndex:       0,
+		ParentContractIndex: 0,
+	}
 }

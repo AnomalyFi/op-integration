@@ -12,31 +12,21 @@ import {
     RevocationRequestData
 } from "../IEAS.sol";
 
-import {
-    DeadlineExpired,
-    NO_EXPIRATION_TIME,
-    Signature,
-    InvalidSignature,
-    MAX_GAP,
-    stringToBytes32,
-    bytes32ToString
-} from "../Common.sol";
+import { Signature, InvalidSignature, MAX_GAP, stringToBytes32, bytes32ToString } from "../Common.sol";
 
 /// @title EIP1271Verifier
 /// @notice EIP1271Verifier typed signatures verifier for EAS delegated attestations.
 abstract contract EIP1271Verifier is EIP712 {
     using Address for address;
 
-    error InvalidNonce();
-
     // The hash of the data type used to relay calls to the attest function. It's the value of
     // keccak256("Attest(bytes32 schema,address recipient,uint64 expirationTime,bool revocable,bytes32 refUID,bytes
-    // data,uint256 value,uint256 nonce,uint64 deadline)").
-    bytes32 private constant ATTEST_TYPEHASH = 0xf83bb2b0ede93a840239f7e701a54d9bc35f03701f51ae153d601c6947ff3d3f;
+    // data,uint256 nonce)").
+    bytes32 private constant ATTEST_TYPEHASH = 0xdbfdf8dc2b135c26253e00d5b6cbe6f20457e003fd526d97cea183883570de61;
 
     // The hash of the data type used to relay calls to the revoke function. It's the value of
-    // keccak256("Revoke(bytes32 schema,bytes32 uid,uint256 value,uint256 nonce,uint64 deadline)").
-    bytes32 private constant REVOKE_TYPEHASH = 0x2d4116d8c9824e4c316453e5c2843a1885580374159ce8768603c49085ef424c;
+    // keccak256("Revoke(bytes32 schema,bytes32 uid,uint256 nonce)").
+    bytes32 private constant REVOKE_TYPEHASH = 0xa98d02348410c9c76735e0d0bb1396f4015ac2bb9615f9c2611d19d7a8a99650;
 
     // The user readable name of the signing domain.
     bytes32 private immutable _name;
@@ -46,11 +36,6 @@ abstract contract EIP1271Verifier is EIP712 {
 
     // Upgrade forward-compatibility storage gap
     uint256[MAX_GAP - 1] private __gap;
-
-    /// @dev Emitted when users invalidate nonces by increasing their nonces to (higher) new values.
-    /// @param oldNonce The previous nonce.
-    /// @param newNonce The new value.
-    event NonceIncreased(uint256 oldNonce, uint256 newNonce);
 
     /// @dev Creates a new EIP1271Verifier instance.
     /// @param version The current major version of the signing domain
@@ -89,28 +74,16 @@ abstract contract EIP1271Verifier is EIP712 {
         return bytes32ToString(_name);
     }
 
-    /// @notice Provides users an option to invalidate nonces by increasing their nonces to (higher) new values.
-    /// @param newNonce The (higher) new value.
-    function increaseNonce(uint256 newNonce) external {
-        uint256 oldNonce = _nonces[msg.sender];
-        if (newNonce <= oldNonce) {
-            revert InvalidNonce();
-        }
-
-        _nonces[msg.sender] = newNonce;
-
-        emit NonceIncreased({ oldNonce: oldNonce, newNonce: newNonce });
-    }
-
     /// @notice Verifies delegated attestation request.
     /// @param request The arguments of the delegated attestation request.
     function _verifyAttest(DelegatedAttestationRequest memory request) internal {
-        if (request.deadline != NO_EXPIRATION_TIME && request.deadline < _time()) {
-            revert DeadlineExpired();
-        }
-
         AttestationRequestData memory data = request.data;
         Signature memory signature = request.signature;
+
+        uint256 nonce;
+        unchecked {
+            nonce = _nonces[request.attester]++;
+        }
 
         bytes32 hash = _hashTypedDataV4(
             keccak256(
@@ -122,9 +95,7 @@ abstract contract EIP1271Verifier is EIP712 {
                     data.revocable,
                     data.refUID,
                     keccak256(data.data),
-                    data.value,
-                    _nonces[request.attester]++,
-                    request.deadline
+                    nonce
                 )
             )
         );
@@ -140,20 +111,15 @@ abstract contract EIP1271Verifier is EIP712 {
     /// @notice Verifies delegated revocation request.
     /// @param request The arguments of the delegated revocation request.
     function _verifyRevoke(DelegatedRevocationRequest memory request) internal {
-        if (request.deadline != NO_EXPIRATION_TIME && request.deadline < _time()) {
-            revert DeadlineExpired();
-        }
-
         RevocationRequestData memory data = request.data;
         Signature memory signature = request.signature;
 
-        bytes32 hash = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    REVOKE_TYPEHASH, request.schema, data.uid, data.value, _nonces[request.revoker]++, request.deadline
-                )
-            )
-        );
+        uint256 nonce;
+        unchecked {
+            nonce = _nonces[request.revoker]++;
+        }
+
+        bytes32 hash = _hashTypedDataV4(keccak256(abi.encode(REVOKE_TYPEHASH, request.schema, data.uid, nonce)));
         if (
             !SignatureChecker.isValidSignatureNow(
                 request.revoker, hash, abi.encodePacked(signature.r, signature.s, signature.v)
@@ -161,11 +127,5 @@ abstract contract EIP1271Verifier is EIP712 {
         ) {
             revert InvalidSignature();
         }
-    }
-
-    /// @dev Returns the current's block timestamp. This method is overridden during tests and used to simulate the
-    ///     current block time.
-    function _time() internal view virtual returns (uint64) {
-        return uint64(block.timestamp);
     }
 }

@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +16,6 @@ import (
 	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/hardhat"
@@ -202,12 +202,6 @@ type DeployConfig struct {
 	FundDevAccounts bool `json:"fundDevAccounts"`
 	// Whether to use the NodeKit sequencer
 	NodeKit bool `json:"nodekit,omitempty"`
-	// RequiredProtocolVersion indicates the protocol version that
-	// nodes are required to adopt, to stay in sync with the network.
-	RequiredProtocolVersion params.ProtocolVersion `json:"requiredProtocolVersion"`
-	// RequiredProtocolVersion indicates the protocol version that
-	// nodes are recommended to adopt, to stay in sync with the network.
-	RecommendedProtocolVersion params.ProtocolVersion `json:"recommendedProtocolVersion"`
 }
 
 // Copy will deeply copy the DeployConfig. This does a JSON roundtrip to copy
@@ -470,7 +464,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 				Overhead:    eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleOverhead))),
 				Scalar:      eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleScalar))),
 				GasLimit:    uint64(d.L2GenesisBlockGasLimit),
-				NodeKit:     d.NodeKit,
+				NodeKit:    d.NodeKit,
 			},
 		},
 		BlockTime:              d.L2BlockTime,
@@ -484,7 +478,6 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		L1SystemConfigAddress:  d.SystemConfigProxy,
 		RegolithTime:           d.RegolithTime(l1StartBlock.Time()),
 		SequencerContractAddress: d.SequencerContractAddress,
-
 	}, nil
 }
 
@@ -535,8 +528,6 @@ type L1Deployments struct {
 	ProxyAdmin                        common.Address `json:"ProxyAdmin"`
 	SystemConfig                      common.Address `json:"SystemConfig"`
 	SystemConfigProxy                 common.Address `json:"SystemConfigProxy"`
-	ProtocolVersions                  common.Address `json:"ProtocolVersions"`
-	ProtocolVersionsProxy             common.Address `json:"ProtocolVersionsProxy"`
 }
 
 // GetName will return the name of the contract given an address.

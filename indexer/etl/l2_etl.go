@@ -2,12 +2,11 @@ package etl
 
 import (
 	"context"
-	"errors"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/indexer/config"
 	"github.com/ethereum-optimism/optimism/indexer/database"
 	"github.com/ethereum-optimism/optimism/indexer/node"
+	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-service/retry"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,25 +19,14 @@ type L2ETL struct {
 	db *database.DB
 }
 
-func NewL2ETL(cfg Config, log log.Logger, db *database.DB, metrics Metricer, client node.EthClient, contracts config.L2Contracts) (*L2ETL, error) {
+func NewL2ETL(cfg Config, log log.Logger, db *database.DB, metrics Metricer, client node.EthClient) (*L2ETL, error) {
 	log = log.New("etl", "l2")
 
-	zeroAddr := common.Address{}
+	// allow predeploys to be overridable
 	l2Contracts := []common.Address{}
-	if err := contracts.ForEach(func(name string, addr common.Address) error {
-		// Since we dont have backfill support yet, we want to make sure all expected
-		// contracts are specified to ensure consistent behavior. Once backfill support
-		// is ready, we can relax this requirement.
-		if addr == zeroAddr {
-			log.Error("address not configured", "name", name)
-			return errors.New("all L2Contracts must be configured")
-		}
-
+	for name, addr := range predeploys.Predeploys {
 		log.Info("configured contract", "name", name, "addr", addr)
-		l2Contracts = append(l2Contracts, addr)
-		return nil
-	}); err != nil {
-		return nil, err
+		l2Contracts = append(l2Contracts, *addr)
 	}
 
 	latestHeader, err := db.Blocks.L2LatestBlockHeader()
@@ -62,10 +50,9 @@ func NewL2ETL(cfg Config, log log.Logger, db *database.DB, metrics Metricer, cli
 		log:             log,
 		metrics:         metrics,
 		headerTraversal: node.NewHeaderTraversal(client, fromHeader, cfg.ConfirmationDepth),
+		ethClient:       client,
 		contracts:       l2Contracts,
 		etlBatches:      etlBatches,
-
-		EthClient: client,
 	}
 
 	return &L2ETL{ETL: etl, db: db}, nil

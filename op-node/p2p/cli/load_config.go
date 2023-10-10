@@ -194,13 +194,12 @@ func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context) error {
 		conf.Bootnodes = p2p.DefaultBootnodes
 	}
 
-	if ctx.IsSet(flags.NetRestrict.Name) {
-		netRestrict, err := netutil.ParseNetlist(ctx.String(flags.NetRestrict.Name))
-		if err != nil {
-			return fmt.Errorf("failed to parse net list: %w", err)
-		}
-		conf.NetRestrict = netRestrict
+	netRestrict, err := netutil.ParseNetlist(ctx.String(flags.NetRestrict.Name))
+	if err != nil {
+		return fmt.Errorf("failed to parse net list: %w", err)
 	}
+
+	conf.NetRestrict = netRestrict
 
 	return nil
 }

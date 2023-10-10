@@ -12,8 +12,8 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
-	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/nodekit"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 type SequencerMode uint64
@@ -63,8 +63,7 @@ type Sequencer struct {
 
 	attrBuilder      derive.AttributesBuilder
 	l1OriginSelector L1OriginSelectorIface
-	//TODO change this because we do not have a query service
-	nodekit nodekit.QueryService
+	nodekit         nodekit.QueryService
 
 	metrics SequencerMetrics
 
@@ -86,13 +85,11 @@ func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEn
 		timeNow:          time.Now,
 		attrBuilder:      attributesBuilder,
 		l1OriginSelector: l1OriginSelector,
-		nodekit:          nodekit,
+		nodekit:         nodekit,
 		metrics:          metrics,
-		nodekitBatch:     nil,
+		nodekitBatch:    nil,
 	}
 }
-
-//TODO below this is new
 
 // startBuildingNodeKitBatch initiates an NodeKit block building job on top of the given L2 head,
 // safe and finalized blocks. After this function succeeds, `d.nodekitBatch` is guaranteed to be
@@ -130,24 +127,24 @@ func (d *Sequencer) updateNodeKitBatch(ctx context.Context, newHeaders []nodekit
 
 		// Validate that the given header is in the window and in the right order.
 		if header.Timestamp >= batch.windowEnd {
-			return derive.NewCriticalError(fmt.Errorf("inconsistent data from NodeKit SEQ: header %v in window has timestamp after window end %d", header, batch.windowEnd))
+			return derive.NewCriticalError(fmt.Errorf("inconsistent data from NodeKit query service: header %v in window has timestamp after window end %d", header, batch.windowEnd))
 		}
 		if header.Timestamp < batch.windowStart {
-			// Eventually, we should return an error here.
-			//TODO Do I need this
-			d.log.Error("inconsistent data from NodeKit API: header is before window start", "header", header, "start", batch.windowStart)
+			// Eventually, we should return an error here. However due to a limitation in the
+			// current implementation of SEQ/NodeKit, block timestamps will sometimes decrease.
+			d.log.Error("inconsistent data from NodeKit query service: header is before window start", "header", header, "start", batch.windowStart)
 		}
 		prev := batch.jst.Prev
 		if numBlocks != 0 {
 			prev = &blocks[numBlocks-1].Header
 		}
 		if prev != nil && header.Timestamp < prev.Timestamp {
-			//TODO Do I need this
-			d.log.Error("inconsistent data from NodeKit API: header is before its predecessor", "header", header, "prev", prev)
+			// Similarly, this should eventually be an error, but can happen with the current
+			// version of NodeKit.
+			d.log.Error("inconsistent data from NodeKit query service: header is before its predecessor", "header", header, "prev", prev)
 		}
 
 		blockNum := batch.jst.From + uint64(numBlocks)
-		//TODO fix this
 		txs, err := d.nodekit.FetchTransactionsInBlock(ctx, blockNum, &header, d.config.L2ChainID.Uint64())
 		if err != nil {
 			return err
@@ -174,7 +171,6 @@ func (d *Sequencer) updateNodeKitBatch(ctx context.Context, newHeaders []nodekit
 func (d *Sequencer) tryToSealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload, error) {
 	batch := d.nodekitBatch
 	if !batch.complete() {
-		//TODO do I need this?
 		blocks, err := d.nodekit.FetchRemainingHeadersForWindow(ctx, batch.jst.From+uint64(len(batch.jst.Blocks)), batch.windowEnd)
 		if err != nil {
 			return nil, err
@@ -198,19 +194,11 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload
 	// Deterministically choose an L1 origin for this L2 batch, based on the latest L1 block that
 	// NodeKit has told us exists, but adjusting as needed to meet the constraints of the
 	// derivation pipeline.
-	//TODO need to fix this
 	suggestedL1Origin, err := d.l1OriginSelector.FindL1OriginByNumber(ctx, batch.jst.Next.L1Head)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch suggested L1 origin %d: %w", batch.jst.Next.L1Head, err)
 	}
-	nextL1Number := batch.onto.L1Origin.Number + 1
-	fetchNextL1Block := func() (eth.L1BlockRef, error) {
-		return d.l1OriginSelector.FindL1OriginByNumber(ctx, nextL1Number)
-	}
-	l1OriginNumber, err := derive.NodeKitL1Origin(d.config, batch.onto, suggestedL1Origin, fetchNextL1Block, d.log)
-	if err != nil {
-		return nil, err
-	}
+	l1OriginNumber := derive.NodeKitL1Origin(d.config, batch.onto, suggestedL1Origin)
 	l1Origin := suggestedL1Origin
 	if l1Origin.Number != l1OriginNumber {
 		l1Origin, err = d.l1OriginSelector.FindL1OriginByNumber(ctx, l1OriginNumber)
@@ -226,9 +214,9 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload
 	if derive.NodeKitBatchMustBeEmpty(d.config, l1Origin, batch.windowStart) {
 		batch.transactions = nil
 
+		//TODO do I need this?
 		// We don't need all the NMT proofs in this case, so save space in the batch by replacing
 		// them with empty proofs.
-		//TODO change this for NodeKit
 		// for i := range batch.jst.Blocks {
 		// 	batch.jst.Blocks[i].Proof = nodekit.NmtProof{}
 		// }
@@ -257,12 +245,6 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload
 	}
 	d.nodekitBatch = nil
 	return payload, nil
-}
-
-func (d *Sequencer) cancelBuildingNodeKitBatch() {
-	// If we're in the process of building an NodeKit batch, we haven't sent anything to the engine
-	// yet. All we have to do is forget the batch.
-	d.nodekitBatch = nil
 }
 
 // startBuildingLegacyBlock initiates a legacy block building job on top of the given L2 head, safe and finalized blocks, and using the provided l1Origin.
@@ -441,17 +423,6 @@ func (d *Sequencer) CompleteBuildingBlock(ctx context.Context) (*eth.ExecutionPa
 		return d.completeBuildingLegacyBlock(ctx)
 	default:
 		return nil, fmt.Errorf("not building a block")
-	}
-}
-
-func (d *Sequencer) CancelBuildingBlock(ctx context.Context) {
-	switch d.mode {
-	case NodeKit:
-		d.cancelBuildingNodeKitBatch()
-	case Legacy:
-		d.cancelBuildingLegacyBlock(ctx)
-	default:
-		// Nothing to do, we're not building a block.
 	}
 }
 

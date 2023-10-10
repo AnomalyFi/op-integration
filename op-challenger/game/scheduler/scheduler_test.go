@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -19,7 +18,7 @@ func TestSchedulerProcessesGames(t *testing.T) {
 	}
 	removeExceptCalls := make(chan []common.Address)
 	disk := &trackingDiskManager{removeExceptCalls: removeExceptCalls}
-	s := NewScheduler(logger, metrics.NoopMetrics, disk, 2, createPlayer)
+	s := NewScheduler(logger, disk, 2, createPlayer)
 	s.Start(ctx)
 
 	gameAddr1 := common.Address{0xaa}
@@ -47,7 +46,7 @@ func TestReturnBusyWhenScheduleQueueFull(t *testing.T) {
 	}
 	removeExceptCalls := make(chan []common.Address)
 	disk := &trackingDiskManager{removeExceptCalls: removeExceptCalls}
-	s := NewScheduler(logger, metrics.NoopMetrics, disk, 2, createPlayer)
+	s := NewScheduler(logger, disk, 2, createPlayer)
 
 	// Scheduler not started - first call fills the queue
 	require.NoError(t, s.Schedule([]common.Address{{0xaa}}))

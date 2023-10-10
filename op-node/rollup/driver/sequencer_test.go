@@ -21,12 +21,11 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum-optimism/optimism/op-node/testutils"
-	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/nodekit"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
-//TODO redo all this for NodeKit
-
+//TODO fix this file
 var mockResetErr = fmt.Errorf("mock reset err: %w", derive.ErrReset)
 
 type FakeEngineControl struct {
@@ -154,14 +153,14 @@ type TestSequencer struct {
 	cfg        rollup.Config
 	seq        *Sequencer
 	engControl FakeEngineControl
-	nodekit    *FakeNodeKitClient
+	nodekit   *FakeNodeKitClient
 
 	clockTime time.Time
 	clockFn   func() time.Time
 	l1Times   map[eth.BlockID]uint64
 
-	attrsErr   error
-	originErr  error
+	attrsErr    error
+	originErr   error
 	nodekitErr error
 }
 
@@ -401,10 +400,10 @@ func (s *TestSequencer) FetchTransactionsInBlock(ctx context.Context, block uint
 	txs := s.nodekit.Blocks[block].Transactions
 
 	// Fake an NMT proof.
-	//proof := nodekit.NmtProof{}
+	proof := nodekit.NmtProof{}
 	return nodekit.TransactionsInBlock{
 		Transactions: txs,
-		//Proof:        proof,
+		Proof:        proof,
 	}, nil
 }
 
@@ -453,10 +452,10 @@ func (s *TestSequencer) nextNodeKitBlock() *nodekit.Header {
 
 	var l1OriginNumber uint64
 	if s.nodekit.AdvanceL1Origin {
-		//l1OriginNumber = prev.L1Head + 1
+		l1OriginNumber = prev.L1Head + 1
 		s.nodekit.AdvanceL1Origin = false
 	} else {
-		//l1OriginNumber = prev.L1Head
+		l1OriginNumber = prev.L1Head
 		switch s.rng.Intn(20) {
 		case 0:
 			// 5%: move the L1 origin _backwards_. NodeKit is supposed to enforce that the L1
@@ -489,7 +488,7 @@ func (s *TestSequencer) nextNodeKitBlock() *nodekit.Header {
 		}
 	}
 
-	//l1Origin := s.l1BlockByNumber(l1OriginNumber)
+	l1Origin := s.l1BlockByNumber(l1OriginNumber)
 
 	// 5% of the time, mess with the timestamp. Again, NodeKit should ensure that the timestamps
 	// are monotonically increasing, but for now, it doesn't.
@@ -501,7 +500,7 @@ func (s *TestSequencer) nextNodeKitBlock() *nodekit.Header {
 		TransactionsRoot: root,
 		Metadata: nodekit.Metadata{
 			Timestamp: timestamp,
-			//L1Head:    l1Origin.Number,
+			L1Head:    l1Origin.Number,
 		},
 	}
 
@@ -708,105 +707,105 @@ func TestSequencerChaosMonkeyLegacy(t *testing.T) {
 	require.Greater(t, s.engControl.avgBuildingTime(), time.Second, "With 2 second block time and 1 second error backoff and healthy-on-average errors, building time should at least be a second")
 }
 
-// func TestSequencerChaosMonkeyEspresso(t *testing.T) {
-// 	s := SetupSequencer(t, true)
-// 	SequencerChaosMonkey(s)
+func TestSequencerChaosMonkeyNodeKit(t *testing.T) {
+	s := SetupSequencer(t, true)
+	SequencerChaosMonkey(s)
 
-// 	// Check that the L2 block time is accurate. The tolerance here is slightly higher than for the
-// 	// legacy sequencer, since the NodeKit mode sequencer has to wait for one additional HotShot
-// 	// block to be sequenced after the time window for an L2 batch ends, before it can sequence that
-// 	// batch. This problem is exacerbated with the chaos monkey, since it may take even more wall
-// 	// clock time to fetch that last NodeKit block due to injected errors.
-// 	l2Head := s.engControl.UnsafeL2Head()
-// 	require.Less(t, s.clockTime.Sub(time.Unix(int64(l2Head.Time), 0)).Abs(), 12*time.Second, "L2 time is accurate, within 12 seconds of wallclock")
-// 	// Here, the legacy test checks `avgBuildingTime()`. This stat is meaningless for the NodeKit
-// 	// mode sequencer, since it builds blocks locally rather than in the engine.
+	// Check that the L2 block time is accurate. The tolerance here is slightly higher than for the
+	// legacy sequencer, since the NodeKit mode sequencer has to wait for one additional HotShot
+	// block to be sequenced after the time window for an L2 batch ends, before it can sequence that
+	// batch. This problem is exacerbated with the chaos monkey, since it may take even more wall
+	// clock time to fetch that last NodeKit block due to injected errors.
+	l2Head := s.engControl.UnsafeL2Head()
+	require.Less(t, s.clockTime.Sub(time.Unix(int64(l2Head.Time), 0)).Abs(), 12*time.Second, "L2 time is accurate, within 12 seconds of wallclock")
+	// Here, the legacy test checks `avgBuildingTime()`. This stat is meaningless for the NodeKit
+	// mode sequencer, since it builds blocks locally rather than in the engine.
 
-// 	// After running the chaos monkey, check that the sequenced blocks satisfy the constraints of
-// 	// the derivation pipeline. Count how many times we hit each interesting case.
-// 	prevL1Origin := s.cfg.Genesis.L1.Number
-// 	happyPath := 0
-// 	noNodeKitBlocks := 0
-// 	oldL1Origin := 0
-// 	newL1Origin := 0
-// 	skippedL1Origin := 0
-// 	decreasingL1Origin := 0
-// 	l2Head = eth.L2BlockRef{
-// 		Hash:           s.cfg.Genesis.L2.Hash,
-// 		Number:         s.cfg.Genesis.L2.Number,
-// 		ParentHash:     mockL2Hash(s.cfg.Genesis.L2.Number - 1),
-// 		Time:           s.cfg.Genesis.L2Time,
-// 		L1Origin:       s.cfg.Genesis.L1,
-// 		SequenceNumber: 0,
-// 	}
-// 	for _, payload := range s.engControl.l2Batches {
-// 		// Find the number of deposit transactions in the L2 block, or, equivalently, the offset of
-// 		// the first transaction produced by NodeKit.
-// 		numDepositTxs := 0
-// 		for tx := range payload.Transactions {
-// 			if payload.Transactions[tx][0] == uint8(types.DepositTxType) {
-// 				numDepositTxs += 1
-// 			} else {
-// 				break
-// 			}
-// 		}
+	// After running the chaos monkey, check that the sequenced blocks satisfy the constraints of
+	// the derivation pipeline. Count how many times we hit each interesting case.
+	prevL1Origin := s.cfg.Genesis.L1.Number
+	happyPath := 0
+	noNodeKitBlocks := 0
+	oldL1Origin := 0
+	newL1Origin := 0
+	skippedL1Origin := 0
+	decreasingL1Origin := 0
+	l2Head = eth.L2BlockRef{
+		Hash:           s.cfg.Genesis.L2.Hash,
+		Number:         s.cfg.Genesis.L2.Number,
+		ParentHash:     mockL2Hash(s.cfg.Genesis.L2.Number - 1),
+		Time:           s.cfg.Genesis.L2Time,
+		L1Origin:       s.cfg.Genesis.L1,
+		SequenceNumber: 0,
+	}
+	for _, payload := range s.engControl.l2Batches {
+		// Find the number of deposit transactions in the L2 block, or, equivalently, the offset of
+		// the first transaction produced by NodeKit.
+		numDepositTxs := 0
+		for tx := range payload.Transactions {
+			if payload.Transactions[tx][0] == uint8(types.DepositTxType) {
+				numDepositTxs += 1
+			} else {
+				break
+			}
+		}
 
-// 		// Parse the L1 info from the payload.
-// 		var tx types.Transaction
-// 		require.NoError(t, tx.UnmarshalBinary(payload.Transactions[0]))
-// 		l1Info, err := derive.L1InfoDepositTxData(tx.Data())
-// 		require.NoError(t, err)
-// 		jst := l1Info.Justification
+		// Parse the L1 info from the payload.
+		var tx types.Transaction
+		require.NoError(t, tx.UnmarshalBinary(payload.Transactions[0]))
+		l1Info, err := derive.L1InfoDepositTxData(tx.Data())
+		require.NoError(t, err)
+		jst := l1Info.Justification
 
-// 		// Reconstruct the batch from the execution payload.
-// 		batch := derive.BatchData{
-// 			BatchV2: derive.BatchV2{
-// 				Justification: jst,
-// 				BatchV1: derive.BatchV1{
-// 					ParentHash:   payload.ParentHash,
-// 					Timestamp:    uint64(payload.Timestamp),
-// 					EpochNum:     rollup.Epoch(l1Info.Number),
-// 					EpochHash:    l1Info.BlockHash,
-// 					Transactions: payload.Transactions[numDepositTxs:],
-// 				},
-// 			},
-// 		}
-// 		batchWithL1 := derive.BatchWithL1InclusionBlock{
-// 			L1InclusionBlock: eth.L1BlockRef{},
-// 			Batch:            &batch,
-// 		}
+		// Reconstruct the batch from the execution payload.
+		batch := derive.BatchData{
+			BatchV2: derive.BatchV2{
+				Justification: jst,
+				BatchV1: derive.BatchV1{
+					ParentHash:   payload.ParentHash,
+					Timestamp:    uint64(payload.Timestamp),
+					EpochNum:     rollup.Epoch(l1Info.Number),
+					EpochHash:    l1Info.BlockHash,
+					Transactions: payload.Transactions[numDepositTxs:],
+				},
+			},
+		}
+		batchWithL1 := derive.BatchWithL1InclusionBlock{
+			L1InclusionBlock: eth.L1BlockRef{},
+			Batch:            &batch,
+		}
 
-// 		// Check that the derivation pipeline would accept this batch.
-// 		status := derive.CheckBatchNodeKit(&s.cfg, testlog.Logger(t, log.LvlInfo), l2Head, &batchWithL1, s)
-// 		require.Equal(t, status, derive.BatchValidity(derive.BatchAccept), "sequencer built a block that the derivation pipeline will not accept")
+		// Check that the derivation pipeline would accept this batch.
+		status := derive.CheckBatchNodeKit(&s.cfg, testlog.Logger(t, log.LvlInfo), l2Head, &batchWithL1, s)
+		require.Equal(t, status, derive.BatchValidity(derive.BatchAccept), "sequencer built a block that the derivation pipeline will not accept")
 
-// 		// Figure out which interesting cases we hit.
-// 		suggestedL1Origin := s.l1BlockByNumber(jst.Next.L1Head)
-// 		if suggestedL1Origin.Number > prevL1Origin+1 {
-// 			skippedL1Origin++
-// 		} else if suggestedL1Origin.Number < prevL1Origin {
-// 			decreasingL1Origin++
-// 		} else if suggestedL1Origin.Time+s.cfg.MaxSequencerDrift < batch.Timestamp {
-// 			oldL1Origin++
-// 		} else if suggestedL1Origin.Time > batch.Timestamp {
-// 			newL1Origin++
-// 		} else if len(jst.Blocks) == 0 {
-// 			noNodeKitBlocks++
-// 		} else {
-// 			happyPath++
-// 		}
+		// Figure out which interesting cases we hit.
+		suggestedL1Origin := s.l1BlockByNumber(jst.Next.L1Head)
+		if suggestedL1Origin.Number > prevL1Origin+1 {
+			skippedL1Origin++
+		} else if suggestedL1Origin.Number < prevL1Origin {
+			decreasingL1Origin++
+		} else if suggestedL1Origin.Time+s.cfg.MaxSequencerDrift < batch.Timestamp {
+			oldL1Origin++
+		} else if suggestedL1Origin.Time > batch.Timestamp {
+			newL1Origin++
+		} else if len(jst.Blocks) == 0 {
+			noNodeKitBlocks++
+		} else {
+			happyPath++
+		}
 
-// 		// Move to the next batch.
-// 		l2Head, err = derive.PayloadToBlockRef(payload, &s.cfg.Genesis)
-// 		require.Nil(t, err, "failed to convert payload to block ref")
-// 		prevL1Origin = l1Info.Number
-// 	}
+		// Move to the next batch.
+		l2Head, err = derive.PayloadToBlockRef(payload, &s.cfg.Genesis)
+		require.Nil(t, err, "failed to convert payload to block ref")
+		prevL1Origin = l1Info.Number
+	}
 
-// 	t.Logf("NodeKit sequencing case coverage:")
-// 	t.Logf("Happy path:           %d", happyPath)
-// 	t.Logf("No NodeKit blocks:   %d", noNodeKitBlocks)
-// 	t.Logf("Old L1 origin:        %d", oldL1Origin)
-// 	t.Logf("New L1 origin:        %d", newL1Origin)
-// 	t.Logf("Skipped L1 origin:    %d", skippedL1Origin)
-// 	t.Logf("Decreasing L1 origin: %d", decreasingL1Origin)
-// }
+	t.Logf("NodeKit sequencing case coverage:")
+	t.Logf("Happy path:           %d", happyPath)
+	t.Logf("No NodeKit blocks:   %d", noNodeKitBlocks)
+	t.Logf("Old L1 origin:        %d", oldL1Origin)
+	t.Logf("New L1 origin:        %d", newL1Origin)
+	t.Logf("Skipped L1 origin:    %d", skippedL1Origin)
+	t.Logf("Decreasing L1 origin: %d", decreasingL1Origin)
+}

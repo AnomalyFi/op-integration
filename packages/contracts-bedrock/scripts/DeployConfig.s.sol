@@ -47,10 +47,8 @@ contract DeployConfig is Script {
     uint256 public faultGameAbsolutePrestate;
     uint256 public faultGameMaxDepth;
     uint256 public faultGameMaxDuration;
-    bool public nodekit;
+    bool public espresso;
     uint256 public systemConfigStartBlock;
-    uint256 public requiredProtocolVersion;
-    uint256 public recommendedProtocolVersion;
 
     constructor(string memory _path) {
         console.log("DeployConfig: reading file %s", _path);
@@ -97,14 +95,7 @@ contract DeployConfig is Script {
             faultGameAbsolutePrestate = stdJson.readUint(_json, "$.faultGameAbsolutePrestate");
             faultGameMaxDepth = stdJson.readUint(_json, "$.faultGameMaxDepth");
             faultGameMaxDuration = stdJson.readUint(_json, "$.faultGameMaxDuration");
-            nodekit = stdJson.readBool(_json, "$.nodekit");
-            requiredProtocolVersion = stdJson.readUint(_json, "$.requiredProtocolVersion");
-            recommendedProtocolVersion = stdJson.readUint(_json, "$.recommendedProtocolVersion");
-        }
-
-        if (block.chainid == Chains.Goerli || block.chainid == Chains.Sepolia) {
-            requiredProtocolVersion = stdJson.readUint(_json, "$.requiredProtocolVersion");
-            recommendedProtocolVersion = stdJson.readUint(_json, "$.recommendedProtocolVersion");
+            espresso = stdJson.readBool(_json, "$.espresso");
         }
     }
 

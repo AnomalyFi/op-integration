@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-challenger/game/scheduler"
 	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
 	"github.com/ethereum-optimism/optimism/op-challenger/version"
-	opClient "github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/clock"
 	oppprof "github.com/ethereum-optimism/optimism/op-service/pprof"
@@ -35,7 +34,7 @@ func NewService(ctx context.Context, logger log.Logger, cfg *config.Config) (*Se
 		return nil, fmt.Errorf("failed to create the transaction manager: %w", err)
 	}
 
-	l1Client, err := client.DialEthClientWithTimeout(client.DefaultDialTimeout, logger, cfg.L1EthRpc)
+	client, err := client.DialEthClientWithTimeout(client.DefaultDialTimeout, logger, cfg.L1EthRpc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial L1: %w", err)
 	}
@@ -58,10 +57,10 @@ func NewService(ctx context.Context, logger log.Logger, cfg *config.Config) (*Se
 				logger.Error("error starting metrics server", "err", err)
 			}
 		}()
-		m.StartBalanceMetrics(ctx, logger, l1Client, txMgr.From())
+		m.StartBalanceMetrics(ctx, logger, client, txMgr.From())
 	}
 
-	factory, err := bindings.NewDisputeGameFactory(cfg.GameFactoryAddress, l1Client)
+	factory, err := bindings.NewDisputeGameFactory(cfg.GameFactoryAddress, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind the fault dispute game factory contract: %w", err)
 	}
@@ -70,18 +69,13 @@ func NewService(ctx context.Context, logger log.Logger, cfg *config.Config) (*Se
 	disk := newDiskManager(cfg.Datadir)
 	sched := scheduler.NewScheduler(
 		logger,
-		m,
 		disk,
 		cfg.MaxConcurrency,
 		func(addr common.Address, dir string) (scheduler.GamePlayer, error) {
-			return fault.NewGamePlayer(ctx, logger, m, cfg, dir, addr, txMgr, l1Client)
+			return fault.NewGamePlayer(ctx, logger, cfg, dir, addr, txMgr, client)
 		})
 
-	pollClient, err := opClient.NewRPCWithClient(ctx, logger, cfg.L1EthRpc, opClient.NewBaseRPCClient(l1Client.Client()), cfg.PollInterval)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create RPC client: %w", err)
-	}
-	monitor := newGameMonitor(logger, cl, loader, sched, cfg.GameWindow, l1Client.BlockNumber, cfg.GameAllowlist, pollClient)
+	monitor := newGameMonitor(logger, cl, loader, sched, cfg.GameWindow, client.BlockNumber, cfg.GameAllowlist)
 
 	m.RecordInfo(version.SimpleWithMeta)
 	m.RecordUp()

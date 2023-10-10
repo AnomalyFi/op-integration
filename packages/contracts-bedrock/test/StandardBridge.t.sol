@@ -74,8 +74,7 @@ contract StandardBridge_Stateless_Test is CommonTest {
             _bridge: address(0),
             _remoteToken: address(0),
             _name: "Stonks",
-            _symbol: "STONK",
-            _decimals: 18
+            _symbol: "STONK"
         });
 
         erc20 = new ERC20("Altcoin", "ALT");

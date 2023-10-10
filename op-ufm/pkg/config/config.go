@@ -48,7 +48,10 @@ type WalletConfig struct {
 	PrivateKey string `toml:"private_key"`
 
 	// transaction parameters
-	TxValue big.Int `toml:"tx_value"`
+	TxValue   big.Int `toml:"tx_value"`
+	GasLimit  uint64  `toml:"gas_limit"`
+	GasTipCap big.Int `toml:"gas_tip_cap"`
+	GasFeeCap big.Int `toml:"gas_fee_cap"`
 }
 
 type ProviderConfig struct {
@@ -61,7 +64,6 @@ type ProviderConfig struct {
 	SendInterval                 TOMLDuration `toml:"send_interval"`
 	SendTransactionRetryInterval TOMLDuration `toml:"send_transaction_retry_interval"`
 	SendTransactionRetryTimeout  TOMLDuration `toml:"send_transaction_retry_timeout"`
-	SendTransactionCoolDown      TOMLDuration `toml:"send_transaction_cool_down"`
 	ReceiptRetrievalInterval     TOMLDuration `toml:"receipt_retrieval_interval"`
 	ReceiptRetrievalTimeout      TOMLDuration `toml:"receipt_retrieval_timeout"`
 
@@ -128,6 +130,12 @@ func (c *Config) Validate() error {
 		if wallet.TxValue.BitLen() == 0 {
 			return errors.Errorf("wallet [%s] tx_value is missing", name)
 		}
+		if wallet.GasLimit == 0 {
+			return errors.Errorf("wallet [%s] gas_limit is missing", name)
+		}
+		if wallet.GasFeeCap.BitLen() == 0 {
+			return errors.Errorf("wallet [%s] gas_fee_cap is missing", name)
+		}
 	}
 
 	for name, provider := range c.Providers {
@@ -145,9 +153,6 @@ func (c *Config) Validate() error {
 		}
 		if provider.SendTransactionRetryTimeout == 0 {
 			return errors.Errorf("provider [%s] send_transaction_retry_timeout is missing", name)
-		}
-		if provider.SendTransactionCoolDown == 0 {
-			return errors.Errorf("provider [%s] send_transaction_cool_down is missing", name)
 		}
 		if provider.ReceiptRetrievalInterval == 0 {
 			return errors.Errorf("provider [%s] receipt_retrieval_interval is missing", name)

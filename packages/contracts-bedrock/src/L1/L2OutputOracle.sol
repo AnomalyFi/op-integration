@@ -2,7 +2,7 @@
 pragma solidity 0.8.15;
 
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { ISemver } from "../universal/ISemver.sol";
+import { Semver } from "../universal/Semver.sol";
 import { Types } from "../libraries/Types.sol";
 
 /// @custom:proxied
@@ -10,7 +10,7 @@ import { Types } from "../libraries/Types.sol";
 /// @notice The L2OutputOracle contains an array of L2 state outputs, where each output is a
 ///         commitment to the state of the L2 chain. Other contracts like the OptimismPortal use
 ///         these outputs to verify information about the state of L2.
-contract L2OutputOracle is Initializable, ISemver {
+contract L2OutputOracle is Initializable, Semver {
     /// @notice The interval in L2 blocks at which checkpoints must be submitted.
     ///         Although this is immutable, it can safely be modified by upgrading the
     ///         implementation contract.
@@ -62,16 +62,19 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @param newNextOutputIndex  Next L2 output index after the deletion.
     event OutputsDeleted(uint256 indexed prevNextOutputIndex, uint256 indexed newNextOutputIndex);
 
-    /// @notice Semantic version.
-    /// @custom:semver 1.5.0
-    string public constant version = "1.5.0";
-
+    /// @custom:semver 1.4.1
     /// @notice Constructs the L2OutputOracle contract.
     /// @param _submissionInterval  Interval in blocks at which checkpoints must be submitted.
     /// @param _l2BlockTime         The time per L2 block, in seconds.
     /// @param _finalizationPeriodSeconds The amount of time that must pass for an output proposal
     //                                    to be considered canonical.
-    constructor(uint256 _submissionInterval, uint256 _l2BlockTime, uint256 _finalizationPeriodSeconds) {
+    constructor(
+        uint256 _submissionInterval,
+        uint256 _l2BlockTime,
+        uint256 _finalizationPeriodSeconds
+    )
+        Semver(1, 4, 1)
+    {
         require(_l2BlockTime > 0, "L2OutputOracle: L2 block time must be greater than 0");
         require(_submissionInterval > 0, "L2OutputOracle: submission interval must be greater than 0");
 

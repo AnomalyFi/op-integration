@@ -32,6 +32,7 @@ contract SystemConfig_Init is CommonTest {
     uint256 constant scalar = 1000000;
     bytes32 constant batcherHash = bytes32(hex"abcd");
     uint64 constant gasLimit = 30_000_000;
+    bool constant espresso = false;
     address constant unsafeBlockSigner = address(1);
 
     function setUp() public virtual override {
@@ -51,7 +52,7 @@ contract SystemConfig_Init is CommonTest {
                     scalar, // _scalar,
                     batcherHash, // _batcherHash
                     gasLimit, // _gasLimit,
-                    nodekit, // _nodekit,
+                    espresso, // _espresso,
                     unsafeBlockSigner, // _unsafeBlockSigner,
                     Constants.DEFAULT_RESOURCE_CONFIG(), // _config,
                     0, // _startBlock
@@ -124,7 +125,7 @@ contract SystemConfig_Initialize_Test is SystemConfig_Init {
                     scalar, // _scalar,
                     batcherHash, // _batcherHash
                     gasLimit, // _gasLimit,
-                    nodekit, // _nodekit,
+                    espresso, // _espresso,
                     unsafeBlockSigner, // _unsafeBlockSigner,
                     Constants.DEFAULT_RESOURCE_CONFIG(), // _config,
                     startBlock, // _startBlock
@@ -171,7 +172,7 @@ contract SystemConfig_Initialize_Test is SystemConfig_Init {
                     scalar, // _scalar,
                     batcherHash, // _batcherHash
                     gasLimit, // _gasLimit,
-                    nodekit, // _nodekit,
+                    espresso, // _espresso,
                     unsafeBlockSigner, // _unsafeBlockSigner,
                     Constants.DEFAULT_RESOURCE_CONFIG(), // _config,
                     0, // _startBlock
@@ -211,7 +212,7 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Init {
                     1000000, // _scalar,
                     bytes32(hex"abcd"), // _batcherHash,
                     minimumGasLimit - 1, // _gasLimit,
-                    nodekit, // _nodekit,
+                    false, // _espresso
                     address(1), // _unsafeBlockSigner,
                     Constants.DEFAULT_RESOURCE_CONFIG(), // _config,
                     0, // _startBlock
@@ -252,7 +253,7 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Init {
                     scalar, // _scalar,
                     batcherHash, // _batcherHash
                     gasLimit, // _gasLimit,
-                    nodekit, // _nodekit,
+                    espresso, // _espresso,
                     unsafeBlockSigner, // _unsafeBlockSigner,
                     Constants.DEFAULT_RESOURCE_CONFIG(), // _config,
                     1, // _startBlock

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-challenger/game/types"
-	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/testlog"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -142,7 +140,7 @@ func TestDeleteDataForResolvedGames(t *testing.T) {
 	require.NoError(t, c.schedule(ctx, []common.Address{gameAddr3}))
 	require.Len(t, workQueue, 1)
 	j := <-workQueue
-	j.status = types.GameStatusDefenderWon
+	j.resolved = true
 	require.NoError(t, c.processResult(j))
 	// But ensure its data directory is marked as existing
 	disk.DirForGame(gameAddr3)
@@ -157,9 +155,7 @@ func TestDeleteDataForResolvedGames(t *testing.T) {
 	// Game 3 hasn't yet progressed (update is still in flight)
 	for i := 0; i < len(gameAddrs)-1; i++ {
 		j := <-workQueue
-		if j.addr == gameAddr2 {
-			j.status = types.GameStatusDefenderWon
-		}
+		j.resolved = j.addr == gameAddr2
 		require.NoError(t, c.processResult(j))
 	}
 
@@ -233,20 +229,20 @@ func setupCoordinatorTest(t *testing.T, bufferSize int) (*coordinator, <-chan jo
 		created: make(map[common.Address]*stubGame),
 	}
 	disk := &stubDiskManager{gameDirExists: make(map[common.Address]bool)}
-	c := newCoordinator(logger, metrics.NoopMetrics, workQueue, resultQueue, games.CreateGame, disk)
+	c := newCoordinator(logger, workQueue, resultQueue, games.CreateGame, disk)
 	return c, workQueue, resultQueue, games, disk
 }
 
 type stubGame struct {
 	addr          common.Address
 	progressCount int
-	status        types.GameStatus
+	done          bool
 	dir           string
 }
 
-func (g *stubGame) ProgressGame(_ context.Context) types.GameStatus {
+func (g *stubGame) ProgressGame(_ context.Context) bool {
 	g.progressCount++
-	return g.status
+	return g.done
 }
 
 type createdGames struct {
@@ -263,14 +259,10 @@ func (c *createdGames) CreateGame(addr common.Address, dir string) (GamePlayer, 
 	if _, exists := c.created[addr]; exists {
 		c.t.Fatalf("game %v already exists", addr)
 	}
-	status := types.GameStatusInProgress
-	if addr == c.createCompleted {
-		status = types.GameStatusDefenderWon
-	}
 	game := &stubGame{
-		addr:   addr,
-		status: status,
-		dir:    dir,
+		addr: addr,
+		done: addr == c.createCompleted,
+		dir:  dir,
 	}
 	c.created[addr] = game
 	return game, nil

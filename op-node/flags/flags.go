@@ -146,13 +146,6 @@ var (
 		Required: false,
 		Value:    time.Second * 12 * 32,
 	}
-	RuntimeConfigReloadIntervalFlag = &cli.DurationFlag{
-		Name:     "l1.runtime-config-reload-interval",
-		Usage:    "Poll interval for reloading the runtime config, useful when config events are not being picked up. Disabled if 0 or negative.",
-		EnvVars:  prefixEnvVars("L1_RUNTIME_CONFIG_RELOAD_INTERVAL"),
-		Required: false,
-		Value:    time.Minute * 10,
-	}
 	MetricsEnabledFlag = &cli.BoolFlag{
 		Name:    "metrics.enabled",
 		Usage:   "Enable the metrics server",
@@ -238,7 +231,7 @@ var (
 	}
 	NodeKitUrl = &cli.StringFlag{
 		Name:     "nodekit",
-		Usage:    "Sets the URL for fetching data from NodeKit SEQ. Required only if sequencing for a NodeKit-enabled OP-chain",
+		Usage:    "Sets the URL for fetching data from the NodeKit Sequencer. Required only if sequencing for an NodeKit-enabled OP-chain",
 		EnvVars:  prefixEnvVars("NODEKIT_URL"),
 		Required: false,
 	}
@@ -248,18 +241,6 @@ var (
 			"The superchain-registry is experimental, and the availability of configurations may change."+
 			"Available networks: %s", strings.Join(chaincfg.BetaAvailableNetworks(), ", ")),
 		EnvVars: prefixEnvVars("BETA_EXTRA_NETWORKS"),
-		Hidden:  true,
-	}
-	BetaRollupHalt = &cli.StringFlag{
-		Name:    "beta.rollup.halt",
-		Usage:   "Beta feature: opt-in option to halt on incompatible protocol version requirements of the given level (major/minor/patch/none), as signaled onchain in L1",
-		EnvVars: prefixEnvVars("BETA_ROLLUP_HALT"),
-		Hidden:  true,
-	}
-	BetaRollupLoadProtocolVersions = &cli.BoolFlag{
-		Name:    "beta.rollup.load-protocol-versions",
-		Usage:   "Beta feature: load protocol versions from the superchain L1 ProtocolVersions contract (if available), and report in logs and metrics",
-		EnvVars: prefixEnvVars("BETA_ROLLUP_LOAD_PROTOCOL_VERSIONS"),
 		Hidden:  true,
 	}
 )
@@ -287,7 +268,6 @@ var optionalFlags = []cli.Flag{
 	SequencerMaxSafeLagFlag,
 	SequencerL1Confs,
 	L1EpochPollIntervalFlag,
-	RuntimeConfigReloadIntervalFlag,
 	RPCEnableAdmin,
 	RPCAdminPersistence,
 	MetricsEnabledFlag,
@@ -305,8 +285,6 @@ var optionalFlags = []cli.Flag{
 	L2EngineSyncEnabled,
 	SkipSyncStartCheck,
 	BetaExtraNetworks,
-	BetaRollupHalt,
-	BetaRollupLoadProtocolVersions,
 }
 
 // Flags contains the list of configuration options available to the binary.

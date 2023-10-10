@@ -1,4 +1,4 @@
-package geth
+package op_e2e
 
 import (
 	"time"

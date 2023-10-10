@@ -13,7 +13,7 @@ func TestRoundTripJSON(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "test.json")
 	data := &jsonTestData{A: "yay", B: 3}
-	err := writeJSON(file, data)
+	err := writeJSON(file, data, false)
 	require.NoError(t, err)
 
 	// Confirm the file is uncompressed
@@ -32,7 +32,7 @@ func TestRoundTripJSONWithGzip(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "test.json.gz")
 	data := &jsonTestData{A: "yay", B: 3}
-	err := writeJSON(file, data)
+	err := writeJSON(file, data, false)
 	require.NoError(t, err)
 
 	// Confirm the file isn't raw JSON

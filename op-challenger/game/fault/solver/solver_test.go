@@ -1,10 +1,11 @@
-package solver
+package solver_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/solver"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/test"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
 	"github.com/stretchr/testify/require"
@@ -83,7 +84,7 @@ func TestNextMove(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			solver := newClaimSolver(maxDepth, builder.CorrectTraceProvider())
+			solver := solver.NewSolver(maxDepth, builder.CorrectTraceProvider())
 			move, err := solver.NextMove(context.Background(), test.claim, test.agreeWithLevel)
 			if test.expectedErr == nil {
 				require.NoError(t, err)
@@ -173,19 +174,19 @@ func TestAttemptStep(t *testing.T) {
 		{
 			name:        "CannotStepNonLeaf",
 			claim:       builder.Seq(false).Attack(false).Get(),
-			expectedErr: ErrStepNonLeafNode,
+			expectedErr: solver.ErrStepNonLeafNode,
 		},
 		{
 			name:           "CannotStepAgreedNode",
 			claim:          builder.Seq(false).Attack(false).Get(),
 			agreeWithLevel: true,
-			expectedErr:    ErrStepNonLeafNode,
+			expectedErr:    solver.ErrStepNonLeafNode,
 		},
 		{
 			name:           "CannotStepAgreedNode",
 			claim:          builder.Seq(false).Attack(false).Get(),
 			agreeWithLevel: true,
-			expectedErr:    ErrStepNonLeafNode,
+			expectedErr:    solver.ErrStepNonLeafNode,
 		},
 	}
 
@@ -197,7 +198,7 @@ func TestAttemptStep(t *testing.T) {
 				alphabetProvider = test.NewAlphabetWithProofProvider(t, maxDepth, errProvider)
 			}
 			builder = test.NewClaimBuilder(t, maxDepth, alphabetProvider)
-			alphabetSolver := newClaimSolver(maxDepth, builder.CorrectTraceProvider())
+			alphabetSolver := solver.NewSolver(maxDepth, builder.CorrectTraceProvider())
 			step, err := alphabetSolver.AttemptStep(ctx, tableTest.claim, tableTest.agreeWithLevel)
 			if tableTest.expectedErr == nil {
 				require.NoError(t, err)
@@ -211,7 +212,7 @@ func TestAttemptStep(t *testing.T) {
 				require.Equal(t, tableTest.expectedOracleData.OracleOffset, step.OracleData.OracleOffset)
 			} else {
 				require.ErrorIs(t, err, tableTest.expectedErr)
-				require.Equal(t, StepData{}, step)
+				require.Equal(t, solver.StepData{}, step)
 			}
 		})
 	}

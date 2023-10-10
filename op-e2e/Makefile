@@ -2,26 +2,42 @@
 ifdef JUNIT_FILE
 	go_test = OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false gotestsum --format=standard-verbose --junitfile=$(JUNIT_FILE) --
   # Note: -parallel must be set to match the number of cores in the resource class
-	go_test_flags = -timeout=20m -parallel=8
+	go_test_flags = -timeout=30m -parallel=8
 else
 	go_test = go test
 	go_test_flags = -v
 endif
 
-test: pre-test test-ws
+# Not all the existing tests work in Espresso mode. We have selectively enabled some here. To enable
+# more once they start working, simply add to the -run flag below.
+espresso_test_flags = -l1-allocs ../.devnet-espresso/allocs-l1.json \
+	-l1-deployments ../.devnet-espresso/addresses.json \
+	-deploy-config ../packages/contracts-bedrock/deploy-config/devnetL1-espresso.json \
+	-parallel 1 \
+	-run "TestMissingGasLimit|TestGethOnlyPendingBlockIsLatest|TestInvalidDepositInFCU|TestRegolith|TestPreregolith|TestSystemE2E|TestConfirmationDepth|TestMintOnRevertedDeposit|TestSystemP2PAltSync|TestSystemRPCAltSync|TestWithdrawals|TestERC20BridgeDeposits" \
+
+test: pre-test test-legacy-ws test-espresso-ws
 .PHONY: test
 
 test-external-%: pre-test
 	make -C ./external_$*/
 	$(go_test) $(go_test_flags) --externalL2 ./external_$*/
 
-test-ws: pre-test
+test-legacy-ws: pre-test
 	$(go_test) $(go_test_flags) ./...
-.PHONY: test-ws
+.PHONY: test-legacy-ws
 
-test-http: pre-test
+test-legacy-http: pre-test
 	OP_E2E_USE_HTTP=true $(go_test) $(go_test_flags) ./...
-.PHONY: test-ws
+.PHONY: test-legacy-ws
+
+test-espresso-ws: pre-test
+	$(go_test) $(go_test_flags) $(espresso_test_flags) ./...
+.PHONY: test-espresso-ws
+
+test-espresso-http: pre-test
+	OP_E2E_USE_HTTP=true $(go_test) $(go_test_flags) $(espresso_test_flags) ./...
+.PHONY: test-espresso-ws
 
 cannon-prestate:
 	make -C .. cannon-prestate
@@ -31,6 +47,10 @@ cannon-prestate:
 devnet-allocs: pre-test-cannon
 	make -C .. devnet-allocs
 .PHONY: devnet-allocs
+
+devnet-allocs-espresso: pre-test-cannon
+	make -C .. devnet-allocs-espresso
+.PHONY: devnet-allocs-espresso
 
 pre-test: pre-test-cannon pre-test-allocs
 .PHONY: pre-test
@@ -45,10 +65,14 @@ pre-test-allocs:
 	@if [ ! -e ../.devnet ]; then \
 		make devnet-allocs; \
 	fi
+	@if [ ! -e ../.devnet-espresso ]; then \
+		make devnet-allocs-espresso; \
+	fi
 .PHONY: pre-test-allocs
 
 clean:
 	rm -r ../.devnet
+	rm -r ../.devnet-espresso
 	rm -r ../op-program/bin
 .PHONY: clean
 
