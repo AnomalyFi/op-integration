@@ -52,11 +52,11 @@ func (aq *AttributesQueue) Origin() eth.L1BlockRef {
 func (aq *AttributesQueue) NextAttributes(ctx context.Context, l2SafeHead eth.L2BlockRef) (*eth.PayloadAttributes, error) {
 	// Get a batch if we need it
 	if aq.batch == nil {
-		usingEspresso, err := aq.builder.ChildNeedsJustification(ctx, l2SafeHead)
+		usingNodeKit, err := aq.builder.ChildNeedsJustification(ctx, l2SafeHead)
 		if err != nil {
 			return nil, err
 		}
-		batch, err := aq.prev.NextBatch(ctx, l2SafeHead, usingEspresso)
+		batch, err := aq.prev.NextBatch(ctx, l2SafeHead, usingNodeKit)
 		if err != nil {
 			return nil, err
 		}

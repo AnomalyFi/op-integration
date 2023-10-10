@@ -21,7 +21,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         GAS_CONFIG,
         GAS_LIMIT,
         UNSAFE_BLOCK_SIGNER,
-        ESPRESSO
+        NODEKIT
     }
 
     /// @notice Struct representing the addresses of L1 system contracts. These should be the
@@ -85,8 +85,8 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     /// @notice L2 block gas limit.
     uint64 public gasLimit;
 
-    /// @notice Whether the Espresso Sequencer is enabled.
-    bool public espresso;
+    /// @notice Whether the NodeKit Sequencer is enabled.
+    bool public nodekit;
 
     /// @notice The configuration for the deposit fee market.
     ///         Used by the OptimismPortal to meter the cost of buying L2 gas on L1.
@@ -113,7 +113,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
             _scalar: 0,
             _batcherHash: bytes32(0),
             _gasLimit: 1,
-            _espresso: false,
+            _nodekit: false,
             _unsafeBlockSigner: address(0),
             _config: ResourceMetering.ResourceConfig({
                 maxResourceLimit: 1,
@@ -158,7 +158,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         uint256 _scalar,
         bytes32 _batcherHash,
         uint64 _gasLimit,
-        bool _espresso,
+        bool _nodekit,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config,
         uint256 _startBlock,
@@ -176,7 +176,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         _setGasConfig({ _overhead: _overhead, _scalar: _scalar });
         _setGasLimit(_gasLimit);
         _setUnsafeBlockSigner(_unsafeBlockSigner);
-        _setEspresso(_espresso);
+        _setNodeKit(_nodekit);
 
         _setAddress(_batchInbox, BATCH_INBOX_SLOT);
         _setAddress(_addresses.l1CrossDomainMessenger, L1_CROSS_DOMAIN_MESSENGER_SLOT);
@@ -304,15 +304,15 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         emit ConfigUpdate(VERSION, UpdateType.UNSAFE_BLOCK_SIGNER, data);
     }
 
-    function setEspresso(bool _espresso) external onlyOwner {
-        _setEspresso(_espresso);
+    function setNodeKit(bool _nodekit) external onlyOwner {
+        _setNodeKit(_nodekit);
     }
 
-    function _setEspresso(bool _espresso) internal {
-        espresso = _espresso;
+    function _setNodeKit(bool _nodekit) internal {
+        nodekit = _nodekit;
 
-        bytes memory data = abi.encode(_espresso);
-        emit ConfigUpdate(VERSION, UpdateType.ESPRESSO, data);
+        bytes memory data = abi.encode(_nodekit);
+        emit ConfigUpdate(VERSION, UpdateType.NODEKIT, data);
     }
 
     /// @notice Updates the batcher hash. Can only be called by the owner.

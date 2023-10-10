@@ -8,15 +8,15 @@ else
 	go_test_flags = -v
 endif
 
-# Not all the existing tests work in Espresso mode. We have selectively enabled some here. To enable
+# Not all the existing tests work in NodeKit mode. We have selectively enabled some here. To enable
 # more once they start working, simply add to the -run flag below.
-espresso_test_flags = -l1-allocs ../.devnet-espresso/allocs-l1.json \
-	-l1-deployments ../.devnet-espresso/addresses.json \
-	-deploy-config ../packages/contracts-bedrock/deploy-config/devnetL1-espresso.json \
+nodekit_test_flags = -l1-allocs ../.devnet-nodekit/allocs-l1.json \
+	-l1-deployments ../.devnet-nodekit/addresses.json \
+	-deploy-config ../packages/contracts-bedrock/deploy-config/devnetL1-nodekit.json \
 	-parallel 1 \
 	-run "TestMissingGasLimit|TestGethOnlyPendingBlockIsLatest|TestInvalidDepositInFCU|TestRegolith|TestPreregolith|TestSystemE2E|TestConfirmationDepth|TestMintOnRevertedDeposit|TestSystemP2PAltSync|TestSystemRPCAltSync|TestWithdrawals|TestERC20BridgeDeposits" \
 
-test: pre-test test-legacy-ws test-espresso-ws
+test: pre-test test-legacy-ws test-nodekit-ws
 .PHONY: test
 
 test-external-%: pre-test
@@ -31,13 +31,13 @@ test-legacy-http: pre-test
 	OP_E2E_USE_HTTP=true $(go_test) $(go_test_flags) ./...
 .PHONY: test-legacy-ws
 
-test-espresso-ws: pre-test
-	$(go_test) $(go_test_flags) $(espresso_test_flags) ./...
-.PHONY: test-espresso-ws
+test-nodekit-ws: pre-test
+	$(go_test) $(go_test_flags) $(nodekit_test_flags) ./...
+.PHONY: test-nodekit-ws
 
-test-espresso-http: pre-test
-	OP_E2E_USE_HTTP=true $(go_test) $(go_test_flags) $(espresso_test_flags) ./...
-.PHONY: test-espresso-ws
+test-nodekit-http: pre-test
+	OP_E2E_USE_HTTP=true $(go_test) $(go_test_flags) $(nodekit_test_flags) ./...
+.PHONY: test-nodekit-ws
 
 cannon-prestate:
 	make -C .. cannon-prestate
@@ -48,9 +48,9 @@ devnet-allocs: pre-test-cannon
 	make -C .. devnet-allocs
 .PHONY: devnet-allocs
 
-devnet-allocs-espresso: pre-test-cannon
-	make -C .. devnet-allocs-espresso
-.PHONY: devnet-allocs-espresso
+devnet-allocs-nodekit: pre-test-cannon
+	make -C .. devnet-allocs-nodekit
+.PHONY: devnet-allocs-nodekit
 
 pre-test: pre-test-cannon pre-test-allocs
 .PHONY: pre-test
@@ -65,14 +65,14 @@ pre-test-allocs:
 	@if [ ! -e ../.devnet ]; then \
 		make devnet-allocs; \
 	fi
-	@if [ ! -e ../.devnet-espresso ]; then \
-		make devnet-allocs-espresso; \
+	@if [ ! -e ../.devnet-nodekit ]; then \
+		make devnet-allocs-nodekit; \
 	fi
 .PHONY: pre-test-allocs
 
 clean:
 	rm -r ../.devnet
-	rm -r ../.devnet-espresso
+	rm -r ../.devnet-nodekit
 	rm -r ../op-program/bin
 .PHONY: clean
 

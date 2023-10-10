@@ -196,7 +196,7 @@ contract Portal_Initializer is L2OutputOracle_Initializer {
                     10000, //_scalar,
                     bytes32(0), //_batcherHash,
                     30_000_000, //_gasLimit,
-                    false, //_espresso,
+                    false, //_nodekit,
                     address(0), //_unsafeBlockSigner,
                     Constants.DEFAULT_RESOURCE_CONFIG(), //_config,
                     0, //_startBlock

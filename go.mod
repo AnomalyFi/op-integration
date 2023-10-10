@@ -239,4 +239,4 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/EspressoSystems/op-geth v1.2.2-espresso
+replace github.com/ethereum/go-ethereum => github.com/AnomalyFi/op-geth v0.2.0

@@ -15,6 +15,8 @@ github.com/AnomalyFi/nodekit-sdk v0.12.1 h1:xHxsrRczuFUgMTgy/gRvyZ06AsM/yFIATQCB
 github.com/AnomalyFi/nodekit-sdk v0.12.1/go.mod h1:83HRvKEzPzloq/vpIIgi3a5MBkJOw6kZBX5OaFEShhI=
 github.com/AnomalyFi/nodekit-seq v0.7.0 h1:Fiu/NPElEt2P2tLvrWi30ahEjrGMIIv3qZndw2qIlpM=
 github.com/AnomalyFi/nodekit-seq v0.7.0/go.mod h1:J0nEXga4oV2IR++uAwQMv90P1uzXY6obrLuYmD1kWcQ=
+github.com/AnomalyFi/op-geth v0.2.0 h1:QyAJjdv4MhashULNcWuw1sku+DBLQzaAAOH1k3GPU2Y=
+github.com/AnomalyFi/op-geth v0.2.0/go.mod h1:gRnPb21PoKcHm3kHqj9BQlQkwmhOGUvQoGEbC7z852Q=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/toml v1.3.2 h1:o7IhLm0Msx3BaB+n3Ag7L8EVlByGnpq14C4YWiu/gL8=
 github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
@@ -22,8 +24,6 @@ github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53/go.mod h1:+3
 github.com/CloudyKit/jet/v3 v3.0.0/go.mod h1:HKQPgSJmdK8hdoAbKUUWajkHyHo4RaU5rMdUywE7VMo=
 github.com/DataDog/zstd v1.5.5 h1:oWf5W7GtOLgp6bciQYDmhHHjdhYkALu6S/5Ni9ZgSvQ=
 github.com/DataDog/zstd v1.5.5/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
-github.com/EspressoSystems/op-geth v1.2.2-espresso h1:W3eDSzzCH9jJaSJnPo8FAV6FJpvrZRJ4QDSlJ4bj384=
-github.com/EspressoSystems/op-geth v1.2.2-espresso/go.mod h1:gRnPb21PoKcHm3kHqj9BQlQkwmhOGUvQoGEbC7z852Q=
 github.com/Joker/hpp v1.0.0/go.mod h1:8x5n+M1Hp5hC0g8okX3sR3vFQwynaX/UgSOM9MeBKzY=
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
 github.com/Shopify/goreferrer v0.0.0-20181106222321-ec9c9a553398/go.mod h1:a1uqRtAwp2Xwc6WNPJEufxJ7fx3npB4UV/JOLmbu5I0=

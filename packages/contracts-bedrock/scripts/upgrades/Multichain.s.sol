@@ -440,7 +440,7 @@ contract Multichain is SafeBuilder {
                 cfg.gasPriceOracleScalar(),
                 bytes32(uint256(uint160(cfg.batchSenderAddress()))),
                 uint64(cfg.l2GenesisBlockGasLimit()),
-                cfg.espresso(),
+                cfg.nodekit(),
                 cfg.p2pSequencerAddress(),
                 Constants.DEFAULT_RESOURCE_CONFIG(),
                 cfg.systemConfigStartBlock(),
