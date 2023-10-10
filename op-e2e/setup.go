@@ -5,20 +5,23 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"math/big"
+	prng "math/rand"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/geth"
 	"github.com/ethereum-optimism/optimism/op-node/p2p/store"
 	"github.com/ethereum-optimism/optimism/op-service/clock"
 	ds "github.com/ipfs/go-datastore"
@@ -89,7 +92,7 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 	require.NoError(t, err)
 	deployConfig := config.DeployConfig.Copy()
 	deployConfig.L1GenesisBlockTimestamp = hexutil.Uint64(time.Now().Unix())
-	require.NoError(t, deployConfig.Check(), "Deploy config is invalid, do you need to run make devnet-allocs?")
+	require.NoError(t, deployConfig.Check())
 	l1Deployments := config.L1Deployments.Copy()
 	require.NoError(t, l1Deployments.Check())
 
@@ -120,13 +123,12 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 				},
 				// Submitter PrivKey is set in system start for rollup nodes where sequencer = true
 				RPC: rollupNode.RPCConfig{
-					ListenAddr:  "127.0.0.1",
+					ListenAddr:  "0.0.0.0",
 					ListenPort:  0,
 					EnableAdmin: true,
 				},
-				L1EpochPollInterval:         time.Second * 2,
-				RuntimeConfigReloadInterval: time.Minute * 10,
-				ConfigPersistence:           &rollupNode.DisabledConfigPersistence{},
+				L1EpochPollInterval: time.Second * 2,
+				ConfigPersistence:   &rollupNode.DisabledConfigPersistence{},
 			},
 			"verifier": {
 				Driver: driver.Config{
@@ -134,9 +136,8 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 					SequencerConfDepth: 0,
 					SequencerEnabled:   false,
 				},
-				L1EpochPollInterval:         time.Second * 4,
-				RuntimeConfigReloadInterval: time.Minute * 10,
-				ConfigPersistence:           &rollupNode.DisabledConfigPersistence{},
+				L1EpochPollInterval: time.Second * 4,
+				ConfigPersistence:   &rollupNode.DisabledConfigPersistence{},
 			},
 		},
 		Loggers: map[string]log.Logger{
@@ -145,7 +146,7 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 			"batcher":   testlog.Logger(t, log.LvlInfo).New("role", "batcher"),
 			"proposer":  testlog.Logger(t, log.LvlCrit).New("role", "proposer"),
 		},
-		GethOptions:                map[string][]geth.GethOption{},
+		GethOptions:                map[string][]GethOption{},
 		P2PTopology:                nil, // no P2P connectivity by default
 		NonFinalizedProposals:      false,
 		ExternalL2Shim:             config.ExternalL2Shim,
@@ -180,7 +181,7 @@ type SystemConfig struct {
 	Premine        map[common.Address]*big.Int
 	Nodes          map[string]*rollupNode.Config // Per node config. Don't use populate rollup.Config
 	Loggers        map[string]log.Logger
-	GethOptions    map[string][]geth.GethOption
+	GethOptions    map[string][]GethOption
 	ProposerLogger log.Logger
 	BatcherLogger  log.Logger
 
@@ -249,7 +250,7 @@ type System struct {
 
 	L2GenesisCfg *core.Genesis
 
-	NodeKit *NodeKit
+	NodeKit *NodeKitSystem
 
 	// Connections to running nodes
 	EthInstances      map[string]EthInstance
@@ -294,9 +295,7 @@ func (sys *System) Close() {
 	sys.Mocknet.Close()
 }
 
-//TODO below this is new
-
-type NodeKit struct {
+type NodeKitSystem struct {
 	composeFile   string
 	projectName   string
 	sequencerPort uint16
@@ -304,15 +303,15 @@ type NodeKit struct {
 	logsProcess   *exec.Cmd
 }
 
-func (e *NodeKit) SequencerUrl() string {
-	//TODO may need to change this for SEQ
+func (e *NodeKitSystem) SequencerUrl() string {
 	return fmt.Sprintf("http://localhost:%d", e.sequencerPort)
 }
-func (e *NodeKit) ProxyUrl() string {
+
+func (e *NodeKitSystem) ProxyUrl() string {
 	return fmt.Sprintf("http://localhost:%d", e.proxyPort)
 }
 
-func (e *NodeKit) StartGethProxy(sequencer EthInstance) error {
+func (e *NodeKitSystem) StartGethProxy(sequencer EthInstance) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx,
@@ -328,6 +327,7 @@ func (e *NodeKit) StartGethProxy(sequencer EthInstance) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("docker compose up (%v) error: %w output: %s", cmd, err, stderr.String())
 	}
+
 	// Find the ports which were randomly assigned to the services.
 	proxyPort, err := dockerComposePort(e.projectName, e.composeFile, "op-geth-proxy", 9090)
 	if err != nil {
@@ -336,7 +336,8 @@ func (e *NodeKit) StartGethProxy(sequencer EthInstance) error {
 	e.proxyPort = proxyPort
 	return nil
 }
-func (e *NodeKit) PrintLogs() {
+
+func (e *NodeKitSystem) PrintLogs() {
 	logs := exec.Command("docker", "compose", "--project-name", e.projectName, "-f", e.composeFile, "logs")
 	logs.Stdout = os.Stdout
 	logs.Stderr = os.Stderr
@@ -344,7 +345,8 @@ func (e *NodeKit) PrintLogs() {
 		log.Error("failed to get docker-compose logs: %w", err)
 	}
 }
-func (e *NodeKit) AttachLogs() error {
+
+func (e *NodeKitSystem) AttachLogs() error {
 	// Forward service logs to our stdout.
 	logs := exec.Command("docker", "compose", "--project-name", e.projectName, "-f", e.composeFile, "logs", "-f")
 	logs.Stdout = os.Stdout
@@ -355,7 +357,8 @@ func (e *NodeKit) AttachLogs() error {
 	e.logsProcess = logs
 	return nil
 }
-func (e *NodeKit) Close() {
+
+func (e *NodeKitSystem) Close() {
 	// Kill the docker-compose environment.
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -364,6 +367,7 @@ func (e *NodeKit) Close() {
 	if err := cmd.Run(); err != nil {
 		log.Error("failed to kill docker-compose", "err", err)
 	}
+
 	// Kill the logs process.
 	if e.logsProcess != nil {
 		if err := e.logsProcess.Process.Kill(); err != nil {
@@ -374,6 +378,7 @@ func (e *NodeKit) Close() {
 		}
 	}
 }
+
 func dockerComposePort(projectName string, composeFile string, service string, internalPort uint16) (uint16, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -390,8 +395,6 @@ func dockerComposePort(projectName string, composeFile string, service string, i
 	}
 	return uint16(port), nil
 }
-
-//TODO above this is new
 
 type systemConfigHook func(sCfg *SystemConfig, s *System)
 
@@ -427,7 +430,7 @@ func (s *SystemConfigOptions) Get(key, role string) (systemConfigHook, bool) {
 func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*System, error) {
 	opts, err := NewSystemConfigOptions(_opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create system config: %w", err)
 	}
 
 	sys := &System{
@@ -456,12 +459,12 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	}
 
 	if err := cfg.DeployConfig.Check(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid DeployConfig: %w", err)
 	}
 
 	l1Genesis, err := genesis.BuildL1DeveloperGenesis(cfg.DeployConfig, config.L1Allocs, config.L1Deployments, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build L1 genesis: %w", err)
 	}
 
 	for addr, amount := range cfg.Premine {
@@ -480,29 +483,56 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		}
 	}
 
-	//TODO may want to add this back in
-	// Start the SEQ network, if required.
-	// if cfg.DeployConfig.NodeKit {
+	// Initialize L1
+	l1Node, l1Backend, err := initL1Geth(&cfg, l1Genesis, c, cfg.GethOptions["l1"]...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init L1 geth: %w", err)
+	}
+	sys.EthInstances["l1"] = &GethInstance{
+		Backend: l1Backend,
+		Node:    l1Node,
+	}
+	err = l1Node.Start()
+	if err != nil {
+		didErrAfterStart = true
+		return nil, fmt.Errorf("failed to starat L1 geth: %w", err)
+	}
+
+	// Connect to L1 Geth client
+	l1Srv, err := l1Node.RPCHandler()
+	if err != nil {
+		didErrAfterStart = true
+		return nil, err
+	}
+	rawL1Client := rpc.DialInProc(l1Srv)
+	l1Client := ethclient.NewClient(rawL1Client)
+	sys.Clients["l1"] = l1Client
+	sys.RawClients["l1"] = rawL1Client
+
+	// Start an NodeKitSystem sequencer network, if required.
+	// if cfg.DeployConfig.NodeKitSystem {
 	// 	// Find the docker-compose file.
 	// 	cwd, err := os.Getwd()
 	// 	if err != nil {
-	// 			return nil, fmt.Errorf("failed to get cwd: %w", err)
+	// 		return nil, fmt.Errorf("failed to get cwd: %w", err)
 	// 	}
 	// 	root, err := config.FindMonorepoRoot(cwd)
 	// 	if err != nil {
-	// 			return nil, fmt.Errorf("failed to find monorepo root: %w", err)
+	// 		return nil, fmt.Errorf("failed to find monorepo root: %w", err)
 	// 	}
 	// 	composeFile := filepath.Join(root, "op-e2e", "docker-compose.yml")
+
 	// 	// Generate a random project name to distinguish this docker-compose network from that of
 	// 	// other tests running in parallel.
 	// 	projectName := fmt.Sprintf("e2e-tests-%d", prng.Int63())
+
 	// 	// Start the services.
 	// 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	// 	defer cancel()
 	// 	cmd := exec.CommandContext(ctx,
-	// 			"docker", "compose", "--project-name", projectName, "-f", composeFile,
-	// 			"up", "orchestrator", "da-server", "consensus-server", "sequencer0", "sequencer1", "commitment-task",
-	// 			"-V", "--force-recreate", "--wait")
+	// 		"docker", "compose", "--project-name", projectName, "-f", composeFile,
+	// 		"up", "orchestrator", "da-server", "consensus-server", "sequencer0", "sequencer1", "commitment-task",
+	// 		"-V", "--force-recreate", "--wait")
 	// 	stderr := bytes.Buffer{}
 	// 	cmd.Stderr = &stderr
 	// 	cmd.Stdout = &stderr
@@ -512,38 +542,47 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	// 	cmd.Env = append(cmd.Env, fmt.Sprintf("ESPRESSO_ORCHESTRATOR_MAX_PROPOSE_TIME=%dms", cfg.DeployConfig.L2BlockTime*1000/2))
 	// 	cmd.Env = append(cmd.Env, "RUST_LOG=info")
 	// 	if err := cmd.Run(); err != nil {
-	// 			sys.Espresso = &EspressoSystem{
-	// 					projectName:   projectName,
-	// 					composeFile:   composeFile,
-	// 					sequencerPort: 0,
-	// 			}
-	// 			sys.Espresso.PrintLogs()
-	// 			return nil, fmt.Errorf("docker compose up (%v) error: %w output: %s", cmd, err, stderr.String())
+	// 		sys.Espresso = &EspressoSystem{
+	// 			projectName:   projectName,
+	// 			composeFile:   composeFile,
+	// 			sequencerPort: 0,
+	// 		}
+	// 		sys.Espresso.PrintLogs()
+	// 		return nil, fmt.Errorf("docker compose up (%v) error: %w output: %s", cmd, err, stderr.String())
 	// 	}
+
 	// 	// Find the ports which were randomly assigned to the services.
 	// 	sequencerPort, err := dockerComposePort(projectName, composeFile, "sequencer0", 8080)
 	// 	if err != nil {
-	// 			return nil, fmt.Errorf("failed to get sequencer0 port: %w", err)
+	// 		return nil, fmt.Errorf("failed to get sequencer0 port: %w", err)
 	// 	}
+
 	// 	sys.Espresso = &EspressoSystem{
-	// 			projectName:   projectName,
-	// 			composeFile:   composeFile,
-	// 			sequencerPort: sequencerPort,
+	// 		projectName:   projectName,
+	// 		composeFile:   composeFile,
+	// 		sequencerPort: sequencerPort,
 	// 	}
+
 	// 	// Wait for Espresso to start producing blocks. Because of pipelining, the first block can
 	// 	// take a few seconds, which we don't want to count against the test timeout.
 	// 	if err := sys.Espresso.WaitForBlockHeight(ctx, 1); err != nil {
-	// 			// If we never reached a height of a single block, something is probably wrong with the
-	// 			// Espresso configuration, and we will want to look at the logs.
-	// 			sys.Espresso.PrintLogs()
-	// 			return nil, fmt.Errorf("failed to reach Espresso block height: %w", err)
+	// 		// If we never reached a height of a single block, something is probably wrong with the
+	// 		// Espresso configuration, and we will want to look at the logs.
+	// 		sys.Espresso.PrintLogs()
+	// 		return nil, fmt.Errorf("failed to reach Espresso block height: %w", err)
 	// 	}
 	// }
 
-	l1Block := l1Genesis.ToBlock()
+	// Initialize L2
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	l1Block, err := l1Client.BlockByNumber(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get L1 head: %w", err)
+	}
 	l2Genesis, err := genesis.BuildL2Genesis(cfg.DeployConfig, l1Block)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build L2 genesis: %w", err)
 	}
 	sys.L2GenesisCfg = l2Genesis
 	for addr, amount := range cfg.Premine {
@@ -567,55 +606,38 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 			Genesis: rollup.Genesis{
 				L1: eth.BlockID{
 					Hash:   l1Block.Hash(),
-					Number: 0,
+					Number: l1Block.Number().Uint64(),
 				},
 				L2: eth.BlockID{
 					Hash:   l2Genesis.ToBlock().Hash(),
 					Number: 0,
 				},
-				L2Time:       uint64(cfg.DeployConfig.L1GenesisBlockTimestamp),
+				L2Time:       l2Genesis.Timestamp,
 				SystemConfig: e2eutils.SystemConfigFromDeployConfig(cfg.DeployConfig),
 			},
-			BlockTime:                cfg.DeployConfig.L2BlockTime,
-			MaxSequencerDrift:        cfg.DeployConfig.MaxSequencerDrift,
-			SeqWindowSize:            cfg.DeployConfig.SequencerWindowSize,
-			ChannelTimeout:           cfg.DeployConfig.ChannelTimeout,
-			L1ChainID:                cfg.L1ChainIDBig(),
-			L2ChainID:                cfg.L2ChainIDBig(),
-			BatchInboxAddress:        cfg.DeployConfig.BatchInboxAddress,
-			SequencerContractAddress: cfg.DeployConfig.SequencerContractAddress,
-			DepositContractAddress:   cfg.DeployConfig.OptimismPortalProxy,
-			L1SystemConfigAddress:    cfg.DeployConfig.SystemConfigProxy,
-			RegolithTime:             cfg.DeployConfig.RegolithTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
-			ProtocolVersionsAddress:  cfg.L1Deployments.ProtocolVersionsProxy,
+			BlockTime:              cfg.DeployConfig.L2BlockTime,
+			MaxSequencerDrift:      cfg.DeployConfig.MaxSequencerDrift,
+			SeqWindowSize:          cfg.DeployConfig.SequencerWindowSize,
+			ChannelTimeout:         cfg.DeployConfig.ChannelTimeout,
+			L1ChainID:              cfg.L1ChainIDBig(),
+			L2ChainID:              cfg.L2ChainIDBig(),
+			BatchInboxAddress:      cfg.DeployConfig.BatchInboxAddress,
+			HotShotContractAddress: cfg.DeployConfig.HotShotContractAddress,
+			DepositContractAddress: cfg.DeployConfig.OptimismPortalProxy,
+			L1SystemConfigAddress:  cfg.DeployConfig.SystemConfigProxy,
+			RegolithTime:           cfg.DeployConfig.RegolithTime(uint64(cfg.DeployConfig.L1GenesisBlockTimestamp)),
 		}
 	}
 	defaultConfig := makeRollupConfig()
 	if err := defaultConfig.Check(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("rollup config is invalid: %w", err)
 	}
 	sys.RollupConfig = &defaultConfig
-
-	//TODO may need to elimiante this part
-	// Initialize nodes
-	l1Node, l1Backend, err := geth.InitL1(cfg.DeployConfig.L1ChainID, cfg.DeployConfig.L1BlockTime, l1Genesis, c, cfg.GethOptions["l1"]...)
-	if err != nil {
-		return nil, err
-	}
-	sys.EthInstances["l1"] = &GethInstance{
-		Backend: l1Backend,
-		Node:    l1Node,
-	}
-	err = l1Node.Start()
-	if err != nil {
-		didErrAfterStart = true
-		return nil, err
-	}
 
 	for name := range cfg.Nodes {
 		var ethClient EthInstance
 		if cfg.ExternalL2Shim == "" {
-			node, backend, err := geth.InitL2(name, big.NewInt(int64(cfg.DeployConfig.L2ChainID)), l2Genesis, cfg.JWTFilePath, cfg.GethOptions[name]...)
+			node, backend, err := initL2Geth(name, big.NewInt(int64(cfg.DeployConfig.L2ChainID)), l2Genesis, cfg.JWTFilePath, cfg.GethOptions[name]...)
 			if err != nil {
 				return nil, err
 			}
@@ -631,7 +653,7 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 			ethClient = gethInst
 		} else {
 			if len(cfg.GethOptions[name]) > 0 {
-				t.Skip("External L2 nodes do not support configuration through GethOptions")
+				t.Errorf("External L2 nodes do not support configuration through GethOptions")
 			}
 			ethClient = (&ExternalRunner{
 				Name:    name,
@@ -643,16 +665,15 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		sys.EthInstances[name] = ethClient
 	}
 
-	// Now that the L2 nodes are running, start an Espresso proxy for the L2 sequencer Geth node.
+	// Now that the L2 nodes are running, start an NodeKit proxy for the L2 sequencer Geth node.
 	if sys.NodeKit != nil {
 		if err := sys.NodeKit.StartGethProxy(sys.EthInstances["sequencer"]); err != nil {
 			return nil, fmt.Errorf("failed to start Geth proxy: %w", err)
 		}
-		//TODO check if I need this
-		// // Now that all the Docker services are running, attach to logs.
-		// if err := sys.Espresso.AttachLogs(); err != nil {
-		// 		return nil, fmt.Errorf("failed to attach to Docker logs: %w", err)
-		// }
+		// Now that all the Docker services are running, attach to logs.
+		if err := sys.NodeKit.AttachLogs(); err != nil {
+			return nil, fmt.Errorf("failed to attach to Docker logs: %w", err)
+		}
 	}
 
 	// Configure connections to L1 and L2 for rollup nodes.
@@ -669,17 +690,8 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	}
 
 	// Geth Clients
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	l1Srv, err := l1Node.RPCHandler()
-	if err != nil {
-		didErrAfterStart = true
-		return nil, err
-	}
-	rawL1Client := rpc.DialInProc(l1Srv)
-	l1Client := ethclient.NewClient(rawL1Client)
-	sys.Clients["l1"] = l1Client
-	sys.RawClients["l1"] = rawL1Client
 	for name, ethInst := range sys.EthInstances {
 		var endpoint string
 		if sys.NodeKit != nil && name == "sequencer" {
@@ -690,17 +702,17 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 			endpoint = ethInst.WSEndpoint()
 		}
 
-		rawClient, err := rpc.DialContext(ctx, ethInst.WSEndpoint())
+		rawClient, err := rpc.DialContext(ctx, endpoint)
 		if err != nil {
 			didErrAfterStart = true
-			return nil, err
+			return nil, fmt.Errorf("failed to dial eth client %s: %w", endpoint, err)
 		}
 		client := ethclient.NewClient(rawClient)
 		sys.RawClients[name] = rawClient
 		sys.Clients[name] = client
 	}
 
-	_, err = geth.WaitForBlock(big.NewInt(2), l1Client, 6*time.Second*time.Duration(cfg.DeployConfig.L1BlockTime))
+	_, err = waitForBlock(big.NewInt(2), l1Client, 6*time.Second*time.Duration(cfg.DeployConfig.L1BlockTime))
 	if err != nil {
 		return nil, fmt.Errorf("waiting for blocks: %w", err)
 	}
@@ -772,7 +784,7 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		c := *nodeConfig // copy
 		c.Rollup = makeRollupConfig()
 		if err := c.LoadPersisted(cfg.Loggers[name]); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to load persisted logger: %w", err)
 		}
 
 		if p, ok := p2pNodes[name]; ok {
@@ -788,12 +800,12 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		node, err := rollupNode.New(context.Background(), &c, cfg.Loggers[name], snapLog, "", metrics.NewMetrics(""))
 		if err != nil {
 			didErrAfterStart = true
-			return nil, err
+			return nil, fmt.Errorf("failed to create rollup node %s: %w", name, err)
 		}
 		err = node.Start(context.Background())
 		if err != nil {
 			didErrAfterStart = true
-			return nil, err
+			return nil, fmt.Errorf("failed to start rollup node %s: %w", name, err)
 		}
 		sys.RollupNodes[name] = node
 
@@ -944,6 +956,7 @@ func httpEndpointForDocker(node EthInstance) string {
 		panic(fmt.Sprintf("geth HTTPEndpoint returned malformed URL (%v)", err))
 	}
 	port := url.Port()
+
 	// This is how Docker containers address services running on the host.
 	return fmt.Sprintf("http://host.docker.internal:%s", port)
 }
@@ -965,7 +978,7 @@ type WSOrHTTPEndpoint interface {
 	HTTPAuthEndpoint() string
 }
 
-func configureL2(rollupNodeCfg *rollupNode.Config, l2Node WSOrHTTPEndpoint, nodekit *NodeKit, jwtSecret [32]byte) {
+func configureL2(rollupNodeCfg *rollupNode.Config, l2Node WSOrHTTPEndpoint, nodekit *NodeKitSystem, jwtSecret [32]byte) {
 	useHTTP := os.Getenv("OP_E2E_USE_HTTP") == "true"
 	l2EndpointConfig := l2Node.WSAuthEndpoint()
 	if useHTTP {
