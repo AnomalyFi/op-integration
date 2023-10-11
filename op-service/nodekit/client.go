@@ -21,9 +21,9 @@ func NewClient(log log.Logger, url string) *Client {
 		url += "/"
 	}
 
-	id := "2RenwThx2EHRXtJRdLrHcALzhvinw6StvuQcHAt1rUvCtHZ4ds"
+	id := "2CAt2HdXkWeTaezB6VCpPfPzDTK2t49Nrp5dtnuWnFY9e8NRaV"
 
-	urlNew := "http://127.0.0.1:34327/ext/bc/2RenwThx2EHRXtJRdLrHcALzhvinw6StvuQcHAt1rUvCtHZ4ds"
+	urlNew := "http://127.0.0.1:35957/ext/bc/2CAt2HdXkWeTaezB6VCpPfPzDTK2t49Nrp5dtnuWnFY9e8NRaV"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 

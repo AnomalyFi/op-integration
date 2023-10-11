@@ -26,10 +26,10 @@ const ENV_PREFIX = "OP_GETH_PROXY"
 var (
 	fs            = flag.NewFlagSet("proxy", flag.ContinueOnError)
 	listenAddr    = fs.String("listen-addr", "127.0.0.1:9090", "proxy's listening address")
-	sequencerAddr = fs.String("seq-addr", "http://127.0.0.1:41997/ext/bc/2cB5dZBSCucoH5u4j2AdXK67JuWoPKF9wxyyu2sQvZdLG5Khw3", "address of NodeKit SEQ")
+	sequencerAddr = fs.String("seq-addr", "http://127.0.0.1:35957/ext/bc/2CAt2HdXkWeTaezB6VCpPfPzDTK2t49Nrp5dtnuWnFY9e8NRaV", "address of NodeKit SEQ")
 	gethAddr      = fs.String("geth-addr", "http://127.0.0.1:8545", "address of the op-geth node")
 	vm_id         = fs.Int("vm-id", 1, "VM ID of the OP rollup instance")
-	chain_id      = fs.String("chain-id", "2cB5dZBSCucoH5u4j2AdXK67JuWoPKF9wxyyu2sQvZdLG5Khw3", "Chain ID of SEQ instance")
+	chain_id      = fs.String("chain-id", "2CAt2HdXkWeTaezB6VCpPfPzDTK2t49Nrp5dtnuWnFY9e8NRaV", "Chain ID of SEQ instance")
 )
 
 type Transaction struct {
