@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -14,7 +16,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3"
 
-	nodekittx "github.com/AnomalyFi/nodekit-sdk/tx"
+	trpc "github.com/AnomalyFi/seq-sdk/client"
 )
 
 // Environment variables beginning with this prefix can be used to instantiate command line flags
@@ -53,7 +55,19 @@ func ForwardToSequencer(message rpcMessage) {
 	}
 
 	log.Println("Transaction received, forwarding to sequencer.")
-	err = nodekittx.BuildAndSendTransaction(*sequencerAddr, *chain_id, string(*vm_id), txnBytes)
+
+	cli := trpc.NewJSONRPCClient(*sequencerAddr, 1337, *chain_id)
+
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, vm_id)
+
+	if err != nil {
+		log.Println("Failed to write bytes before SEQ: ", err)
+		return
+	}
+
+	_, err = cli.SubmitTx(context.Background(), *chain_id, 1337, buf.Bytes(), txnBytes)
+
 	if err != nil {
 		log.Println("Failed to submit to SEQ: ", err)
 		return

@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	trpc "github.com/AnomalyFi/nodekit-seq/rpc"
-	"github.com/AnomalyFi/nodekit-seq/types"
-	"github.com/ava-labs/avalanchego/ids"
+	trpc "github.com/AnomalyFi/seq-sdk/client"
+	"github.com/AnomalyFi/seq-sdk/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -26,8 +25,7 @@ func NewClient(log log.Logger, url string) *Client {
 
 	urlNew := "http://127.0.0.1:34327/ext/bc/2RenwThx2EHRXtJRdLrHcALzhvinw6StvuQcHAt1rUvCtHZ4ds"
 
-	idReal, _ := ids.FromString(id)
-	cli := trpc.NewJSONRPCClient(urlNew, 1337, idReal)
+	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
 	return &Client{
 		//baseUrl: url,
@@ -49,17 +47,27 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 
 	blocks := make([]Header, len(res.Blocks))
 	for i, blk := range res.Blocks {
-		blocks[i] = convertBlockInfoToHeader(blk)
+		t, err := convertBlockInfoToHeader(blk)
+		if err != nil {
+			return WindowStart{}, err
+		}
+		blocks[i] = *t
 	}
 
-	prev := convertBlockInfoToHeader(res.Prev)
-	next := convertBlockInfoToHeader(res.Next)
+	prev, err := convertBlockInfoToHeader(res.Prev)
+	if err != nil {
+		return WindowStart{}, err
+	}
+	next, err := convertBlockInfoToHeader(res.Next)
+	if err != nil {
+		return WindowStart{}, err
+	}
 
 	w := WindowStart{
 		From:   res.From,
 		Window: blocks,
-		Prev:   &prev,
-		Next:   &next,
+		Prev:   prev,
+		Next:   next,
 	}
 
 	return w, nil
@@ -76,14 +84,22 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 
 	blocks := make([]Header, len(res.Blocks))
 	for i, blk := range res.Blocks {
-		blocks[i] = convertBlockInfoToHeader(blk)
+		t, err := convertBlockInfoToHeader(blk)
+		if err != nil {
+			return WindowMore{}, err
+		}
+		blocks[i] = *t
 	}
 
-	next := convertBlockInfoToHeader(res.Next)
+	next, err := convertBlockInfoToHeader(res.Next)
+
+	if err != nil {
+		return WindowMore{}, err
+	}
 
 	w := WindowMore{
 		Window: blocks,
-		Next:   &next,
+		Next:   next,
 	}
 
 	return w, nil
@@ -111,20 +127,24 @@ func convertSEQTransactionToTransaction(seqTx *types.SEQTransaction) Transaction
 }
 
 // Function to convert SEQTransaction to Transaction
-func convertBlockInfoToHeader(blockInfo trpc.BlockInfo) Header {
-	return Header{
+func convertBlockInfoToHeader(blockInfo types.BlockInfo) (*Header, error) {
+	bytes, err := DecodeCB58(blockInfo.BlockId)
+	if err != nil {
+		return nil, err
+	}
+	return &Header{
 		TransactionsRoot: NmtRoot{
-			Root: blockInfo.BlockId[:],
+			Root: bytes,
 		}, // Use Index as ChainId (you can modify this as needed)
 		Metadata: Metadata{
 			Timestamp: uint64(blockInfo.Timestamp),
 			L1Head:    blockInfo.L1Head,
 		},
-	}
+	}, nil
 }
 
 // Function to convert SEQTransactionResponse to NamespaceResponse
-func convertSEQTransactionResponseToNamespaceResponse(seqResponse *trpc.SEQTransactionResponse) *NamespaceResponse {
+func convertSEQTransactionResponseToNamespaceResponse(seqResponse *types.SEQTransactionResponse) *NamespaceResponse {
 	transactions := make([]Transaction, len(seqResponse.Txs))
 	for i, seqTx := range seqResponse.Txs {
 		transactions[i] = convertSEQTransactionToTransaction(seqTx)
