@@ -47,6 +47,6 @@
   "faultGameMaxDepth": 30,
   "faultGameMaxDuration": 1200,
   "systemConfigStartBlock": 0,
-  "sequencerContractAddress": "0x3a92c8145cb9694e2E52654707f3Fa71021fc4AC",
+  "sequencerContractAddress": "0x92983EFc4EF260037B804a545243380A114F759D",
   "nodekit": true
 }

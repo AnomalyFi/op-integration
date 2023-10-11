@@ -1,7 +1,7 @@
 COMPOSEFLAGS=-d
 ITESTS_L2_HOST=http://localhost:9545
 BEDROCK_TAGS_REMOTE?=origin
-DEVNET_NODEKIT_FLAGS=--nodekit --deploy-config="devnetL1-nodekit.json" --deployment="devnetL1-nodekit" --devnet-dir=".devnet-nodekit" --l2-provider-url="http://localhost:19090"
+DEVNET_NODEKIT_FLAGS=--nodekit --deploy-config="devnetL1-nodekit.json" --deployment="devnetL1-nodekit" --devnet-dir=".devnet-nodekit" --l2-provider-url="http://localhost:19090" --deploy-l2
 monorepo-base := $(realpath .)
 
 build: build-go build-ts
