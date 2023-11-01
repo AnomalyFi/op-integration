@@ -12,8 +12,8 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
-	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 )
 
 type SequencerMode uint64
@@ -63,7 +63,7 @@ type Sequencer struct {
 
 	attrBuilder      derive.AttributesBuilder
 	l1OriginSelector L1OriginSelectorIface
-	nodekit         nodekit.QueryService
+	nodekit          nodekit.QueryService
 
 	metrics SequencerMetrics
 
@@ -85,9 +85,9 @@ func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEn
 		timeNow:          time.Now,
 		attrBuilder:      attributesBuilder,
 		l1OriginSelector: l1OriginSelector,
-		nodekit:         nodekit,
+		nodekit:          nodekit,
 		metrics:          metrics,
-		nodekitBatch:    nil,
+		nodekitBatch:     nil,
 	}
 }
 
@@ -98,7 +98,10 @@ func (d *Sequencer) startBuildingNodeKitBatch(ctx context.Context, l2Head eth.L2
 	windowStart := l2Head.Time + d.config.BlockTime
 	windowEnd := windowStart + d.config.BlockTime
 
+	//TODO fix the error here which results in panic: runtime error: invalid memory address or nil pointer dereference [signal SIGSEGV: segmentation violation code=0x1 addr=0x10 pc=0xc9435b]
 	// Fetch the available SEQ blocks from this sequencing window.
+	d.log.Info("Starting FetchHeadersForWindow", "start", windowStart, "end", windowEnd)
+
 	blocks, err := d.nodekit.FetchHeadersForWindow(ctx, windowStart, windowEnd)
 	if err != nil {
 		return err
@@ -198,7 +201,14 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch suggested L1 origin %d: %w", batch.jst.Next.L1Head, err)
 	}
-	l1OriginNumber := derive.NodeKitL1Origin(d.config, batch.onto, suggestedL1Origin)
+	nextL1Number := batch.onto.L1Origin.Number + 1
+	fetchNextL1Block := func() (eth.L1BlockRef, error) {
+		return d.l1OriginSelector.FindL1OriginByNumber(ctx, nextL1Number)
+	}
+	l1OriginNumber, err := derive.NodeKitL1Origin(d.config, batch.onto, suggestedL1Origin, fetchNextL1Block, d.log)
+	if err != nil {
+		return nil, err
+	}
 	l1Origin := suggestedL1Origin
 	if l1Origin.Number != l1OriginNumber {
 		l1Origin, err = d.l1OriginSelector.FindL1OriginByNumber(ctx, l1OriginNumber)
@@ -245,6 +255,12 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload
 	}
 	d.nodekitBatch = nil
 	return payload, nil
+}
+
+func (d *Sequencer) cancelBuildingNodeKitBatch() {
+	// If we're in the process of building an NodeKit batch, we haven't sent anything to the engine
+	// yet. All we have to do is forget the batch.
+	d.nodekitBatch = nil
 }
 
 // startBuildingLegacyBlock initiates a legacy block building job on top of the given L2 head, safe and finalized blocks, and using the provided l1Origin.
@@ -423,6 +439,17 @@ func (d *Sequencer) CompleteBuildingBlock(ctx context.Context) (*eth.ExecutionPa
 		return d.completeBuildingLegacyBlock(ctx)
 	default:
 		return nil, fmt.Errorf("not building a block")
+	}
+}
+
+func (d *Sequencer) CancelBuildingBlock(ctx context.Context) {
+	switch d.mode {
+	case NodeKit:
+		d.cancelBuildingNodeKitBatch()
+	case Legacy:
+		d.cancelBuildingLegacyBlock(ctx)
+	default:
+		// Nothing to do, we're not building a block.
 	}
 }
 

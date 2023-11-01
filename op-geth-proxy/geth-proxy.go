@@ -26,10 +26,10 @@ const ENV_PREFIX = "OP_GETH_PROXY"
 var (
 	fs            = flag.NewFlagSet("proxy", flag.ContinueOnError)
 	listenAddr    = fs.String("listen-addr", "127.0.0.1:9090", "proxy's listening address")
-	sequencerAddr = fs.String("seq-addr", "http://127.0.0.1:39435/ext/bc/17m6tRDj1bCeDymQe9DGqhd1CU4tSHdtwTbVHtcFcwuikGQHn", "address of NodeKit SEQ")
-	gethAddr      = fs.String("geth-addr", "http://127.0.0.1:8545", "address of the op-geth node")
-	vm_id         = fs.Int("vm-id", 1, "VM ID of the OP rollup instance")
-	chain_id      = fs.String("chain-id", "17m6tRDj1bCeDymQe9DGqhd1CU4tSHdtwTbVHtcFcwuikGQHn", "Chain ID of SEQ instance")
+	sequencerAddr = fs.String("seq-addr", "http://127.0.0.1:42723/ext/bc/g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv", "address of NodeKit SEQ")
+	gethAddr      = fs.String("geth-addr", "http://127.0.0.1:9545", "address of the op-geth node")
+	vm_id         = fs.Uint64("vm-id", 901, "VM ID of the OP rollup instance")
+	chain_id      = fs.String("chain-id", "g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv", "Chain ID of SEQ instance")
 )
 
 type Transaction struct {
@@ -58,15 +58,15 @@ func ForwardToSequencer(message rpcMessage) {
 
 	cli := trpc.NewJSONRPCClient(*sequencerAddr, 1337, *chain_id)
 
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, vm_id)
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, *vm_id)
 
 	if err != nil {
 		log.Println("Failed to write bytes before SEQ: ", err)
 		return
 	}
 
-	_, err = cli.SubmitTx(context.Background(), *chain_id, 1337, buf.Bytes(), txnBytes)
+	_, err = cli.SubmitTx(context.Background(), *chain_id, 1337, buf, txnBytes)
 
 	if err != nil {
 		log.Println("Failed to submit to SEQ: ", err)

@@ -2,6 +2,9 @@ package nodekit
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,9 +24,9 @@ func NewClient(log log.Logger, url string) *Client {
 		url += "/"
 	}
 
-	id := "17m6tRDj1bCeDymQe9DGqhd1CU4tSHdtwTbVHtcFcwuikGQHn"
+	id := "g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
 
-	urlNew := " http://127.0.0.1:39435/ext/bc/17m6tRDj1bCeDymQe9DGqhd1CU4tSHdtwTbVHtcFcwuikGQHn"
+	urlNew := "http://127.0.0.1:42723/ext/bc/g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
@@ -38,10 +41,24 @@ func NewClient(log log.Logger, url string) *Client {
 func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end uint64) (WindowStart, error) {
 	//var res WindowStart
 	//getBlockHeadersByStart
+	var next *Header
 
-	res, err := c.client.GetBlockHeadersByStart(context.Background(), int64(start), int64(end))
+	start_time := start * 1000
+	end_time := end * 1000
 
+	id := "g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
+
+	urlNew := "http://127.0.0.1:42723/ext/bc/g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
+
+	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
+
+	res, err := cli.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
+
+	//res, err := c.client.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
+
+	//TODO is this causing the error: We skipped an L1 block and the next L1 block is eligible as an origin, advancing by one
 	if err != nil {
+		c.log.Error("Error in GetBlockHeadersByStart", "error", err)
 		return WindowStart{}, err
 	}
 
@@ -54,13 +71,22 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 		blocks[i] = *t
 	}
 
+	if len(res.Prev.BlockId) == 0 {
+		err = errors.New("Zero Length Id")
+		c.log.Error("Error in FetchHeadersForWindow", "error", err)
+	}
+
 	prev, err := convertBlockInfoToHeader(res.Prev)
 	if err != nil {
 		return WindowStart{}, err
 	}
-	next, err := convertBlockInfoToHeader(res.Next)
-	if err != nil {
-		return WindowStart{}, err
+
+	if !(res.Next == (types.BlockInfo{})) {
+		//! TODO this is where the error is. It's on the c.log.Error line
+		next, err = convertBlockInfoToHeader(res.Next)
+		if err != nil {
+			return WindowStart{}, err
+		}
 	}
 
 	w := WindowStart{
@@ -75,8 +101,19 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 
 func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64, end uint64) (WindowMore, error) {
 	//var res WindowMore
+	var next *Header
 	//getBlockHeadersByHeight
-	res, err := c.client.GetBlockHeadersByHeight(context.Background(), from, int64(end))
+
+	id := "g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
+
+	urlNew := "http://127.0.0.1:42723/ext/bc/g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
+
+	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
+
+	end_time := end * 1000
+
+	res, err := cli.GetBlockHeadersByHeight(context.Background(), from, int64(end_time))
+	//c.client.GetBlockHeadersByHeight(context.Background(), from, int64(end))
 
 	if err != nil {
 		return WindowMore{}, err
@@ -84,6 +121,10 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 
 	blocks := make([]Header, len(res.Blocks))
 	for i, blk := range res.Blocks {
+		if len(blk.BlockId) == 0 {
+			err = errors.New("Zero Length Id")
+			c.log.Error("Error in FetchRemainingHeadersForWindow", "error", err)
+		}
 		t, err := convertBlockInfoToHeader(blk)
 		if err != nil {
 			return WindowMore{}, err
@@ -91,10 +132,12 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 		blocks[i] = *t
 	}
 
-	next, err := convertBlockInfoToHeader(res.Next)
-
-	if err != nil {
-		return WindowMore{}, err
+	if !(res.Next == (types.BlockInfo{})) {
+		//! TODO this is where the error is. It's on the c.log.Error line
+		next, err = convertBlockInfoToHeader(res.Next)
+		if err != nil {
+			return WindowMore{}, err
+		}
 	}
 
 	w := WindowMore{
@@ -107,7 +150,17 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 
 func (c *Client) FetchTransactionsInBlock(ctx context.Context, block uint64, header *Header, namespace uint64) (TransactionsInBlock, error) {
 	//var res NamespaceResponse
-	res, err := c.client.GetBlockTransactionsByNamespace(context.Background(), block, string(namespace))
+	id := "g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
+
+	urlNew := "http://127.0.0.1:42723/ext/bc/g4BiH3gadeH88eaGV2Gzr4QVot416jnkxcsqziSUkGnmGQavv"
+
+	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
+	// TODO First I encode the integer to bytes form. Then I use hex.EncodeToString on it.
+	//hex.EncodeToString(action.ChainId)
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, namespace)
+	hexNamespace := hex.EncodeToString(buf)
+	res, err := cli.GetBlockTransactionsByNamespace(context.Background(), block, hexNamespace)
 
 	if err != nil {
 		return TransactionsInBlock{}, err
@@ -128,6 +181,7 @@ func convertSEQTransactionToTransaction(seqTx *types.SEQTransaction) Transaction
 
 // Function to convert SEQTransaction to Transaction
 func convertBlockInfoToHeader(blockInfo types.BlockInfo) (*Header, error) {
+	//TODO check this later
 	bytes, err := DecodeCB58(blockInfo.BlockId)
 	if err != nil {
 		return nil, err
@@ -178,10 +232,14 @@ func (res *NamespaceResponse) Validate(header *Header, namespace uint64) (Transa
 	// }
 
 	// Extract the transactions.
+
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, namespace)
+	hexNamespace := hex.EncodeToString(buf)
 	var txs []Bytes
 	for i, tx := range *res.Transactions {
-		if tx.ChainId != string(namespace) {
-			return TransactionsInBlock{}, fmt.Errorf("transaction %d has wrong namespace (%d, expected %d)", i, tx.ChainId, namespace)
+		if tx.ChainId != hexNamespace {
+			return TransactionsInBlock{}, fmt.Errorf("transaction %d has wrong namespace (%s, expected %s)", i, tx.ChainId, hexNamespace)
 		}
 		txs = append(txs, tx.Data)
 	}
