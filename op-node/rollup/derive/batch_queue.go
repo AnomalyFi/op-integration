@@ -59,15 +59,17 @@ type BatchQueue struct {
 	// nextSpan is cached SingularBatches derived from SpanBatch
 	nextSpan []*SingularBatch
 
+	l1 NodeKitL1Provider
 	l2 SafeBlockFetcher
 }
 
 // NewBatchQueue creates a BatchQueue, which should be Reset(origin) before use.
-func NewBatchQueue(log log.Logger, cfg *rollup.Config, prev NextBatchProvider, l2 SafeBlockFetcher) *BatchQueue {
+func NewBatchQueue(log log.Logger, cfg *rollup.Config, prev NextBatchProvider, l1 NodeKitL1Provider, l2 SafeBlockFetcher) *BatchQueue {
 	return &BatchQueue{
 		log:    log,
 		config: cfg,
 		prev:   prev,
+		l1:     l1,
 		l2:     l2,
 	}
 }
@@ -99,7 +101,7 @@ func (bq *BatchQueue) maybeAdvanceEpoch(nextBatch *SingularBatch) {
 	}
 }
 
-func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef) (*SingularBatch, error) {
+func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef, usingNodeKit bool) (*SingularBatch, error) {
 	if len(bq.nextSpan) > 0 {
 		// If there are cached singular batches, pop first one and return.
 		nextBatch := bq.popNextBatch(safeL2Head)
@@ -136,7 +138,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef) 
 	} else if err != nil {
 		return nil, err
 	} else if !originBehind {
-		bq.AddBatch(ctx, batch, safeL2Head)
+		bq.AddBatch(ctx, batch, safeL2Head, usingNodeKit)
 	}
 
 	// Skip adding data unless we are up to date with the origin, but do fully
@@ -150,7 +152,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef) 
 	}
 
 	// Finally attempt to derive more batches
-	batch, err := bq.deriveNextBatch(ctx, outOfData, safeL2Head)
+	batch, err := bq.deriveNextBatch(ctx, outOfData, safeL2Head, usingNodeKit)
 	if err == io.EOF && outOfData {
 		return nil, io.EOF
 	} else if err == io.EOF {
@@ -202,7 +204,7 @@ func (bq *BatchQueue) Reset(ctx context.Context, base eth.L1BlockRef, _ eth.Syst
 	return io.EOF
 }
 
-func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, l2SafeHead eth.L2BlockRef) {
+func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, l2SafeHead eth.L2BlockRef, usingNodeKit bool) {
 	if len(bq.l1Blocks) == 0 {
 		panic(fmt.Errorf("cannot add batch with timestamp %d, no origin was prepared", batch.GetTimestamp()))
 	}
@@ -210,7 +212,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, l2SafeHead eth.
 		L1InclusionBlock: bq.origin,
 		Batch:            batch,
 	}
-	validity := CheckBatch(ctx, bq.config, bq.log, bq.l1Blocks, l2SafeHead, &data, bq.l2)
+	validity := CheckBatch(ctx, bq.config, bq.log, bq.l1Blocks, l2SafeHead, &data, usingNodeKit, bq.l1, bq.l2)
 	if validity == BatchDrop {
 		return // if we do drop the batch, CheckBatch will log the drop reason with WARN level.
 	}
@@ -222,7 +224,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, l2SafeHead eth.
 // following the validity rules imposed on consecutive batches,
 // based on currently available buffered batch and L1 origin information.
 // If no batch can be derived yet, then (nil, io.EOF) is returned.
-func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, l2SafeHead eth.L2BlockRef) (Batch, error) {
+func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, l2SafeHead eth.L2BlockRef, usingNodeKit bool) (Batch, error) {
 	if len(bq.l1Blocks) == 0 {
 		return nil, NewCriticalError(errors.New("cannot derive next batch, no origin was prepared"))
 	}
@@ -247,7 +249,7 @@ func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, l2Saf
 	var remaining []*BatchWithL1InclusionBlock
 batchLoop:
 	for i, batch := range bq.batches {
-		validity := CheckBatch(ctx, bq.config, bq.log.New("batch_index", i), bq.l1Blocks, l2SafeHead, batch, bq.l2)
+		validity := CheckBatch(ctx, bq.config, bq.log.New("batch_index", i), bq.l1Blocks, l2SafeHead, batch, usingNodeKit, bq.l1, bq.l2)
 		switch validity {
 		case BatchFuture:
 			remaining = append(remaining, batch)
@@ -306,11 +308,12 @@ batchLoop:
 	if nextTimestamp < nextEpoch.Time || firstOfEpoch {
 		bq.log.Info("Generating next batch", "epoch", epoch, "timestamp", nextTimestamp)
 		return &SingularBatch{
-			ParentHash:   l2SafeHead.Hash,
-			EpochNum:     rollup.Epoch(epoch.Number),
-			EpochHash:    epoch.Hash,
-			Timestamp:    nextTimestamp,
-			Transactions: nil,
+			ParentHash:    l2SafeHead.Hash,
+			EpochNum:      rollup.Epoch(epoch.Number),
+			EpochHash:     epoch.Hash,
+			Timestamp:     nextTimestamp,
+			Transactions:  nil,
+			Justification: nil,
 		}, nil
 	}
 

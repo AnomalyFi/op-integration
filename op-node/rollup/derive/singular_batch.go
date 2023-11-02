@@ -15,15 +15,16 @@ import (
 // Batch format
 //
 // SingularBatchType := 0
-// singularBatch := SingularBatchType ++ RLP([parent_hash, epoch_number, epoch_hash, timestamp, transaction_list])
+// singularBatch := SingularBatchType ++ RLP([parent_hash, epoch_number, epoch_hash, timestamp, transaction_list, justification])
 
 // SingularBatch is an implementation of Batch interface, containing the input to build one L2 block.
 type SingularBatch struct {
-	ParentHash   common.Hash  // parent L2 block hash
-	EpochNum     rollup.Epoch // aka l1 num
-	EpochHash    common.Hash  // l1 block hash
-	Timestamp    uint64
-	Transactions []hexutil.Bytes
+	ParentHash    common.Hash  // parent L2 block hash
+	EpochNum      rollup.Epoch // aka l1 num
+	EpochHash     common.Hash  // l1 block hash
+	Timestamp     uint64
+	Transactions  []hexutil.Bytes
+	Justification *eth.L2BatchJustification `rlp:"nil"`
 }
 
 // GetBatchType returns its batch type (batch_version)

@@ -18,6 +18,7 @@ artifacts
 cache
 
 packages/contracts-bedrock/deployments/devnetL1
+packages/contracts-bedrock/deployments/devnetL1-nodekit
 packages/contracts-bedrock/deployments/anvil
 
 # vim
@@ -30,9 +31,13 @@ packages/contracts-bedrock/deployments/anvil
 .env
 .env*
 !.env.example
+!.envrc
+!ops-bedrock/.env
 *.log
 
 .devnet
+.devnet-nodekit
+
 
 # Ignore local fuzzing results
 **/testdata/fuzz/

@@ -144,7 +144,7 @@ func newMiniL2BlockWithNumberParent(numTx int, number *big.Int, parent common.Ha
 		Difficulty: common.Big0,
 		Number:     big.NewInt(100),
 	}, nil, nil, nil, trie.NewStackTrie(nil))
-	l1InfoTx, err := derive.L1InfoDeposit(0, eth.BlockToInfo(l1Block), eth.SystemConfig{}, false)
+	l1InfoTx, err := derive.L1InfoDeposit(0, eth.BlockToInfo(l1Block), eth.SystemConfig{}, nil, false)
 	if err != nil {
 		panic(err)
 	}
@@ -632,7 +632,7 @@ func ChannelBuilder_AddBlock(t *testing.T, batchType uint) {
 	require.NoError(t, cb.co.Flush())
 
 	// Check the fields reset in the AddBlock function
-	expectedInputBytes := 74
+	expectedInputBytes := 75
 	if batchType == derive.SpanBatchType {
 		expectedInputBytes = 47
 	}

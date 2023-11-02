@@ -68,6 +68,7 @@ func NewBlockProcessorFromHeader(provider BlockDataProvider, h *types.Header) (*
 		return nil, fmt.Errorf("get parent state: %w", err)
 	}
 	header.Number = new(big.Int).Add(parentHeader.Number, common.Big1)
+	//TODO Check this again
 	header.BaseFee = eip1559.CalcBaseFee(provider.Config(), parentHeader, header.Time)
 	header.GasUsed = 0
 	gasPool := new(core.GasPool).AddGas(header.GasLimit)
@@ -102,8 +103,8 @@ func (b *BlockProcessor) AddTx(tx *types.Transaction) error {
 	return nil
 }
 
-func (b *BlockProcessor) Assemble() (*types.Block, error) {
-	return b.dataProvider.Engine().FinalizeAndAssemble(b.dataProvider, b.header, b.state, b.transactions, nil, b.receipts, nil)
+func (b *BlockProcessor) Assemble(rejected []types.RejectedTransaction) (*types.Block, error) {
+	return b.dataProvider.Engine().FinalizeAndAssemble(b.dataProvider, b.header, b.state, b.transactions, nil, b.receipts, nil, rejected)
 }
 
 func (b *BlockProcessor) Commit() error {

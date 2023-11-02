@@ -34,6 +34,7 @@ contract Initializer_Test is ERC721Bridge_Initializer {
             _scalar: 0,
             _batcherHash: bytes32(0),
             _gasLimit: 1,
+            _nodekit: false,
             _unsafeBlockSigner: address(0),
             _config: ResourceMetering.ResourceConfig({
                 maxResourceLimit: 1,

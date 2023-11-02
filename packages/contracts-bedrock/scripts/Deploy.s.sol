@@ -623,6 +623,7 @@ contract Deploy is Deployer {
                     cfg.gasPriceOracleScalar(),
                     batcherHash,
                     uint64(cfg.l2GenesisBlockGasLimit()),
+                    cfg.nodekit(),
                     cfg.p2pSequencerAddress(),
                     Constants.DEFAULT_RESOURCE_CONFIG(),
                     startBlock,

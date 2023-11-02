@@ -24,6 +24,9 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/driver"
 	"github.com/ethereum-optimism/optimism/op-node/version"
 	"github.com/ethereum-optimism/optimism/op-service/client"
+
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
+
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	oppprof "github.com/ethereum-optimism/optimism/op-service/pprof"
 	"github.com/ethereum-optimism/optimism/op-service/retry"
@@ -304,8 +307,12 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 		return err
 	}
 
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, &cfg.Sync)
+	var nodekitClient *nodekit.Client
+	if cfg.NodeKitUrl != "" {
+		nodekitClient = nodekit.NewClient(n.log, cfg.NodeKitUrl)
+	}
 
+	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, nodekitClient, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, &cfg.Sync)
 	return nil
 }
 

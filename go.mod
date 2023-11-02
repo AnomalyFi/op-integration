@@ -49,6 +49,7 @@ require (
 )
 
 require (
+	github.com/AnomalyFi/seq-sdk v0.1.1 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.1 // indirect
@@ -102,6 +103,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20230817174616-7a8ec2ada47b // indirect
+	github.com/gorilla/rpc v1.2.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/graph-gophers/graphql-go v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -209,7 +211,9 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum v1.13.1 => github.com/ethereum-optimism/op-geth v1.101304.0-rc.2.0.20231030225546-cd491fa3b588
+replace github.com/ethereum/go-ethereum => /home/noah/code/gethupdatenew/op-geth
+
+// replace github.com/ethereum/go-ethereum v1.13.1 => github.com/ethereum-optimism/op-geth v1.101304.0-rc.2.0.20231030225546-cd491fa3b588
 
 //replace github.com/ethereum-optimism/superchain-registry/superchain => ../superchain-registry/superchain
 //replace github.com/ethereum/go-ethereum v1.13.1 => ../go-ethereum

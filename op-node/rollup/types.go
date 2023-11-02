@@ -91,6 +91,9 @@ type Config struct {
 	// L1 System Config Address
 	L1SystemConfigAddress common.Address `json:"l1_system_config_address"`
 
+	// L1 Sequencer Contract Address
+	SequencerContractAddress *common.Address `json:"sequencer_contract_address"`
+
 	// L1 address that declares the protocol versions, optional (Beta feature)
 	ProtocolVersionsAddress common.Address `json:"protocol_versions_address,omitempty"`
 }

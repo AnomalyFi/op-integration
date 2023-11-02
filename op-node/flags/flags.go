@@ -243,6 +243,12 @@ var (
 		Required: false,
 		Value:    false,
 	}
+	NodeKitUrl = &cli.StringFlag{
+		Name:     "nodekit",
+		Usage:    "Sets the URL for fetching data from the NodeKit Sequencer. Required only if sequencing for an NodeKit-enabled OP-chain",
+		EnvVars:  prefixEnvVars("NODEKIT_URL"),
+		Required: false,
+	}
 	BetaExtraNetworks = &cli.BoolFlag{
 		Name:    "beta.extra-networks",
 		Usage:   "Legacy flag, ignored, all superchain-registry networks are enabled by default.",
@@ -273,6 +279,7 @@ var requiredFlags = []cli.Flag{
 }
 
 var optionalFlags = []cli.Flag{
+	NodeKitUrl,
 	RPCListenAddr,
 	RPCListenPort,
 	RollupConfig,

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 )
 
 type Metrics interface {
@@ -25,6 +27,7 @@ type Metrics interface {
 
 type L1Fetcher interface {
 	L1BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L1BlockRef, error)
+	L1SequencerCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error)
 	L1BlockRefByNumberFetcher
 	L1BlockRefByHashFetcher
 	L1ReceiptsFetcher
@@ -83,6 +86,10 @@ type DerivationPipeline struct {
 // NewDerivationPipeline creates a derivation pipeline, which should be reset before use.
 func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetcher, engine Engine, metrics Metrics, syncCfg *sync.Config) *DerivationPipeline {
 
+	var nodekitProvider NodeKitL1Provider
+	if cfg.SequencerContractAddress != nil {
+		nodekitProvider = NewNodeKitProvider(log, *cfg.SequencerContractAddress, l1Fetcher)
+	}
 	// Pull stages
 	l1Traversal := NewL1Traversal(log, cfg, l1Fetcher)
 	dataSrc := NewDataSourceFactory(log, cfg, l1Fetcher) // auxiliary stage for L1Retrieval
@@ -90,7 +97,7 @@ func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetch
 	frameQueue := NewFrameQueue(log, l1Src)
 	bank := NewChannelBank(log, cfg, frameQueue, l1Fetcher, metrics)
 	chInReader := NewChannelInReader(cfg, log, bank, metrics)
-	batchQueue := NewBatchQueue(log, cfg, chInReader, engine)
+	batchQueue := NewBatchQueue(log, cfg, chInReader, nodekitProvider, engine)
 	attrBuilder := NewFetchingAttributesBuilder(cfg, l1Fetcher, engine)
 	attributesQueue := NewAttributesQueue(log, cfg, attrBuilder, batchQueue)
 
@@ -216,4 +223,17 @@ func (dp *DerivationPipeline) Step(ctx context.Context) error {
 	} else {
 		return nil
 	}
+}
+
+type SequencerContractProvider interface {
+	// Verifies that a sequence of consecutive NodeKit commitments matches a trusted sequence.
+	// Returns a boolean indicating whether the commitments match the trusted sequence and nil error
+	// if able to successfully verify the commitments. If for any reason the authenticity of the
+	// commitments cannot be determined, a non-nil error is returned.
+	VerifyCommitments(firstHeight uint64, comms []nodekit.Commitment) (bool, error)
+}
+
+type NodeKitL1Provider interface {
+	SequencerContractProvider
+	L1BlockRefByNumberFetcher
 }

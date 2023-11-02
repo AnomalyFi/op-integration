@@ -21,6 +21,9 @@ type Config struct {
 	L2     L2EndpointSetup
 	L2Sync L2SyncEndpointSetup
 
+	// Address of NodeKit query service
+	NodeKitUrl string
+
 	Driver driver.Config
 
 	Rollup rollup.Config

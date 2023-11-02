@@ -3,16 +3,20 @@ package sources
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit/sequencer"
 	"github.com/ethereum-optimism/optimism/op-service/sources/caching"
 )
 
@@ -114,4 +118,52 @@ func (s *L1Client) L1BlockRefByHash(ctx context.Context, hash common.Hash) (eth.
 	ref := eth.InfoToL1BlockRef(info)
 	s.l1BlockRefsCache.Add(ref.Hash, ref)
 	return ref, nil
+}
+
+// L1SequencerCommitmentsFromHeight returns an array of SEQ commitments to sequencer blocks
+// This is used in the derivation pipeline to validate sequencer batches in NodeKit mode
+func (s *L1Client) L1SequencerCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, seqAddr common.Address) ([]nodekit.Commitment, error) {
+	var comms []nodekit.Commitment
+	client := ethclient.NewClient(s.client.RawClient())
+	seq, err := sequencer.NewSequencer(seqAddr, client)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the requested commitments are even available yet on L1.
+	blockHeight, err := seq.SequencerCaller.BlockHeight(nil)
+	if err != nil {
+		return nil, err
+	}
+	if blockHeight.Cmp(big.NewInt(int64(firstBlockHeight+numHeaders))) < 0 {
+		return nil, fmt.Errorf("commitments up to %d are not available (current block height %d)", firstBlockHeight+numHeaders, blockHeight)
+	}
+
+	for i := 0; i < int(numHeaders); i++ {
+		height := big.NewInt(int64(firstBlockHeight + uint64(i)))
+		commAsInt, err := seq.SequencerCaller.Commitments(nil, height)
+		if err != nil {
+			return comms, err
+		}
+		if commAsInt.Cmp(big.NewInt(0)) == 0 {
+			// A commitment of 0 indicates that this commitment hasn't been set yet in the contract.
+			// Since we checked the contract block height above, this can only happen if there was
+			// a reorg on L1 just now. In this case, return an error rather than reporting
+			// definitive commitments. The caller will retry and we will succeed eventually when we
+			// manage to get a consistent snapshot of the L1.
+			//
+			// Note that in all other reorg cases, where the L1 reorgs but we read a nonzero
+			// commitment, we are fine, since the SEQ contract will only ever record a single
+			// ledger, consistent across all L1 forks, determined by SEQ consensus. The only
+			// question is whether the recorded ledger extends far enough for the commitments we're
+			// trying to read on the current fork of L1.
+			return nil, fmt.Errorf("read 0 for commitment %d below block height %d, this indicates an L1 reorg", firstBlockHeight+uint64(i), blockHeight)
+		}
+		comm, err := nodekit.CommitmentFromUint256(nodekit.NewU256().SetBigInt(commAsInt))
+		if err != nil {
+			return comms, err
+		}
+		comms = append(comms, comm)
+	}
+	return comms, nil
 }

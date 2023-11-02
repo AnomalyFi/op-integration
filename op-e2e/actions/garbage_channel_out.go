@@ -256,11 +256,12 @@ func blockToBatch(block *types.Block) (*derive.BatchData, error) {
 	}
 
 	singularBatch := &derive.SingularBatch{
-		ParentHash:   block.ParentHash(),
-		EpochNum:     rollup.Epoch(l1Info.Number),
-		EpochHash:    l1Info.BlockHash,
-		Timestamp:    block.Time(),
-		Transactions: opaqueTxs,
+		ParentHash:    block.ParentHash(),
+		EpochNum:      rollup.Epoch(l1Info.Number),
+		EpochHash:     l1Info.BlockHash,
+		Timestamp:     block.Time(),
+		Transactions:  opaqueTxs,
+		Justification: l1Info.Justification,
 	}
 
 	return derive.NewBatchData(singularBatch), nil

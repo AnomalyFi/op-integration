@@ -431,6 +431,29 @@ contract Multichain is SafeBuilder {
                 )
         });
 
+        bytes memory initializeCall = abi.encodeCall(
+            SystemConfig.initialize,
+            (
+                cfg.finalSystemOwner(),
+                cfg.gasPriceOracleOverhead(),
+                cfg.gasPriceOracleScalar(),
+                bytes32(uint256(uint160(cfg.batchSenderAddress()))),
+                uint64(cfg.l2GenesisBlockGasLimit()),
+                cfg.nodekit(),
+                cfg.p2pSequencerAddress(),
+                Constants.DEFAULT_RESOURCE_CONFIG(),
+                cfg.systemConfigStartBlock(),
+                cfg.batchInboxAddress(),
+                SystemConfig.Addresses({
+                    l1CrossDomainMessenger: prox.L1CrossDomainMessenger,
+                    l1ERC721Bridge: prox.L1ERC721Bridge,
+                    l1StandardBridge: prox.L1StandardBridge,
+                    l2OutputOracle: prox.L2OutputOracle,
+                    optimismPortal: prox.OptimismPortal,
+                    optimismMintableERC20Factory: prox.OptimismMintableERC20Factory
+                })
+            )
+        );
         // Upgrade the SystemConfig
         calls[5] = IMulticall3.Call3({
             target: _proxyAdmin,
@@ -440,28 +463,7 @@ contract Multichain is SafeBuilder {
                 (
                     payable(prox.SystemConfig), // proxy
                     SystemConfigImplementation, // implementation
-                    abi.encodeCall( // data
-                            SystemConfig.initialize,
-                            (
-                                cfg.finalSystemOwner(),
-                                cfg.gasPriceOracleOverhead(),
-                                cfg.gasPriceOracleScalar(),
-                                bytes32(uint256(uint160(cfg.batchSenderAddress()))),
-                                uint64(cfg.l2GenesisBlockGasLimit()),
-                                cfg.p2pSequencerAddress(),
-                                Constants.DEFAULT_RESOURCE_CONFIG(),
-                                cfg.systemConfigStartBlock(),
-                                cfg.batchInboxAddress(),
-                                SystemConfig.Addresses({
-                                    l1CrossDomainMessenger: prox.L1CrossDomainMessenger,
-                                    l1ERC721Bridge: prox.L1ERC721Bridge,
-                                    l1StandardBridge: prox.L1StandardBridge,
-                                    l2OutputOracle: prox.L2OutputOracle,
-                                    optimismPortal: prox.OptimismPortal,
-                                    optimismMintableERC20Factory: prox.OptimismMintableERC20Factory
-                                })
-                            )
-                        )
+                    initializeCall // data
                 )
                 )
         });
