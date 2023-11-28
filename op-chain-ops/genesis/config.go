@@ -215,6 +215,8 @@ type DeployConfig struct {
 	FundDevAccounts bool `json:"fundDevAccounts"`
 	// Whether to use the NodeKit sequencer
 	NodeKit bool `json:"nodekit,omitempty"`
+	// The minimum confirmation depth for L1 origins when using NodeKit
+	NodeKitL1ConfDepth uint64 `json:"nodekitL1ConfDepth,omitempty"`
 	// RequiredProtocolVersion indicates the protocol version that
 	// nodes are required to adopt, to stay in sync with the network.
 	RequiredProtocolVersion params.ProtocolVersion `json:"requiredProtocolVersion"`
@@ -504,11 +506,12 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 			},
 			L2Time: l1StartBlock.Time(),
 			SystemConfig: eth.SystemConfig{
-				BatcherAddr: d.BatchSenderAddress,
-				Overhead:    eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleOverhead))),
-				Scalar:      eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleScalar))),
-				GasLimit:    uint64(d.L2GenesisBlockGasLimit),
-				NodeKit:     d.NodeKit,
+				BatcherAddr:        d.BatchSenderAddress,
+				Overhead:           eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleOverhead))),
+				Scalar:             eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleScalar))),
+				GasLimit:           uint64(d.L2GenesisBlockGasLimit),
+				NodeKit:            d.NodeKit,
+				NodeKitL1ConfDepth: d.NodeKitL1ConfDepth,
 			},
 		},
 		BlockTime:                d.L2BlockTime,

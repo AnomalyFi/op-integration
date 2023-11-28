@@ -17,14 +17,14 @@ import (
 )
 
 const (
-	L1InfoFuncSignature = "setL1BlockValues(uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256,bytes)"
+	L1InfoFuncSignature = "setL1BlockValues((uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256,bool,uint64,bytes))"
 	L1InfoArguments     = 8
 )
 
 var (
 	L1InfoFuncBytes4          = crypto.Keccak256([]byte(L1InfoFuncSignature))[:4]
 	L1InfoDepositerAddress    = common.HexToAddress("0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001")
-	L1InfoJustificationOffset = new(big.Int).SetUint64(288) // See Binary Format table below
+	L1InfoJustificationOffset = new(big.Int).SetUint64(352) // See Binary Format table below
 	L1BlockAddress            = predeploys.L1BlockAddr
 )
 
@@ -45,6 +45,11 @@ type L1BlockInfo struct {
 	BatcherAddr   common.Address
 	L1FeeOverhead eth.Bytes32
 	L1FeeScalar   eth.Bytes32
+	// Whether NodeKit mode is enabled.
+	NodeKit bool
+	// When using NodeKit, the configured confirmation depth for L1 origins.
+	NodeKitL1ConfDepth uint64
+
 	Justification *eth.L2BatchJustification `rlp:"nil"`
 }
 
@@ -53,6 +58,7 @@ type L1BlockInfo struct {
 // | Bytes   | Field                    |
 // +---------+--------------------------+
 // | 4       | Function signature       |
+// | 32      | Struct fields offset (32)|
 // | 32      | Number                   |
 // | 32      | Time                     |
 // | 32      | BaseFee                  |
@@ -61,6 +67,10 @@ type L1BlockInfo struct {
 // | 32      | BatcherAddr              |
 // | 32      | L1FeeOverhead            |
 // | 32      | L1FeeScalar              |
+// | 32      | NodeKit                  |
+// | 32      | NodeKitL1ConfDepth      |
+// | 32      | L1InfoJustificationOffset|
+// | variable| Justification            |
 // | 32      | L1InfoJustificationOffset|
 // | 		 | (this is how dynamic     |
 // | 		 | types are ABI encoded)   |
@@ -70,6 +80,9 @@ type L1BlockInfo struct {
 func (info *L1BlockInfo) MarshalBinary() ([]byte, error) {
 	w := new(bytes.Buffer)
 	if err := solabi.WriteSignature(w, L1InfoFuncBytes4); err != nil {
+		return nil, err
+	}
+	if err := solabi.WriteUint64(w, 32); err != nil {
 		return nil, err
 	}
 	if err := solabi.WriteUint64(w, info.Number); err != nil {
@@ -97,6 +110,13 @@ func (info *L1BlockInfo) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
+	if err := solabi.WriteBool(w, info.NodeKit); err != nil {
+		return nil, err
+	}
+	if err := solabi.WriteUint64(w, info.NodeKitL1ConfDepth); err != nil {
+		return nil, err
+	}
+
 	// For simplicity, we don't ABI-encode the whole structure of the Justification. We RLP-encode
 	// it and then ABI-encode the resulting byte string. This means the Justification can be
 	// accessed by parsing calldata, but cannot (easily) by inspected on-chain.
@@ -104,13 +124,12 @@ func (info *L1BlockInfo) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// The ABI-encoding of function parameters is that of a tuple, which requires that dynamic types
-	// (such as `bytes`) are represented in the initial list of items as a uint256 with the offset
-	// from the start of the encoding to the start of the payload of the dynamic type, which follows
-	// the initial list of static types and dynamic type offsets. In this case, we only have one
-	// item of dynamic type, and it is at the end of the list of items, so we will encode it by its
-	// offset, which is just the length of the static section of the list, followed by the item
-	// itself.
+	// The ABI-encoding of struct fields is that of a tuple, which requires that dynamic types (such
+	// as `bytes`) are represented in the initial list of items as a uint256 with the offset from
+	// the start of the encoding to the start of the payload of the dynamic type, which follows the
+	// initial list of static types and dynamic type offsets. In this case, we only have one item of
+	// dynamic type, and it is at the end of the list of items, so we will encode it by its offset,
+	// which is just the length of the static section of the list, followed by the item itself.
 	if err := solabi.WriteUint256(w, L1InfoJustificationOffset); err != nil {
 		return nil, err
 	}
@@ -127,6 +146,11 @@ func (info *L1BlockInfo) UnmarshalBinary(data []byte) error {
 	var err error
 	if _, err := solabi.ReadAndValidateSignature(reader, L1InfoFuncBytes4); err != nil {
 		return err
+	}
+	if fieldsOffset, err := solabi.ReadUint64(reader); err != nil {
+		return err
+	} else if fieldsOffset != 32 {
+		return fmt.Errorf("invalid struct fields offset (%d, expected 32)", fieldsOffset)
 	}
 	if info.Number, err = solabi.ReadUint64(reader); err != nil {
 		return err
@@ -150,6 +174,13 @@ func (info *L1BlockInfo) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	if info.L1FeeScalar, err = solabi.ReadEthBytes32(reader); err != nil {
+		return err
+	}
+
+	if info.NodeKit, err = solabi.ReadBool(reader); err != nil {
+		return err
+	}
+	if info.NodeKitL1ConfDepth, err = solabi.ReadUint64(reader); err != nil {
 		return err
 	}
 
@@ -197,15 +228,17 @@ func L1InfoDepositTxData(data []byte) (L1BlockInfo, error) {
 // and the L2 block-height difference with the start of the epoch.
 func L1InfoDeposit(seqNumber uint64, block eth.BlockInfo, sysCfg eth.SystemConfig, justification *eth.L2BatchJustification, regolith bool) (*types.DepositTx, error) {
 	infoDat := L1BlockInfo{
-		Number:         block.NumberU64(),
-		Time:           block.Time(),
-		BaseFee:        block.BaseFee(),
-		BlockHash:      block.Hash(),
-		SequenceNumber: seqNumber,
-		BatcherAddr:    sysCfg.BatcherAddr,
-		L1FeeOverhead:  sysCfg.Overhead,
-		L1FeeScalar:    sysCfg.Scalar,
-		Justification:  justification,
+		Number:             block.NumberU64(),
+		Time:               block.Time(),
+		BaseFee:            block.BaseFee(),
+		BlockHash:          block.Hash(),
+		SequenceNumber:     seqNumber,
+		BatcherAddr:        sysCfg.BatcherAddr,
+		L1FeeOverhead:      sysCfg.Overhead,
+		L1FeeScalar:        sysCfg.Scalar,
+		NodeKit:            sysCfg.NodeKit,
+		NodeKitL1ConfDepth: sysCfg.NodeKitL1ConfDepth,
+		Justification:      justification,
 	}
 	data, err := infoDat.MarshalBinary()
 	if err != nil {

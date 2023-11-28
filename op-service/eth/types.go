@@ -357,5 +357,7 @@ type SystemConfig struct {
 	GasLimit uint64 `json:"gasLimit"`
 	// Whether to use the NodeKit sequencer
 	NodeKit bool `json:"nodekit"`
+	// The minimum confirmation depth for L1 origins when using NodeKit sequencer
+	NodeKitL1ConfDepth uint64 `json:"nodekitL1ConfDepth"`
 	// More fields can be added for future SystemConfig versions.
 }
