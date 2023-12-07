@@ -24,9 +24,9 @@ func NewClient(log log.Logger, url string) *Client {
 		url += "/"
 	}
 
-	id := "2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
@@ -46,9 +46,9 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 	start_time := start * 1000
 	end_time := end * 1000
 
-	id := "2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
@@ -104,9 +104,9 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 	var next *Header
 	//getBlockHeadersByHeight
 
-	id := "2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
@@ -150,9 +150,9 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 
 func (c *Client) FetchTransactionsInBlock(ctx context.Context, block uint64, header *Header, namespace uint64) (TransactionsInBlock, error) {
 	//var res NamespaceResponse
-	id := "2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/2D5vA8Q1bSqzKhPzZKDBAkKLJ5c5GtBi6t8xNjSn1h8xUPJn9m"
+	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 	// TODO First I encode the integer to bytes form. Then I use hex.EncodeToString on it.
