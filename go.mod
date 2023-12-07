@@ -3,6 +3,7 @@ module github.com/ethereum-optimism/optimism
 go 1.21
 
 require (
+	github.com/AnomalyFi/seq-sdk v0.1.1
 	github.com/BurntSushi/toml v1.3.2
 	github.com/btcsuite/btcd v0.23.3
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
@@ -29,11 +30,13 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/libp2p/go-libp2p-testing v0.12.0
 	github.com/mattn/go-isatty v0.0.20
+	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-base32 v0.1.0
 	github.com/multiformats/go-multiaddr v0.12.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/gomega v1.29.0
+	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/prometheus/client_golang v1.17.0
@@ -49,7 +52,6 @@ require (
 )
 
 require (
-	github.com/AnomalyFi/seq-sdk v0.1.1 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.1 // indirect
@@ -154,7 +156,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/pointerstructure v1.2.1 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
-	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.2.0 // indirect
