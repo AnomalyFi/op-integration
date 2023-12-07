@@ -124,8 +124,9 @@ def deploy_contracts(paths, deploy_config: str, deploy_l2: bool):
 
     # The create2 account is shared by both L2s, so don't redeploy it unless necessary
     # We check to see if the create2 deployer exists by querying its balance
+
     res = run_command(
-        ["cast", "balance", "0x3fAB184622Dc19b6109349B94811493BF2a45362"],
+        ["cast", "balance", "0x3fAB184622Dc19b6109349B94811493BF2a45362", "--rpc-url", "https://devnet.nodekit.xyz"],
         capture_output=True,
     )
     deployer_balance = int(res.stdout.strip())
