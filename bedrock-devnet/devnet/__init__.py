@@ -115,8 +115,8 @@ def main():
 
 def deploy_contracts(paths, deploy_config: str, deploy_l2: bool):
     #wait_up(8545)
-    wait_for_rpc_server('https://devnet.nodekit.xyz')
-    res = eth_accounts('https://devnet.nodekit.xyz')
+    wait_for_rpc_server('devnet.nodekit.xyz')
+    res = eth_accounts('devnet.nodekit.xyz')
 
     response = json.loads(res)
     account = response['result'][0]
@@ -201,7 +201,7 @@ def devnet_l1_genesis(paths, deploy_config: str):
         if err:
             raise Exception(f"Exception occurred in child process: {err}")
 
-        res = debug_dumpBlock('https://devnet.nodekit.xyz')
+        res = debug_dumpBlock('devnet.nodekit.xyz')
         response = json.loads(res)
         allocs = response['result']
 
@@ -253,7 +253,7 @@ def devnet_deploy(paths, args):
             'DEVNET_DIR': paths.devnet_dir
         })
         #wait_up(8545)
-        wait_for_rpc_server('https://devnet.nodekit.xyz')
+        wait_for_rpc_server('devnet.nodekit.xyz')
 
         log.info('Bringing up `artifact-server`')
         run_command(['docker', 'compose', 'up', '-d', 'artifact-server'], cwd=paths.ops_bedrock_dir, env={
@@ -318,7 +318,7 @@ def devnet_deploy(paths, args):
 
 def eth_accounts(url):
     log.info(f'Fetch eth_accounts {url}')
-    conn = http.client.HTTPConnection(url)
+    conn = http.client.HTTPSConnection(url)
     headers = {'Content-type': 'application/json'}
     body = '{"id":2, "jsonrpc":"2.0", "method": "eth_accounts", "params":[]}'
     conn.request('POST', '/', body, headers)
@@ -330,7 +330,7 @@ def eth_accounts(url):
 
 def debug_dumpBlock(url):
     log.info(f'Fetch debug_dumpBlock {url}')
-    conn = http.client.HTTPConnection(url)
+    conn = http.client.HTTPSConnection(url)
     headers = {'Content-type': 'application/json'}
     body = '{"id":3, "jsonrpc":"2.0", "method": "debug_dumpBlock", "params":["latest"]}'
     conn.request('POST', '/', body, headers)
@@ -343,7 +343,7 @@ def debug_dumpBlock(url):
 def wait_for_rpc_server(url):
     log.info(f'Waiting for RPC server at {url}')
 
-    conn = http.client.HTTPConnection(url)
+    conn = http.client.HTTPSConnection(url)
     headers = {'Content-type': 'application/json'}
     body = '{"id":1, "jsonrpc":"2.0", "method": "eth_chainId", "params":[]}'
 
