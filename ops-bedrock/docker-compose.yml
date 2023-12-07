@@ -21,6 +21,17 @@ services:
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-stack-go:devnet
     entrypoint: ["echo", "build complete"]
 
+  artifact-server:
+    depends_on:
+      - l1
+    image: nginx:1.25-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - "${DEVNET_DIR}/:/usr/share/nginx/html/:ro"
+    security_opt:
+      - "no-new-privileges:true"
+
   l1:
     build:
       context: .
@@ -36,13 +47,13 @@ services:
     environment:
       GETH_MINER_RECOMMIT: 100ms
 
-  l2:
+  op1-l2:
     build:
       context: .
       dockerfile: Dockerfile.l2
     ports:
-      - "9545:8545"
-      - "8060:6060"
+      - "$OP1_L2_RPC_PORT:8545"
+      - "$OP1_L2_DEBUG_PORT:6060"
     volumes:
       - "l2_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
@@ -54,7 +65,7 @@ services:
     environment:
       GETH_MINER_RECOMMIT: 100ms
 
-  op-node:
+  op1-node:
     depends_on:
       - op_stack_go_builder
       - l1
@@ -68,7 +79,7 @@ services:
     command: >
       op-node
       --l1=ws://l1:8546
-      --l2=http://l2:8551
+      --l2=http://op1-l2:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt
       --sequencer.enabled
       --sequencer.l1-confs=0
@@ -90,23 +101,23 @@ services:
       --pprof.enabled
       --rpc.enable-admin
     ports:
-      - "7545:8545"
-      - "9003:9003"
-      - "7300:7300"
-      - "6060:6060"
+      - "$OP1_NODE_RPC_PORT:8545"
+      - "$OP1_NODE_P2P_PORT:9003"
+      - "$OP1_NODE_METRICS_PORT:7300"
+      - "$OP1_NODE_DEBUG_PORT:6060"
     volumes:
       - "${PWD}/p2p-sequencer-key.txt:/config/p2p-sequencer-key.txt"
       - "${PWD}/p2p-node-key.txt:/config/p2p-node-key.txt"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-      - "${PWD}/../.devnet/rollup.json:/rollup.json"
+      - "${DEVNET_DIR}/rollup.json:/rollup.json"
       - op_log:/op_log
 
   op-proposer:
     depends_on:
       - op_stack_go_builder
       - l1
-      - l2
-      - op-node
+      - op1-l2
+      - op1-node
     build:
       context: ../
       dockerfile: ./op-proposer/Dockerfile
@@ -114,9 +125,9 @@ services:
         OP_STACK_GO_BUILDER: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-stack-go:devnet
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:devnet
     ports:
-      - "6062:6060"
-      - "7302:7300"
-      - "6546:8545"
+      - "$OP1_PROPOSER_DEBUG_PORT:6060"
+      - "$OP1_PROPOSER_METRICS_PORT:7300"
+      - "$OP1_PROPOSER_RPC_PORT:8545"
     environment:
       OP_PROPOSER_L1_ETH_RPC: http://l1:8545
       OP_PROPOSER_ROLLUP_RPC: http://op-node:8545
@@ -130,11 +141,11 @@ services:
       OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
       OP_PROPOSER_RPC_ENABLE_ADMIN: "true"
 
-  op-batcher:
+  op1-batcher:
     depends_on:
       - op_stack_go_builder
       - l1
-      - l2
+      - op1-l2
       - op-node
     build:
       context: ../
@@ -143,13 +154,13 @@ services:
         OP_STACK_GO_BUILDER: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-stack-go:devnet
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:devnet
     ports:
-      - "6061:6060"
-      - "7301:7300"
-      - "6545:8545"
+      - "$OP1_BATCHER_DEBUG_PORT:6060"
+      - "$OP1_BATCHER_METRICS_PORT:7300"
+      - "$OP1_BATCHER_RPC_PORT:8545"
     environment:
       OP_BATCHER_L1_ETH_RPC: http://l1:8545
-      OP_BATCHER_L2_ETH_RPC: http://l2:8545
-      OP_BATCHER_ROLLUP_RPC: http://op-node:8545
+      OP_BATCHER_L2_ETH_RPC: http://op1-l2:8545
+      OP_BATCHER_ROLLUP_RPC: http://op1-node:8545
       OP_BATCHER_MAX_CHANNEL_DURATION: 1
       OP_BATCHER_SUB_SAFETY_MARGIN: 4 # SWS is 15, ChannelTimeout is 40
       OP_BATCHER_POLL_INTERVAL: 1s
@@ -160,6 +171,21 @@ services:
       OP_BATCHER_METRICS_ENABLED: "true"
       OP_BATCHER_RPC_ENABLE_ADMIN: "true"
       OP_BATCHER_BATCH_TYPE: 0
+    # The batcher does not respond to sigint
+    stop_grace_period: 1s
+
+   op1-geth-proxy:
+    build:
+      context: ../
+      dockerfile: ./op-geth-proxy/Dockerfile
+    ports:
+      - "$OP1_GETH_PROXY_PORT:9090"
+    environment:
+      - OP_GETH_PROXY_GETH_ADDR=http://op1-l2:8545
+      - OP_GETH_PROXY_LISTEN_ADDR=0.0.0.0:9090
+      - OP_GETH_PROXY_VM_ID=$OP1_CHAIN_ID
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   artifact-server:
     depends_on:
