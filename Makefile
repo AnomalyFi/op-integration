@@ -1,8 +1,7 @@
 COMPOSEFLAGS=-d
 ITESTS_L2_HOST=http://localhost:9545
 BEDROCK_TAGS_REMOTE?=origin
-DEVNET_NODEKIT_FLAGS=--nodekit --deploy-l2 --deploy-config="devnetL1-nodekit.json" --deploy-config-template="devnetL1-nodekit-template.json" --deployment="devnetL1-nodekit" --devnet-dir=".devnet-nodekit" --l2-provider-url="http://localhost:9090"
-url="http://localhost:17111"
+DEVNET_NODEKIT_FLAGS=--nodekit --deploy-l2 --deploy-config="devnetL1-nodekit.json" --deploy-config-template="devnetL1-nodekit-template.json" --deployment="devnetL1-nodekit" --devnet-dir=".devnet-nodekit" --l2-provider-url="http://localhost:19090"
 monorepo-base := $(realpath .)
 OP_STACK_GO_BUILDER?=us-docker.pkg.dev/oplabs-tools-artifacts/images/op-stack-go:latest
 
