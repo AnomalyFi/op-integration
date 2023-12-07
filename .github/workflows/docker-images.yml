@@ -6,6 +6,7 @@ on:
       - main
       - release-*
       - integration
+      - 1.31
   pull_request:
   workflow_dispatch:
 
