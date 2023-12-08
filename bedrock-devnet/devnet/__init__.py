@@ -144,6 +144,7 @@ def deploy_contracts(paths, deploy_config: str, deploy_l2: bool):
           '0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222'
         ], env={}, cwd=paths.contracts_bedrock_dir)
 
+
     deploy_env = {
         'DEPLOYMENT_CONTEXT': deploy_config.removesuffix('.json')
     }
@@ -290,7 +291,7 @@ def devnet_deploy(paths, args):
     l2_provider_port = int(l2_provider_url.split(':')[-1])
     l2_provider_http = l2_provider_url.removeprefix('http://')
     wait_up(l2_provider_port)
-    wait_for_rpc_server(l2_provider_http)
+    wait_for_rpc_server_local(l2_provider_http)
 
     l2_output_oracle = addresses['L2OutputOracleProxy']
     log.info(f'Using L2OutputOracle {l2_output_oracle}')
@@ -360,6 +361,28 @@ def wait_for_rpc_server(url):
             log.info(f'Error connecting to RPC: {e}')
             log.info(f'Waiting for RPC server at {url}')
             time.sleep(1)
+
+
+def wait_for_rpc_server_local(url):
+    log.info(f'Waiting for RPC server at {url}')
+
+    conn = http.client.HTTPConnection(url)
+    headers = {'Content-type': 'application/json'}
+    body = '{"id":1, "jsonrpc":"2.0", "method": "eth_chainId", "params":[]}'
+
+    while True:
+        try:
+            conn.request('POST', '/', body, headers)
+            response = conn.getresponse()
+            conn.close()
+            if response.status < 300:
+                log.info(f'RPC server at {url} ready')
+                return
+        except Exception as e:
+            log.info(f'Error connecting to RPC: {e}')
+            log.info(f'Waiting for RPC server at {url}')
+            time.sleep(1)
+
 
 def deploy_erc20(paths, l2_provider_url):
     run_command(
