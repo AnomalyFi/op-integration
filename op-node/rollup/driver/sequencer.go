@@ -114,7 +114,6 @@ func (d *Sequencer) startBuildingNodeKitBatch(ctx context.Context, l2Head eth.L2
 		windowStart: windowStart,
 		windowEnd:   windowEnd,
 		jst: eth.L2BatchJustification{
-			From: blocks.From,
 			Prev: blocks.Prev,
 		},
 	}
@@ -149,12 +148,11 @@ func (d *Sequencer) updateNodeKitBatch(ctx context.Context, newHeaders []nodekit
 			d.log.Error("inconsistent data from NodeKit query service: header is before its predecessor", "header", header, "prev", prev)
 		}
 
-		blockNum := batch.jst.From + uint64(numBlocks)
-		txs, err := d.nodekit.FetchTransactionsInBlock(ctx, blockNum, &header, d.config.L2ChainID.Uint64())
+		txs, err := d.nodekit.FetchTransactionsInBlock(ctx, &header, d.config.L2ChainID.Uint64())
 		if err != nil {
 			return err
 		}
-		d.log.Info("adding new transactions from NodeKit", "block", blockNum, "count", len(txs.Transactions))
+		d.log.Info("adding new transactions from NodeKit", "block", header, "count", len(txs.Transactions))
 		batch.jst.Blocks = append(blocks, eth.NodeKitBlockJustification{
 			Header: header,
 			//Proof:  txs.Proof,
@@ -176,7 +174,7 @@ func (d *Sequencer) updateNodeKitBatch(ctx context.Context, newHeaders []nodekit
 func (d *Sequencer) tryToSealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload, error) {
 	batch := d.nodekitBatch
 	if !batch.complete() {
-		blocks, err := d.nodekit.FetchRemainingHeadersForWindow(ctx, batch.jst.From+uint64(len(batch.jst.Blocks)), batch.windowEnd)
+		blocks, err := d.nodekit.FetchRemainingHeadersForWindow(ctx, batch.jst.Last().Height+1, batch.windowEnd)
 		if err != nil {
 			return nil, err
 		}
@@ -214,13 +212,6 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context) (*eth.ExecutionPayload
 	// submit empty batches until we catch up.
 	if derive.NodeKitBatchMustBeEmpty(d.config, l1Origin, batch.windowStart) {
 		batch.transactions = nil
-
-		//TODO do I need this?
-		// We don't need all the NMT proofs in this case, so save space in the batch by replacing
-		// them with empty proofs.
-		// for i := range batch.jst.Blocks {
-		// 	batch.jst.Blocks[i].Proof = nodekit.NmtProof{}
-		// }
 	}
 
 	attrs, err := d.attrBuilder.PreparePayloadAttributes(ctx, batch.onto, l1Origin.ID(), &batch.jst)
@@ -570,11 +561,11 @@ func (d *Sequencer) buildLegacyBlock(ctx context.Context, building bool) (*eth.E
 
 func (d *Sequencer) detectMode(ctx context.Context) error {
 	head := d.engine.UnsafeL2Head()
-	nodekitBatch, err := d.attrBuilder.ChildNeedsJustification(ctx, head)
+	sysCfg, err := d.cfgFetcher.SystemConfigByL2Hash(ctx, head.Hash)
 	if err != nil {
 		return err
 	}
-	if nodekitBatch {
+	if sysCfg.NodeKit {
 		d.log.Info("OP sequencer running in NodeKit mode")
 		d.mode = NodeKit
 	} else {

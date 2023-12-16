@@ -129,10 +129,8 @@ func CheckBatchNodeKit(cfg *rollup.Config, sysCfg *eth.SystemConfig, log log.Log
 
 	// First, check that the headers provided by the justification match those in the sequencer
 	// contract. Compute their commitments which we can compare to the sequencer contract.
-	firstComm := jst.From
 	var comms []nodekit.Commitment
 	if jst.Prev != nil {
-		firstComm -= 1
 		comms = append(comms, jst.Prev.Commit())
 	}
 	for _, b := range jst.Blocks {
@@ -140,16 +138,16 @@ func CheckBatchNodeKit(cfg *rollup.Config, sysCfg *eth.SystemConfig, log log.Log
 	}
 	comms = append(comms, jst.Next.Commit())
 	// Compare to the authenticated commitments from the contract.
-	validComms, err := l1.VerifyCommitments(firstComm, comms)
+	validComms, err := l1.VerifyCommitments(jst.First().Height, comms)
 	if err != nil {
 		// If we can't read the expected commitments for some reason (maybe they haven't been sent
 		// to the sequencer contract yet, or maybe our connection to the L1 is down) try again
 		// later.
-		log.Warn("error reading expected commitments", "err", err, "first", firstComm, "count", len(comms))
+		log.Warn("error reading expected commitments", "err", err, "first", jst.First(), "count", len(comms))
 		return BatchUndecided
 	}
 	if !validComms {
-		log.Warn("dropping batch because headers do not match contract", "first", firstComm, "count", len(comms))
+		log.Warn("dropping batch because headers do not match contract", "first", jst.First(), "count", len(comms))
 		return BatchDrop
 	}
 
@@ -369,9 +367,14 @@ func checkBookends(log log.Logger, timestamp uint64, jst *eth.L2BatchJustificati
 	if prev == nil {
 		// It is allowed that there is no NodeKit block just before the endpoint only in the case
 		// where the NodeKit genesis block falls after the endpoint.
-		if jst.From != 0 || next.Timestamp < timestamp {
-			log.Warn("dropping batch because prev header is missing, but genesis is not after endpoint",
-				"endpoint", endpoint.String(), "from", jst.From, "next", next, "timestamp", timestamp)
+		if jst.First().Height != 0 {
+			log.Warn("dropping batch because prev header is missing, but first block is not genesis",
+				"endpoint", endpoint.String(), "first", jst.First(), "next", next, "timestamp", timestamp)
+			return false
+		}
+		if jst.First().Timestamp < timestamp {
+			log.Warn("dropping batch because prev header is missing, but genesis block is before endpoint",
+				"endpoint", endpoint.String(), "first", jst.First(), "next", next, "timestamp", timestamp)
 			return false
 		}
 	} else {
@@ -380,11 +383,11 @@ func checkBookends(log log.Logger, timestamp uint64, jst *eth.L2BatchJustificati
 				"endpoint", endpoint.String(), "prev", prev, "timestamp", timestamp)
 			return false
 		}
-		if next.Timestamp < timestamp {
-			log.Warn("dropping batch because next header is from before the endpoint",
-				"endpoint", endpoint.String(), "next", next, "timestamp", timestamp)
-			return false
-		}
+	}
+	if next.Timestamp < timestamp {
+		log.Warn("dropping batch because next header is from before the endpoint",
+			"endpoint", endpoint.String(), "next", next, "timestamp", timestamp)
+		return false
 	}
 
 	return true

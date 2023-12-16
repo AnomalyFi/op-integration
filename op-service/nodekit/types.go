@@ -9,16 +9,18 @@ import (
 )
 
 type Header struct {
+	Height           uint64  `json:"height"`
+	Timestamp        uint64  `json:"timestamp"`
+	L1Head           uint64  `json:"l1_head"`
 	TransactionsRoot NmtRoot `json:"transactions_root"`
-
-	Metadata `json:"metadata"`
 }
 
 func (h *Header) UnmarshalJSON(b []byte) error {
-	// Parse using pointers so we can distinguish between missing and default fields.
 	type Dec struct {
-		TransactionsRoot *NmtRoot  `json:"transactions_root"`
-		Metadata         *Metadata `json:"metadata"`
+		Height           *uint64  `json:"height"`
+		Timestamp        *uint64  `json:"timestamp"`
+		L1Head           *uint64  `json:"l1_head"`
+		TransactionsRoot *NmtRoot `json:"transactions_root"`
 	}
 
 	var dec Dec
@@ -26,15 +28,25 @@ func (h *Header) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if dec.Height == nil {
+		return fmt.Errorf("Field height of type Header is required")
+	}
+	h.Height = *dec.Height
+
+	if dec.Timestamp == nil {
+		return fmt.Errorf("Field timestamp of type Header is required")
+	}
+	h.Timestamp = *dec.Timestamp
+
+	if dec.L1Head == nil {
+		return fmt.Errorf("Field l1_head of type Header is required")
+	}
+	h.L1Head = *dec.L1Head
+
 	if dec.TransactionsRoot == nil {
 		return fmt.Errorf("Field transactions_root of type Header is required")
 	}
 	h.TransactionsRoot = *dec.TransactionsRoot
-
-	if dec.Metadata == nil {
-		return fmt.Errorf("Field metadata of type Header is required")
-	}
-	h.Metadata = *dec.Metadata
 
 	return nil
 }
@@ -51,39 +63,6 @@ func (self *Header) Commit() Commitment {
 	// 	Uint64Field("l1_head", self.L1Head).
 	// 	Field("transactions_root", self.TransactionsRoot.Commit()).
 	// 	Finalize()
-}
-
-type Metadata struct {
-	Timestamp uint64 `json:"timestamp"`
-	L1Head    uint64 `json:"l1_head"`
-	// L1Finalized *L1BlockInfo `json:"l1_finalized" rlp:"nil"`
-}
-
-func (m *Metadata) UnmarshalJSON(b []byte) error {
-	// Parse using pointers so we can distinguish between missing and default fields.
-	type Dec struct {
-		Timestamp *uint64 `json:"timestamp"`
-		L1Head    *uint64 `json:"l1_head"`
-		//L1Finalized *L1BlockInfo `json:"l1_finalized" rlp:"nil"`
-	}
-
-	var dec Dec
-	if err := json.Unmarshal(b, &dec); err != nil {
-		return err
-	}
-
-	if dec.Timestamp == nil {
-		return fmt.Errorf("Field timestamp of type Metadata is required")
-	}
-	m.Timestamp = *dec.Timestamp
-
-	if dec.L1Head == nil {
-		return fmt.Errorf("Field l1_head of type Metadata is required")
-	}
-	m.L1Head = *dec.L1Head
-
-	//m.L1Finalized = dec.L1Finalized
-	return nil
 }
 
 type L1BlockInfo struct {
