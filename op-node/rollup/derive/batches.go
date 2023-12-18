@@ -169,19 +169,9 @@ func CheckBatchNodeKit(cfg *rollup.Config, sysCfg *eth.SystemConfig, log log.Log
 	if err != nil {
 		// If we can't read the suggested L1 origin for some reason (maybe our L1 client is lagging
 		// behind NodeKit's view of the L1) try again later.
-		log.Warn("error reading suggested L1 origin", "err", err, "l1 head", jst.Next.L1Head)
+		log.Warn("error finding NodeKit L1 origin", "err", err, "suggested", jst.Next.L1Head)
 		return BatchUndecided
 	}
-	// nextL1Number := l2SafeHead.L1Origin.Number + 1
-	// fetchNextL1Block := func() (eth.L1BlockRef, error) {
-	// 	return l1.L1BlockRefByNumber(context.Background(), nextL1Number)
-	// }
-	// expectedL1Origin, err := NodeKitL1Origin(cfg, l2SafeHead, suggestedL1Origin, fetchNextL1Block, log)
-	// if err != nil {
-	// 	log.Warn("error reading next possible L1 origin", "err", err, "origin", nextL1Number)
-	// 	return BatchUndecided
-	// }
-	// actualL1Origin := uint64(batch.EpochNum)
 	if l1Origin.Number != uint64(batch.EpochNum) {
 		log.Warn("dropping batch because L1 origin was not set correctly",
 			"suggested", jst.Next.L1Head, "expected", l1Origin, "actual", batch.EpochNum)
@@ -326,7 +316,7 @@ func checkSingularBatch(cfg *rollup.Config, sysCfg *eth.SystemConfig, log log.Lo
 				nextOrigin := l1Blocks[1]
 				// If NodeKit is sequencing, the sequencer cannot adopt the next origin in the case
 				// that SEQ failed to sequence any blocks
-				if sysCfg.NodeKit && batch.Timestamp >= nextOrigin.Time { // check if the next L1 origin could have been adopted
+				if !sysCfg.NodeKit && batch.Timestamp >= nextOrigin.Time { // check if the next L1 origin could have been adopted
 					log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
 					return BatchDrop
 				} else {
