@@ -102,7 +102,7 @@ func (bq *BatchQueue) maybeAdvanceEpoch(nextBatch *SingularBatch) {
 	}
 }
 
-func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef, usingNodeKit bool) (*SingularBatch, error) {
+func (bq *BatchQueue) NextBatch(ctx context.Context, safeL2Head eth.L2BlockRef) (*SingularBatch, error) {
 	if len(bq.nextSpan) > 0 {
 		// If there are cached singular batches, pop first one and return.
 		nextBatch := bq.popNextBatch(safeL2Head)
