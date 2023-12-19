@@ -1,4 +1,4 @@
-FROM ghcr.io/anomalyfi/op-integration/op-geth:nodekit
+FROM ghcr.io/anomalyfi/op-integration/op-geth:hotfix
 
 RUN apk add --no-cache jq
 
