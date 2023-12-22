@@ -51,18 +51,17 @@ func (h *Header) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (self *Header) Commit() Commitment {
-	// if self.L1Finalized != nil {
-	// 	comm := self.L1Finalized.Commit()
-	// 	l1FinalizedComm = &comm
-	// }
+// func (self *Header) Commit() Commitment {
+// 	return NewRawCommitmentBuilder("BLOCK").
+// 		Uint64Field("height", self.Height).
+// 		Uint64Field("timestamp", self.Timestamp).
+// 		Uint64Field("l1_head", self.L1Head).
+// 		Field("transactions_root", self.TransactionsRoot.Commit()).
+// 		Finalize()
+// }
 
+func (self *Header) Commit() Commitment {
 	return Commitment(self.TransactionsRoot.Root)
-	// NewRawCommitmentBuilder("BLOCK").
-	// 	Uint64Field("timestamp", self.Timestamp).
-	// 	Uint64Field("l1_head", self.L1Head).
-	// 	Field("transactions_root", self.TransactionsRoot.Commit()).
-	// 	Finalize()
 }
 
 type L1BlockInfo struct {
@@ -175,35 +174,35 @@ type BatchMerkleProof = Bytes
 // compatibility with the NodeKit APIs.
 type Bytes []byte
 
-// TODO do I want this or can I use a base64?
-func (b Bytes) MarshalJSON() ([]byte, error) {
-	// Convert to `int` array, which serializes the way we want.
-	ints := make([]int, len(b))
-	for i := range b {
-		ints[i] = int(b[i])
-	}
+// // TODO do I want this or can I use a base64?
+// func (b Bytes) MarshalJSON() ([]byte, error) {
+// 	// Convert to `int` array, which serializes the way we want.
+// 	ints := make([]int, len(b))
+// 	for i := range b {
+// 		ints[i] = int(b[i])
+// 	}
 
-	return json.Marshal(ints)
-}
+// 	return json.Marshal(ints)
+// }
 
-func (b *Bytes) UnmarshalJSON(in []byte) error {
-	// Parse as `int` array, which deserializes the way we want.
-	var ints []int
-	if err := json.Unmarshal(in, &ints); err != nil {
-		return err
-	}
+// func (b *Bytes) UnmarshalJSON(in []byte) error {
+// 	// Parse as `int` array, which deserializes the way we want.
+// 	var ints []int
+// 	if err := json.Unmarshal(in, &ints); err != nil {
+// 		return err
+// 	}
 
-	// Convert back to `byte` array.
-	*b = make([]byte, len(ints))
-	for i := range ints {
-		if ints[i] < 0 || 255 < ints[i] {
-			return fmt.Errorf("byte out of range: %d", ints[i])
-		}
-		(*b)[i] = byte(ints[i])
-	}
+// 	// Convert back to `byte` array.
+// 	*b = make([]byte, len(ints))
+// 	for i := range ints {
+// 		if ints[i] < 0 || 255 < ints[i] {
+// 			return fmt.Errorf("byte out of range: %d", ints[i])
+// 		}
+// 		(*b)[i] = byte(ints[i])
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // A BigInt type which serializes to JSON a a hex string. This ensures compatibility with the
 // NodeKit APIs.

@@ -69,12 +69,10 @@ type L1BlockInfo struct {
 // | 32      | L1FeeScalar              |
 // | 32      | NodeKit                  |
 // | 32      | NodeKitL1ConfDepth      |
-// | 32      | L1InfoJustificationOffset|
 // | variable| Justification            |
 // | 32      | L1InfoJustificationOffset|
 // | 		 | (this is how dynamic     |
 // | 		 | types are ABI encoded)   |
-// | variable| Justification            |
 // +---------+--------------------------+
 
 func (info *L1BlockInfo) MarshalBinary() ([]byte, error) {

@@ -357,7 +357,7 @@ func checkBookends(log log.Logger, timestamp uint64, jst *eth.L2BatchJustificati
 	if prev == nil {
 		// It is allowed that there is no NodeKit block just before the endpoint only in the case
 		// where the NodeKit genesis block falls after the endpoint.
-		if jst.First().Height != 0 {
+		if jst.First().Height != 1 {
 			log.Warn("dropping batch because prev header is missing, but first block is not genesis",
 				"endpoint", endpoint.String(), "first", jst.First(), "next", next, "timestamp", timestamp)
 			return false

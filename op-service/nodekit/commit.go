@@ -29,22 +29,14 @@ func CommitmentFromUint256(n *U256) (Commitment, error) {
 	}
 
 	for i, b := range bigEndian {
-		// Bytes() returns the bytes in big endian order, but SEQ encodes commitments as
-		// U256 in little endian order, so we populate the bytes in reverse order.
-		bytes[31-i] = b
+		// Bytes() returns the bytes in big endian order and we need a 32 byte array so we populate it this way
+		bytes[i] = b
 	}
 	return bytes, nil
 }
 
 func (c Commitment) Uint256() *U256 {
-	//! TODO I may not do this for mine
-	var bigEndian [32]byte
-	for i, b := range c {
-		// SEQ interprets the commitment as a little-endian integer. `SetBytes` takes the bytes
-		// in big-endian order, so we populate the bytes in reverse order.
-		bigEndian[31-i] = b
-	}
-	return NewU256().SetBytes(bigEndian)
+	return NewU256().SetBytes(c)
 }
 
 func (c Commitment) Equals(other Commitment) bool {

@@ -336,19 +336,16 @@ func RandomL2BatchJustification(rng *rand.Rand) *eth.L2BatchJustification {
 	return &eth.L2BatchJustification{
 		Prev:   &prev,
 		Next:   &next,
-		From:   RandomBlockID(rng).Number,
 		Blocks: make([]eth.NodeKitBlockJustification, 0),
 	}
 }
 
 func RandomNodeKitHeader(rng *rand.Rand) nodekit.Header {
-	//l1Block := RandomBlockRef(rng)
 	return nodekit.Header{
+		Height:           rng.Uint64(),
+		Timestamp:        rng.Uint64(),
+		L1Head:           RandomBlockRef(rng).Number,
 		TransactionsRoot: RandomNmtRoot(rng),
-		Metadata: nodekit.Metadata{
-			Timestamp: rng.Uint64(),
-			L1Head:    RandomBlockRef(rng).Number,
-		},
 	}
 }
 
