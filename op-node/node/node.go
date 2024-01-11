@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/ethereum-optimism/optimism/op-node/da"
 	"github.com/ethereum-optimism/optimism/op-node/heartbeat"
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/p2p"
@@ -51,6 +52,7 @@ type OpNode struct {
 	p2pSigner p2p.Signer            // p2p gogssip application messages will be signed with this signer
 	tracer    Tracer                // tracer to get events for testing/debugging
 	runCfg    *RuntimeConfig        // runtime configurables
+	daCfg     *da.DAConfig          // EigenDA client and configuration
 
 	rollupHalt string // when to halt the rollup, disabled if empty
 
@@ -107,6 +109,9 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 
 func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) error {
 	n.log.Info("Initializing rollup node", "version", n.appVersion)
+	if err := n.initDA(ctx, cfg); err != nil {
+		return err
+	}
 	if err := n.initTracer(ctx, cfg); err != nil {
 		return fmt.Errorf("failed to init the trace: %w", err)
 	}
@@ -141,6 +146,12 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	if err := n.initPProf(cfg); err != nil {
 		return fmt.Errorf("failed to init pprof server: %w", err)
 	}
+	n.daCfg = &cfg.DAConfig
+	return nil
+}
+
+func (n *OpNode) initDA(ctx context.Context, cfg *Config) error {
+	n.daCfg = &cfg.DAConfig
 	return nil
 }
 
@@ -312,7 +323,7 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 		nodekitClient = nodekit.NewClient(n.log, cfg.NodeKitUrl)
 	}
 
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, nodekitClient, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, &cfg.Sync)
+	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.daCfg, n.l2Source, n.l1Source, nodekitClient, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, &cfg.Sync)
 	return nil
 }
 
