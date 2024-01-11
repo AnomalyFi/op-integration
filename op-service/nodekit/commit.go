@@ -106,9 +106,9 @@ func (b *RawCommitmentBuilder) Uint256(n *U256) *RawCommitmentBuilder {
 
 	// `FillBytes` uses big endian byte ordering, but the SEQ commitment scheme uses little
 	// endian, so we need to reverse the bytes.
-	for i, j := 0, len(bytes)-1; i < j; i, j = i+1, j-1 {
-		bytes[i], bytes[j] = bytes[j], bytes[i]
-	}
+	// for i, j := 0, len(bytes)-1; i < j; i, j = i+1, j-1 {
+	// 	bytes[i], bytes[j] = bytes[j], bytes[i]
+	// }
 
 	return b.FixedSizeBytes(bytes)
 }
@@ -121,7 +121,7 @@ func (b *RawCommitmentBuilder) Uint64Field(f string, n uint64) *RawCommitmentBui
 // Include a value of type `uint64` in the hash.
 func (b *RawCommitmentBuilder) Uint64(n uint64) *RawCommitmentBuilder {
 	bytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bytes, n)
+	binary.BigEndian.PutUint64(bytes, n)
 	return b.FixedSizeBytes(bytes)
 }
 

@@ -9,18 +9,20 @@ import (
 )
 
 type Header struct {
-	Height           uint64  `json:"height"`
-	Timestamp        uint64  `json:"timestamp"`
-	L1Head           uint64  `json:"l1_head"`
-	TransactionsRoot NmtRoot `json:"transactions_root"`
+	Height            uint64  `json:"height"`
+	Timestamp         uint64  `json:"timestamp"`
+	TimestampOriginal uint64  `json:"timestamp_original"`
+	L1Head            uint64  `json:"l1_head"`
+	TransactionsRoot  NmtRoot `json:"transactions_root"`
 }
 
 func (h *Header) UnmarshalJSON(b []byte) error {
 	type Dec struct {
-		Height           *uint64  `json:"height"`
-		Timestamp        *uint64  `json:"timestamp"`
-		L1Head           *uint64  `json:"l1_head"`
-		TransactionsRoot *NmtRoot `json:"transactions_root"`
+		Height            *uint64  `json:"height"`
+		Timestamp         *uint64  `json:"timestamp"`
+		TimestampOriginal *uint64  `json:"timestamp_original"`
+		L1Head            *uint64  `json:"l1_head"`
+		TransactionsRoot  *NmtRoot `json:"transactions_root"`
 	}
 
 	var dec Dec
@@ -38,6 +40,11 @@ func (h *Header) UnmarshalJSON(b []byte) error {
 	}
 	h.Timestamp = *dec.Timestamp
 
+	if dec.TimestampOriginal == nil {
+		return fmt.Errorf("Field timestamp_convert of type Header is required")
+	}
+	h.TimestampOriginal = *dec.TimestampOriginal
+
 	if dec.L1Head == nil {
 		return fmt.Errorf("Field l1_head of type Header is required")
 	}
@@ -51,18 +58,18 @@ func (h *Header) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// func (self *Header) Commit() Commitment {
-// 	return NewRawCommitmentBuilder("BLOCK").
-// 		Uint64Field("height", self.Height).
-// 		Uint64Field("timestamp", self.Timestamp).
-// 		Uint64Field("l1_head", self.L1Head).
-// 		Field("transactions_root", self.TransactionsRoot.Commit()).
-// 		Finalize()
-// }
-
 func (self *Header) Commit() Commitment {
-	return Commitment(self.TransactionsRoot.Root)
+	return NewRawCommitmentBuilder("BLOCK").
+		Uint64Field("height", self.Height).
+		Uint64Field("timestamp", self.TimestampOriginal).
+		Uint64Field("l1_head", self.L1Head).
+		Field("transactions_root", self.TransactionsRoot.Commit()).
+		Finalize()
 }
+
+// func (self *Header) Commit() Commitment {
+// 	return Commitment(self.TransactionsRoot.Root)
+// }
 
 type L1BlockInfo struct {
 	Number    uint64      `json:"number"`
