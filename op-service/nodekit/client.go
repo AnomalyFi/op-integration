@@ -24,9 +24,9 @@ func NewClient(log log.Logger, url string) *Client {
 		url += "/"
 	}
 
-	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
@@ -41,14 +41,13 @@ func NewClient(log log.Logger, url string) *Client {
 func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end uint64) (WindowStart, error) {
 	//var res WindowStart
 	//getBlockHeadersByStart
-	var next *Header
 
 	start_time := start * 1000
 	end_time := end * 1000
 
-	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
@@ -81,6 +80,8 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 		return WindowStart{}, err
 	}
 
+	var next *Header
+
 	if !(res.Next == (types.BlockInfo{})) {
 		//! TODO this is where the error is. It's on the c.log.Error line
 		next, err = convertBlockInfoToHeader(res.Next)
@@ -104,9 +105,9 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 	var next *Header
 	//getBlockHeadersByHeight
 
-	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
@@ -148,11 +149,11 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 	return w, nil
 }
 
-func (c *Client) FetchTransactionsInBlock(ctx context.Context, block uint64, header *Header, namespace uint64) (TransactionsInBlock, error) {
+func (c *Client) FetchTransactionsInBlock(ctx context.Context, header *Header, namespace uint64) (TransactionsInBlock, error) {
 	//var res NamespaceResponse
-	id := "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
-	urlNew := "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa"
+	urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
 
 	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 	// TODO First I encode the integer to bytes form. Then I use hex.EncodeToString on it.
@@ -160,7 +161,7 @@ func (c *Client) FetchTransactionsInBlock(ctx context.Context, block uint64, hea
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, namespace)
 	hexNamespace := hex.EncodeToString(buf)
-	res, err := cli.GetBlockTransactionsByNamespace(context.Background(), block, hexNamespace)
+	res, err := cli.GetBlockTransactionsByNamespace(context.Background(), header.Height, hexNamespace)
 
 	if err != nil {
 		return TransactionsInBlock{}, err
@@ -181,19 +182,19 @@ func convertSEQTransactionToTransaction(seqTx *types.SEQTransaction) Transaction
 
 // Function to convert SEQTransaction to Transaction
 func convertBlockInfoToHeader(blockInfo types.BlockInfo) (*Header, error) {
-	//TODO check this later
 	bytes, err := DecodeCB58(blockInfo.BlockId)
 	if err != nil {
 		return nil, err
 	}
+	tmp := blockInfo.Timestamp / 1000
 	return &Header{
 		TransactionsRoot: NmtRoot{
 			Root: bytes,
-		}, // Use Index as ChainId (you can modify this as needed)
-		Metadata: Metadata{
-			Timestamp: uint64(blockInfo.Timestamp),
-			L1Head:    blockInfo.L1Head,
 		},
+		Timestamp:         uint64(tmp),
+		TimestampOriginal: uint64(blockInfo.Timestamp),
+		L1Head:            blockInfo.L1Head,
+		Height:            blockInfo.Height,
 	}, nil
 }
 
