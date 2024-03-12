@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -13,44 +12,39 @@ import (
 	trpc "github.com/AnomalyFi/seq-sdk/client"
 	"github.com/AnomalyFi/seq-sdk/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/peterbourgon/ff/v3"
 )
 
 const ENV_PREFIX = "NODEKIT"
-
-var (
-	fs            = flag.NewFlagSet("nodekit", flag.ContinueOnError)
-	chain_id      = fs.String("seq-chain-id", "cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa", "Chain ID of SEQ instance")
-	sequencerAddr = fs.String("seq-addr", "https://seq.nodekit.xyz/ext/bc/cQjk2aRAk4ehSW6x4MUhdQQqhRmEoBgYsqCE7DKurF5Tb4xRa", "address of NodeKit SEQ")
-)
 
 type Client struct {
 	baseUrl string
 	client  *trpc.JSONRPCClient
 	log     log.Logger
+	chainID string
+	seqAddr string
 }
 
 func NewClient(log log.Logger, url string) *Client {
-	if err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarPrefix(ENV_PREFIX)); err != nil {
-		panic(fmt.Errorf("unable to parse op-service/nodekit/client.go flags: %v", err))
-	}
+	// if !strings.HasSuffix(url, "/") {
+	// 	url += "/"
+	// }
+	ss := strings.Split(url, "/")
+	chainID := ss[len(ss)-1]
 
-	if !strings.HasSuffix(url, "/") {
-		url += "/"
-	}
+	// // id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
+	// id := *chain_id
 
-	// id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	id := *chain_id
+	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
+	// urlNew := *sequencerAddr
 
-	// urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	urlNew := *sequencerAddr
-
-	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
+	cli := trpc.NewJSONRPCClient(url, 1337, chainID)
 
 	return &Client{
 		//baseUrl: url,
-		client: cli,
-		log:    log,
+		client:  cli,
+		log:     log,
+		seqAddr: url,
+		chainID: chainID,
 	}
 }
 
@@ -62,16 +56,18 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 	start_time := start * 1000
 	end_time := end * 1000
 
-	// id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	id := *chain_id
+	// // id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
+	// id := *chain_id
 
-	// urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	urlNew := *sequencerAddr
+	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
+	// urlNew := *sequencerAddr
 
-	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
+	// cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
+	cli := c.client
 
 	res, err := cli.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
 
+	log.Info("seq info", "chain-id", c.chainID, "sequencer-addr", c.seqAddr)
 	//res, err := c.client.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
 
 	//TODO is this causing the error: We skipped an L1 block and the next L1 block is eligible as an origin, advancing by one
@@ -124,16 +120,17 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 	var next *Header
 	//getBlockHeadersByHeight
 
-	// id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	id := *chain_id
+	// // id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
+	// id := *chain_id
 
-	// urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	urlNew := *sequencerAddr
+	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
+	// urlNew := *sequencerAddr
 
-	cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
+	// cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 
 	end_time := end * 1000
 
+	cli := c.client
 	res, err := cli.GetBlockHeadersByHeight(context.Background(), from, int64(end_time))
 	//c.client.GetBlockHeadersByHeight(context.Background(), from, int64(end))
 
@@ -173,12 +170,14 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 func (c *Client) FetchTransactionsInBlock(ctx context.Context, header *Header, namespace uint64) (TransactionsInBlock, error) {
 	//var res NamespaceResponse
 	// id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	id := chain_id
+	// id := chain_id
 
-	// urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	urlNew := sequencerAddr
+	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
+	// urlNew := sequencerAddr
 
-	cli := trpc.NewJSONRPCClient(*urlNew, 1337, *id)
+	// cli := trpc.NewJSONRPCClient(*urlNew, 1337, *id)
+
+	cli := c.client
 	// TODO First I encode the integer to bytes form. Then I use hex.EncodeToString on it.
 	//hex.EncodeToString(action.ChainId)
 	buf := make([]byte, 8)

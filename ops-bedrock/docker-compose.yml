@@ -69,7 +69,7 @@ services:
     depends_on:
       - op_stack_go_builder
       # - l1
-      - l2
+      - op1-l2
     build:
       context: ../
       dockerfile: ./op-node/Dockerfile
@@ -81,6 +81,7 @@ services:
       --l1=${L1WS}
       --l2=http://op1-l2:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt
+      --nodekit=${SEQ_ADDR}
       --sequencer.enabled
       --sequencer.l1-confs=0
       --verifier.l1-confs=0
@@ -113,10 +114,10 @@ services:
       - op_log:/op_log
     environment:
     # for op-service/nodekit
-      - NODEKIT_SEQ_CHAIN_ID=$SEQ_CHAIN_ID
-      - NODEKIT_SEQ_ADDR=$SEQ_ADDR
+      NODEKIT_SEQ_CHAIN_ID: $SEQ_CHAIN_ID
+      NODEKIT_SEQ_ADDR: $SEQ_ADDR
 
-  op-proposer:
+  op1-proposer:
     depends_on:
       - op_stack_go_builder
       # - l1

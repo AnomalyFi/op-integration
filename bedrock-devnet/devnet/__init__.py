@@ -157,6 +157,8 @@ def main():
     if launch_l2:
         log.info('launching op stack')
         devnet_deploy(paths, args)
+        log.info('Deploying ERC20 contract to test l2')
+        deploy_erc20(paths, args.l2_provider_url)
         return
 
 
@@ -170,8 +172,6 @@ def main():
 
         return
 
-    log.info('Deploying ERC20 contract')
-    deploy_erc20(paths, args.l2_provider_url)
 
 def deploy_nodekit_i1(paths, args):
     nodekit_l1_dir: str = paths.nodekit_l1_dir
@@ -412,17 +412,20 @@ def devnet_deploy(paths, args):
 
     rollup_config = read_json(paths.rollup_config_path)
     addresses = read_json(paths.addresses_json_path)
+    l2_provider_port = int(l2_provider_url.split(':')[-1])
+    l2_provider_http = l2_provider_url
 
     log.info('Bringing up L2.')
     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2', f'{l2}-geth-proxy'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
         'DEVNET_DIR': paths.devnet_dir,
         'SEQ_ADDR': seq_addr,
-        'SEQ_CHAIN_ID': seq_chain_id
+        'SEQ_CHAIN_ID': seq_chain_id,
+        'OP1_L2_RPC_PORT': str(l2_provider_port),
     })
 
-    l2_provider_port = int(l2_provider_url.split(':')[-1])
-    l2_provider_http = l2_provider_url.removeprefix('http://')
+    # l2_provider_port = int(l2_provider_url.split(':')[-1])
+    # l2_provider_http = l2_provider_url.removeprefix('http://')
     wait_up(l2_provider_port)
     wait_for_rpc_server_local(l2_provider_http)
 

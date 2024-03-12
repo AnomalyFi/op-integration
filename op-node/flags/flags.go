@@ -276,10 +276,10 @@ var (
 var requiredFlags = []cli.Flag{
 	L1NodeAddr,
 	L2EngineAddr,
+	NodeKitUrl,
 }
 
 var optionalFlags = []cli.Flag{
-	NodeKitUrl,
 	RPCListenAddr,
 	RPCListenPort,
 	RollupConfig,
