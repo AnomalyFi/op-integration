@@ -162,7 +162,7 @@ def main():
 
     if _deploy_contracts:
         try:
-            # init_devnet_l1_deploy_config(paths, update_timestamp=True)
+            init_devnet_l1_deploy_config(paths, update_timestamp=True)
             deploy_contracts(paths, args.deploy_config, False, jwt_secret)
             log.info('contracts deployed')
         except Exception as e:
@@ -253,14 +253,14 @@ def deploy_contracts(paths, deploy_config: str, deploy_l2: bool, jwt_secret: str
             'cast', 'send', '--from', account,
             '--rpc-url', rpc_url,
             '--unlocked', '--value', '1ether', '0x3fAB184622Dc19b6109349B94811493BF2a45362',
-            '--jwt-secret', jwt_secret
+            # '--jwt-secret', jwt_secret
         ], env={}, cwd=paths.contracts_bedrock_dir)
 
         # deploy the create2 deployer
         run_command([
             'cast', 'publish', '--rpc-url', rpc_url,
             '0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222',
-            '--jwt-secret', jwt_secret
+            # '--jwt-secret', jwt_secret
         ], env={}, cwd=paths.contracts_bedrock_dir)
 
 
@@ -483,18 +483,27 @@ def eth_accounts(url):
 
 
 def debug_dumpBlock_local(url, jwt_secret=None):
-    headers = {
-        "Content-Type": "application/json"
-    }
-    payload = {"id":3, "jsonrpc":"2.0", "method": "debug_dumpBlock", "params":["latest"]}
-    if jwt_secret:
-        token = generate_jwt_token(jwt_secret)
-        headers['Authorization'] = f"Bearer {token}"
+    log.info(f'Fetch debug_dumpBlock {url}')
+    conn = http.client.HTTPConnection(url)
+    headers = {'Content-type': 'application/json'}
+    body = '{"id":3, "jsonrpc":"2.0", "method": "debug_dumpBlock", "params":["latest"]}'
+    conn.request('POST', '/', body, headers)
+    response = conn.getresponse()
+    data = response.read().decode()
+    conn.close()
+    return data
+    # headers = {
+    #     "Content-Type": "application/json"
+    # }
+    # payload = {"id":3, "jsonrpc":"2.0", "method": "debug_dumpBlock", "params":["latest"]}
+    # if jwt_secret:
+    #     token = generate_jwt_token(jwt_secret)
+    #     headers['Authorization'] = f"Bearer {token}"
 
-    session = requests.Session()
-    resp = session.post(url, json=payload, headers=headers)
-    session.close()
-    return resp.json()
+    # session = requests.Session()
+    # resp = session.post(url, json=payload, headers=headers)
+    # session.close()
+    # return resp.json()
 
 def debug_dumpBlock(url):
     log.info(f'Fetch debug_dumpBlock {url}')
@@ -544,6 +553,7 @@ def wait_for_rpc_server_local(url, jwt_secret=None):
             resp = session.post(url, json=payload, headers=headers)
             if resp.status_code < 300:
                 log.info(f'RPC server at {url} ready')
+                session.close()
                 return
             session.close()
         except Exception as e:

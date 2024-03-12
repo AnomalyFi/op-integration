@@ -58,7 +58,11 @@
             docker-compose # provides the `docker-compose` command
 
             # Python
-            (python3.withPackages (ps: with ps; [ ]))
+            # (python3.withPackages (ps: with ps; [ ]))
+            (python3.withPackages (python-pkgs: [
+              python-pkgs.requests
+              python-pkgs.pyjwt
+            ]))
             jq
 
             # geth node

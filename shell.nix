@@ -2,6 +2,7 @@
   (
     let
       lock = builtins.fromJSON (builtins.readFile ./flake.lock);
+      pkgs = import <nixpkgs> {};
     in
     fetchTarball {
       url = "https://github.com/edolstra/flake-compat/archive/${lock.nodes.flake-compat.locked.rev}.tar.gz";
