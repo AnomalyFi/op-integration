@@ -1,7 +1,9 @@
 import argparse
 import logging
 import os
+import jwt
 import subprocess
+import requests
 import json
 import socket
 import calendar
@@ -18,6 +20,8 @@ import devnet.log_setup
 
 pjoin = os.path.join
 
+JWT_EXPIRATION_SECONDS = 3600  # 1 hour expiration time for the token
+
 parser = argparse.ArgumentParser(description='Bedrock devnet launcher')
 parser.add_argument('--monorepo-dir', help='Directory of the monorepo', default=os.getcwd())
 parser.add_argument('--allocs', help='Only create the allocs and exit', type=bool, action=argparse.BooleanOptionalAction)
@@ -26,11 +30,25 @@ parser.add_argument('--l2', help='Which L2 to run', type=str, default='op1')
 parser.add_argument('--l2-provider-url', help='URL for the L2 RPC node', type=str, default='http://localhost:19545')
 parser.add_argument('--deploy-l2', help='Deploy the L2 onto a running L1 and sequencer network', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--deploy-config', help='Deployment config, relative to packages/contracts-bedrock/deploy-config', default='devnetL1.json')
-parser.add_argument('--deploy-config-template', help='Deployment config template, relative to packages/contracts-bedrock/deploy-config', default='devnetL1-template.json')
+parser.add_argument('--deploy-config-template', help='Deployment config template, relative to packages/contracts-bedrock/deploy-config', default='devnetL1-nodekit-template.json')
 parser.add_argument('--deployment', help='Path to deployment output files, relative to packages/contracts-bedrock/deployments', default='devnetL1')
 parser.add_argument('--devnet-dir', help='Output path for devnet config, relative to --monorepo-dir', default='.devnet')
 parser.add_argument('--nodekit', help='Run on NodeKit SEQ', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument("--compose-file", help="Compose file to use for demo images", type=str, default="docker-compose.yml")
+parser.add_argument('--eth-pos-dir', help="directory to store repository `eth-pos-devnet`", default='eth-pos-devnet')
+parser.add_argument('--jwt-secret', help='jwt secret to access geth http api', type=str, default='0xfad2709d0bb03bf0e8ba3c99bea194575d3e98863133d1af638ed056d1d59345')
+parser.add_argument('--zk-dir', help='nodekit-zk directory', type=str, default='nodekit-zk')
+parser.add_argument('--l1-rpc-url', help='l1 rpc url', type=str, default='http://localhost:8545')
+parser.add_argument('--l1-ws-url', help='l1 ws url', type=str, default='ws://localhost:8546')
+parser.add_argument('--launch-l2', help='if launch l2', type=bool, action=argparse.BooleanOptionalAction)
+parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=bool, action=argparse.BooleanOptionalAction)
+parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
+parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
+parser.add_argument('--commitment-contract', help='commitment contract address deployed on l1', default='0x5FbDB2315678afecb367f032d93F642f64180aa3')
+parser.add_argument('--commitment-contract-wallet', help='commitment contract wallet', default='0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266')
+parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
+parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
+
 
 log = logging.getLogger()
 
@@ -73,6 +91,17 @@ def main():
     devnet_config_template_path = pjoin(contracts_bedrock_dir, 'deploy-config', args.deploy_config_template)
     ops_chain_ops = pjoin(monorepo_dir, 'op-chain-ops')
     sdk_dir = pjoin(monorepo_dir, 'packages', 'sdk')
+    eth_pos_dir: str = args.eth_pos_dir
+    zk_dir: str = args.zk_dir
+    nodekit_l1_dir: str = args.nodekit_l1_dir
+
+    jwt_secret: str = args.jwt_secret
+
+    l1_rpc_url: str = args.l1_rpc_url
+    launch_l2: bool = args.launch_l2
+    launch_nodekit_l1: bool = args.launch_nodekit_l1
+    _deploy_contracts: bool = args.deploy_contracts
+
 
     paths = Bunch(
       mono_repo_dir=monorepo_dir,
@@ -92,41 +121,129 @@ def main():
       allocs_path=pjoin(devnet_dir, 'allocs-l1.json'),
       addresses_json_path=pjoin(devnet_dir, 'addresses.json'),
       sdk_addresses_json_path=pjoin(devnet_dir, 'sdk-addresses.json'),
-      rollup_config_path=pjoin(devnet_dir, 'rollup.json')
+      rollup_config_path=pjoin(devnet_dir, 'rollup.json'),
+      zk_dir=zk_dir,
+      l1_rpc_url=l1_rpc_url,
+      nodekit_l1_dir=nodekit_l1_dir
     )
 
-    if args.test:
-        log.info('Testing deployed devnet')
-        devnet_test(paths, args.l2_provider_url)
-        return
+    # if args.test:
+    #     log.info('Testing deployed devnet')
+    #     devnet_test(paths, args.l2_provider_url)
+    #     return
 
     os.makedirs(devnet_dir, exist_ok=True)
 
-    if args.allocs:
-        devnet_l1_genesis(paths, args.deploy_config)
+    # if args.allocs:
+    #     devnet_l1_genesis(paths, args.deploy_config)
+    #     return
+
+    # log.info('launching eth pos net')
+    # launch_eth_devnet(eth_pos_dir)
+
+    # try:
+    #     ethnet_up = wait_up(8545)
+    #     if ethnet_up:
+    #         log.info("eth net launched successfully")
+    # except Exception as e:
+    #     log.error(f'unable to launch eth net, waiting failed with error {e}')
+
+
+    if launch_nodekit_l1:
+        log.info('launching nodekit l1')
+        deploy_nodekit_i1(paths, args)
         return
 
-    log.info('Devnet starting')
-    devnet_deploy(paths, args)
+    if launch_l2:
+        log.info('launching op stack')
+        devnet_deploy(paths, args)
+        return
+
+
+    if _deploy_contracts:
+        try:
+            # init_devnet_l1_deploy_config(paths, update_timestamp=True)
+            deploy_contracts(paths, args.deploy_config, False, jwt_secret)
+            log.info('contracts deployed')
+        except Exception as e:
+            log.error(f'unable to deploy contracts: {e}')
+
+        return
 
     log.info('Deploying ERC20 contract')
     deploy_erc20(paths, args.l2_provider_url)
 
+def deploy_nodekit_i1(paths, args):
+    nodekit_l1_dir: str = paths.nodekit_l1_dir
+    seq_url: str = args.seq_url
+    seq_chain_id: str = seq_url.split('/')[-1]
+    commitment_contract_addr: str = args.commitment_contract
+    commitment_contract_wallet: str = args.commitment_contract_wallet
+    l1_chain_id: str = args.l1_chain_id
+    l1_rpc: str = args.l1_rpc_url
 
-def deploy_contracts(paths, deploy_config: str, deploy_l2: bool):
-    #wait_up(8545)
-    wait_for_rpc_server('devnet.nodekit.xyz')
-    res = eth_accounts('devnet.nodekit.xyz')
+    env = {
+        'SEQ_ADDR': seq_url,
+        'CHAIN_ID': seq_chain_id,
+        'CONTRACT_ADDR': commitment_contract_addr,
+        'CONTRACT_WALLET': commitment_contract_wallet,
+        'CHAIN_ID_L1': l1_chain_id,
+        'L1_RPC': l1_rpc
+    }
 
-    response = json.loads(res)
-    account = response['result'][0]
+    log.info(f'using config to deploy nodekit l1: {env}')
+
+    subprocess.Popen([
+        'docker', 'compose', 'up', '-d'
+    ], cwd=nodekit_l1_dir, env=env)
+
+def launch_eth_devnet(eth_pos_dir: str):
+    if not os.path.exists(eth_pos_dir) or not os.path.isdir(eth_pos_dir):
+        raise Exception(f"Designated eth_pos_dir not valid: {eth_pos_dir}")
+
+    # run_command([
+    #     'sudo', 'bash', 'clean.sh', '-y'
+    # ], cwd=eth_pos_dir)
+
+    subprocess.Popen([
+        'docker', 'compose', 'up', '-d'
+    ], cwd=eth_pos_dir)
+
+def stop_eth_devnet(eth_pos_dir: str):
+    run_command([
+        'sudo', 'bash', './clean.sh'
+    ], cwd=eth_pos_dir)
+    run_command([
+        'docker', 'compose', 'down'
+    ], cwd=eth_pos_dir)
+
+def get_nodekit_zk_contract_addr(paths) -> str:
+    zk_dir = paths.zk_dir
+    latest_run_path = os.path.join(zk_dir, 'broadcast/Sequencer.s.sol/32382/run-latest.json')
+
+    with open(latest_run_path, 'r') as f:
+        runinfo_str = f.read()
+        runinfo = json.loads(runinfo_str)
+
+        return runinfo['receipts'][0]['contractAddress']
+
+# deploy Create2, Nodekit-ZK
+def deploy_contracts(paths, deploy_config: str, deploy_l2: bool, jwt_secret: str = ''):
+    rpc_url = paths.l1_rpc_url
+    # rpc_url = 'http://localhost:8545'
+    wait_for_rpc_server_local(rpc_url, jwt_secret)
+    res = eth_accounts_local(rpc_url, jwt_secret)
+    account = res['result'][0]
     log.info(f'Deploying with {account}')
+
+    # # wait transaction indexing service to be available
+    # time.sleep(30)
 
     # The create2 account is shared by both L2s, so don't redeploy it unless necessary
     # We check to see if the create2 deployer exists by querying its balance
 
     res = run_command(
-        ["cast", "balance", "0x3fAB184622Dc19b6109349B94811493BF2a45362", "--rpc-url", "https://devnet.nodekit.xyz"],
+        ["cast", "balance", "0x3fAB184622Dc19b6109349B94811493BF2a45362", "--rpc-url", rpc_url],
         capture_output=True,
     )
     deployer_balance = int(res.stdout.strip())
@@ -134,19 +251,22 @@ def deploy_contracts(paths, deploy_config: str, deploy_l2: bool):
         # send some ether to the create2 deployer account
         run_command([
             'cast', 'send', '--from', account,
-            '--rpc-url', 'https://devnet.nodekit.xyz',
-            '--unlocked', '--value', '1ether', '0x3fAB184622Dc19b6109349B94811493BF2a45362'
+            '--rpc-url', rpc_url,
+            '--unlocked', '--value', '1ether', '0x3fAB184622Dc19b6109349B94811493BF2a45362',
+            '--jwt-secret', jwt_secret
         ], env={}, cwd=paths.contracts_bedrock_dir)
 
         # deploy the create2 deployer
         run_command([
-          'cast', 'publish', '--rpc-url', 'https://devnet.nodekit.xyz',
-          '0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222'
+            'cast', 'publish', '--rpc-url', rpc_url,
+            '0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222',
+            '--jwt-secret', jwt_secret
         ], env={}, cwd=paths.contracts_bedrock_dir)
 
 
     deploy_env = {
-        'DEPLOYMENT_CONTEXT': deploy_config.removesuffix('.json')
+        'DEPLOYMENT_CONTEXT': deploy_config.removesuffix('.json'),
+        'MNEMONIC': 'test test test test test test test test test test test junk'
     }
     if deploy_l2:
         # If deploying an L2 onto an existing L1, use a different deployer salt so the contracts
@@ -156,16 +276,22 @@ def deploy_contracts(paths, deploy_config: str, deploy_l2: bool):
     fqn = 'scripts/Deploy.s.sol:Deploy'
     run_command([
         'forge', 'script', fqn, '--sender', account,
-        '--rpc-url', 'https://devnet.nodekit.xyz', '--broadcast',
+        '--rpc-url', rpc_url, '--broadcast',
         '--unlocked'
     ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
+
+    # deploy nodekit-zk contracts
+    run_command([
+        'forge', 'script', 'DeploySequencer', '--broadcast',
+        '--rpc-url', rpc_url,
+    ], env=deploy_env, cwd=paths.zk_dir)
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
 
     log.info('Syncing contracts.')
     run_command([
         'forge', 'script', fqn, '--sig', 'sync()',
-        '--rpc-url', 'https://devnet.nodekit.xyz'
+        '--rpc-url', rpc_url
     ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
 
 def init_devnet_l1_deploy_config(paths, update_timestamp=False):
@@ -218,61 +344,66 @@ def devnet_deploy(paths, args):
     l2 = args.l2
     l2_provider_url = args.l2_provider_url
     compose_file = args.compose_file
+    l1_rpc_url = args.l1_rpc_url
+    l1_ws_url = args.l1_ws_url
+    seq_addr: str = args.seq_url
+    seq_chain_id = seq_addr.split('/')[-1]
 
-    if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
-        log.info('L1 genesis already generated.')
-    elif not args.deploy_l2:
-        # Generate the L1 genesis, unless we are deploying an L2 onto an existing L1.
-        log.info('Generating L1 genesis.')
-        if os.path.exists(paths.allocs_path) == False:
-            devnet_l1_genesis(paths, args.deploy_config)
+    # if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
+    #     log.info('L1 genesis already generated.')
+    # elif not args.deploy_l2:
+    #     # Generate the L1 genesis, unless we are deploying an L2 onto an existing L1.
+    #     log.info('Generating L1 genesis.')
+    #     if os.path.exists(paths.allocs_path) == False:
+    #         devnet_l1_genesis(paths, args.deploy_config)
 
-        # It's odd that we want to regenerate the devnetL1.json file with
-        # an updated timestamp different than the one used in the devnet_l1_genesis
-        # function.  But, without it, CI flakes on this test rather consistently.
-        # If someone reads this comment and understands why this is being done, please
-        # update this comment to explain.
-        init_devnet_l1_deploy_config(paths, update_timestamp=True)
-        outfile_l1 = pjoin(paths.devnet_dir, 'genesis-l1.json')
-        run_command([
-            'go', 'run', 'cmd/main.go', 'genesis', 'l1',
-            '--deploy-config', paths.devnet_config_path,
-            '--l1-allocs', paths.allocs_path,
-            '--l1-deployments', paths.addresses_json_path,
-            '--outfile.l1', outfile_l1,
-        ], cwd=paths.op_node_dir)
+    #     # It's odd that we want to regenerate the devnetL1.json file with
+    #     # an updated timestamp different than the one used in the devnet_l1_genesis
+    #     # function.  But, without it, CI flakes on this test rather consistently.
+    #     # If someone reads this comment and understands why this is being done, please
+    #     # update this comment to explain.
+    #     init_devnet_l1_deploy_config(paths, update_timestamp=True)
+    #     outfile_l1 = pjoin(paths.devnet_dir, 'genesis-l1.json')
+    #     run_command([
+    #         'go', 'run', 'cmd/main.go', 'genesis', 'l1',
+    #         '--deploy-config', paths.devnet_config_path,
+    #         '--l1-allocs', paths.allocs_path,
+    #         '--l1-deployments', paths.addresses_json_path,
+    #         '--outfile.l1', outfile_l1,
+    #     ], cwd=paths.op_node_dir)
 
-    if args.deploy_l2:
-        # L1 and sequencer already exist, just create the deploy config and deploy the L1 contracts
-        # for the new L2.
-        init_devnet_l1_deploy_config(paths, update_timestamp=True)
-        deploy_contracts(paths, args.deploy_config, args.deploy_l2)
-    else:
-        # Deploy L1 and sequencer network.
-        log.info('Starting L1.')
-        run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-            'PWD': paths.ops_bedrock_dir,
-            'DEVNET_DIR': paths.devnet_dir
-        })
-        #wait_up(8545)
-        wait_for_rpc_server('devnet.nodekit.xyz')
+    # if args.deploy_l2:
+    #     # L1 and sequencer already exist, just create the deploy config and deploy the L1 contracts
+    #     # for the new L2.
+    #     init_devnet_l1_deploy_config(paths, update_timestamp=True)
+    #     deploy_contracts(paths, args.deploy_config, args.deploy_l2)
+    # else:
+    #     # Deploy L1 and sequencer network.
+    #     log.info('Starting L1.')
+    #     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
+    #         'PWD': paths.ops_bedrock_dir,
+    #         'DEVNET_DIR': paths.devnet_dir
+    #     })
+    #     #wait_up(8545)
+    #     wait_for_rpc_server('devnet.nodekit.xyz')
 
-        log.info('Bringing up `artifact-server`')
-        run_command(['docker', 'compose', 'up', '-d', 'artifact-server'], cwd=paths.ops_bedrock_dir, env={
-            'PWD': paths.ops_bedrock_dir,
-            'DEVNET_DIR': paths.devnet_dir
-        })
+    #     log.info('Bringing up `artifact-server`')
+    #     run_command(['docker', 'compose', 'up', '-d', 'artifact-server'], cwd=paths.ops_bedrock_dir, env={
+    #         'PWD': paths.ops_bedrock_dir,
+    #         'DEVNET_DIR': paths.devnet_dir
+    #     })
 
 
 
     # Re-build the L2 genesis unconditionally in NodeKit mode, since we require the timestamps to be recent.
-    if not nodekit and os.path.exists(paths.genesis_l2_path) and os.path.isfile(paths.genesis_l2_path):
+    # if not nodekit and os.path.exists(paths.genesis_l2_path) and os.path.isfile(paths.genesis_l2_path):
+    if os.path.exists(paths.genesis_l2_path) and os.path.isfile(paths.genesis_l2_path):
         log.info('L2 genesis and rollup configs already generated.')
     else:
         log.info('Generating L2 genesis and rollup configs.')
         run_command([
             'go', 'run', 'cmd/main.go', 'genesis', 'l2',
-            '--l1-rpc', 'https://devnet.nodekit.xyz',
+            '--l1-rpc', l1_rpc_url,
             '--deploy-config', paths.devnet_config_path,
             '--deployment-dir', paths.deployment_dir,
             '--outfile.l2', pjoin(paths.devnet_dir, 'genesis-l2.json'),
@@ -285,7 +416,9 @@ def devnet_deploy(paths, args):
     log.info('Bringing up L2.')
     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2', f'{l2}-geth-proxy'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
-        'DEVNET_DIR': paths.devnet_dir
+        'DEVNET_DIR': paths.devnet_dir,
+        'SEQ_ADDR': seq_addr,
+        'SEQ_CHAIN_ID': seq_chain_id
     })
 
     l2_provider_port = int(l2_provider_url.split(':')[-1])
@@ -309,7 +442,11 @@ def devnet_deploy(paths, args):
         'PWD': paths.ops_bedrock_dir,
         'L2OO_ADDRESS': l2_output_oracle,
         'SEQUENCER_BATCH_INBOX_ADDRESS': batch_inbox_address,
-        'DEVNET_DIR': paths.devnet_dir
+        'DEVNET_DIR': paths.devnet_dir,
+        'SEQ_ADDR': seq_addr,
+        'SEQ_CHAIN_ID': seq_chain_id,
+        'L1WS': l1_ws_url,
+        'L1RPC': l1_rpc_url
     })
 
     #log.info('Starting block explorer')
@@ -317,6 +454,21 @@ def devnet_deploy(paths, args):
 
     log.info('Devnet ready.')
 
+def eth_accounts_local(url, jwt_secret=None):
+    log.info(f'Fetch eth_accounts {url}')
+    headers = {
+        "Content-Type": "application/json"
+    }
+    payload = {"id":2, "jsonrpc":"2.0", "method": "eth_accounts", "params":[]}
+    if jwt_secret:
+        token = generate_jwt_token(jwt_secret)
+        headers['Authorization'] = f"Bearer {token}"
+
+    session = requests.Session()
+    resp = session.post(url, json=payload, headers=headers)
+    session.close()
+
+    return resp.json()
 
 def eth_accounts(url):
     log.info(f'Fetch eth_accounts {url}')
@@ -329,6 +481,20 @@ def eth_accounts(url):
     conn.close()
     return data
 
+
+def debug_dumpBlock_local(url, jwt_secret=None):
+    headers = {
+        "Content-Type": "application/json"
+    }
+    payload = {"id":3, "jsonrpc":"2.0", "method": "debug_dumpBlock", "params":["latest"]}
+    if jwt_secret:
+        token = generate_jwt_token(jwt_secret)
+        headers['Authorization'] = f"Bearer {token}"
+
+    session = requests.Session()
+    resp = session.post(url, json=payload, headers=headers)
+    session.close()
+    return resp.json()
 
 def debug_dumpBlock(url):
     log.info(f'Fetch debug_dumpBlock {url}')
@@ -363,26 +529,33 @@ def wait_for_rpc_server(url):
             time.sleep(1)
 
 
-def wait_for_rpc_server_local(url):
-    log.info(f'Waiting for RPC server at {url}')
-
-    conn = http.client.HTTPConnection(url)
-    headers = {'Content-type': 'application/json'}
-    body = '{"id":1, "jsonrpc":"2.0", "method": "eth_chainId", "params":[]}'
+def wait_for_rpc_server_local(url, jwt_secret=None):
+    headers = {
+        "Content-Type": "application/json"
+    }
+    payload = {"id":1, "jsonrpc":"2.0", "method": "eth_chainId", "params":[]}
+    if jwt_secret:
+        token = generate_jwt_token(jwt_secret)
+        headers['Authorization'] = f"Bearer {token}"
 
     while True:
+        session = requests.Session()
         try:
-            conn.request('POST', '/', body, headers)
-            response = conn.getresponse()
-            conn.close()
-            if response.status < 300:
+            resp = session.post(url, json=payload, headers=headers)
+            if resp.status_code < 300:
                 log.info(f'RPC server at {url} ready')
                 return
+            session.close()
         except Exception as e:
-            log.info(f'Error connecting to RPC: {e}')
-            log.info(f'Waiting for RPC server at {url}')
             time.sleep(1)
+            log.warn(f'unable to connect to geth {e}')
 
+def generate_jwt_token(secret, expiration_seconds=JWT_EXPIRATION_SECONDS):
+    payload = {
+        "exp": int(time.time()) + expiration_seconds
+    }
+    token = jwt.encode(payload, secret, algorithm='HS256')
+    return token
 
 def deploy_erc20(paths, l2_provider_url):
     run_command(

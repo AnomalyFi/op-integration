@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/solc"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -68,6 +69,7 @@ func (h *Hardhat) init() error {
 		return err
 	}
 	if err := h.initDeployments(); err != nil {
+		log.Info("error init deployment in hardhat binding")
 		return err
 	}
 	return nil
@@ -81,6 +83,7 @@ func (h *Hardhat) initDeployments() error {
 		fileSystem := os.DirFS(filepath.Join(deploymentPath, h.network))
 		err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
+				log.Info("unable to visit", "path", path)
 				return err
 			}
 			if d.IsDir() {
@@ -94,6 +97,7 @@ func (h *Hardhat) initDeployments() error {
 			}
 
 			name := filepath.Join(deploymentPath, h.network, path)
+			log.Info("processing deployment", "path", name)
 			file, err := os.ReadFile(name)
 			if err != nil {
 				return err

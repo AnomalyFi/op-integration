@@ -17,3 +17,12 @@
 	path = packages/contracts-bedrock/lib/safe-contracts
 	url = https://github.com/safe-global/safe-contracts
 	branch = v1.4.0
+[submodule "eth-pos-devnet"]
+	path = eth-pos-devnet
+	url = https://github.com/lyfsn/eth-pos-devnet
+[submodule "nodekit-zk"]
+	path = nodekit-zk
+	url = https://github.com/AnomalyFi/nodekit-zk
+[submodule "nodekit-l1"]
+	path = nodekit-l1
+	url = https://github.com/AnomalyFi/nodekit-l1

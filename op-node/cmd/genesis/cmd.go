@@ -130,6 +130,7 @@ var Subcommands = cli.Commands{
 			depPath, network := filepath.Split(deployDir)
 			hh, err := hardhat.New(network, nil, []string{depPath})
 			if err != nil {
+				log.Info("hardhat error")
 				return err
 			}
 
