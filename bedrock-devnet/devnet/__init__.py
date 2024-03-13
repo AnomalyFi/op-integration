@@ -164,8 +164,6 @@ def main():
     if launch_l2:
         log.info('launching op stack')
         devnet_deploy(paths, args)
-        log.info('Deploying ERC20 contract to test l2')
-        deploy_erc20(paths, args.l2_provider_url)
         return
 
 
