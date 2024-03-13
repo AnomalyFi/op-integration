@@ -14,6 +14,11 @@ import http.client
 from multiprocessing import Process, Queue
 import concurrent.futures
 from collections import namedtuple
+# from hdwallet import BIP44HDWallet
+# from hdwallet.cryptocurrencies import EthereumMainnet
+# from hdwallet.derivations import BIP44Derivation
+# from hdwallet.utils import generate_mnemonic
+# from typing import Optional
 
 
 import devnet.log_setup
@@ -44,10 +49,9 @@ parser.add_argument('--launch-l2', help='if launch l2', type=bool, action=argpar
 parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
-parser.add_argument('--commitment-contract', help='commitment contract address deployed on l1', default='0x5FbDB2315678afecb367f032d93F642f64180aa3')
-parser.add_argument('--commitment-contract-wallet', help='commitment contract wallet', default='0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266')
 parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
+parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-zk contract', type=str, default='test test test test test test test test test test test junk')
 
 
 log = logging.getLogger()
@@ -148,6 +152,9 @@ def main():
     # except Exception as e:
     #     log.error(f'unable to launch eth net, waiting failed with error {e}')
 
+    # priv = get_nodekit_zk_contract_deployer_priv()
+    # print(priv)
+    # return
 
     if launch_nodekit_l1:
         log.info('launching nodekit l1')
@@ -165,7 +172,7 @@ def main():
     if _deploy_contracts:
         try:
             init_devnet_l1_deploy_config(paths, update_timestamp=True)
-            deploy_contracts(paths, args.deploy_config, False, jwt_secret)
+            deploy_contracts(paths, args, args.deploy_config, False, jwt_secret)
             log.info('contracts deployed')
         except Exception as e:
             log.error(f'unable to deploy contracts: {e}')
@@ -177,8 +184,9 @@ def deploy_nodekit_i1(paths, args):
     nodekit_l1_dir: str = paths.nodekit_l1_dir
     seq_url: str = args.seq_url
     seq_chain_id: str = seq_url.split('/')[-1]
-    commitment_contract_addr: str = args.commitment_contract
-    commitment_contract_wallet: str = args.commitment_contract_wallet
+    commitment_contract_addr: str = get_nodekit_zk_contract_addr(paths, args)
+    # TODO: generate by phrase
+    commitment_contract_wallet: str = 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
     l1_chain_id: str = args.l1_chain_id
     l1_rpc: str = args.l1_rpc_url
 
@@ -186,7 +194,8 @@ def deploy_nodekit_i1(paths, args):
         'SEQ_ADDR': seq_url,
         'CHAIN_ID': seq_chain_id,
         'CONTRACT_ADDR': commitment_contract_addr,
-        'CONTRACT_WALLET': commitment_contract_wallet,
+        # lstrip or `Failed to convert from hex to ECDSA: invalid hex character 'x' in private key`
+        'CONTRACT_WALLET': commitment_contract_wallet.lstrip('0x'),
         'CHAIN_ID_L1': l1_chain_id,
         'L1_RPC': l1_rpc
     }
@@ -217,24 +226,57 @@ def stop_eth_devnet(eth_pos_dir: str):
         'docker', 'compose', 'down'
     ], cwd=eth_pos_dir)
 
-def get_nodekit_zk_contract_addr(paths) -> str:
+# # TODO: fix dependency for nix-shell
+# def get_nodekit_zk_contract_deployer_priv(paths, args) -> str:
+#     mnemonic_words = args.mnemonic_words
+
+#     # following from: https://github.com/meherett/python-hdwallet
+#     MNEMONIC: str = mnemonic_words
+#     # Secret passphrase/password for mnemonic
+#     PASSPHRASE: Optional[str] = None  # "meherett"
+
+#     # Initialize Ethereum mainnet BIP44HDWallet
+#     bip44_hdwallet: BIP44HDWallet = BIP44HDWallet(cryptocurrency=EthereumMainnet)
+#     # Get Ethereum BIP44HDWallet from mnemonic
+#     bip44_hdwallet.from_mnemonic(
+#         mnemonic=MNEMONIC, language="english", passphrase=PASSPHRASE
+#     )
+#     # Clean default BIP44 derivation indexes/paths
+#     bip44_hdwallet.clean_derivation()
+
+#     print("Mnemonic:", bip44_hdwallet.mnemonic())
+#     print("Base HD Path:  m/44'/60'/0'/0/{address_index}", "\n")
+
+#     # Derivation from Ethereum BIP44 derivation path
+#     bip44_derivation: BIP44Derivation = BIP44Derivation(
+#         cryptocurrency=EthereumMainnet, account=0, change=False, address=0
+#     )
+#     # Drive Ethereum BIP44HDWallet
+#     bip44_hdwallet.from_path(path=bip44_derivation)
+#     return bip44_derivation.private_key()
+
+
+
+def get_nodekit_zk_contract_addr(paths, args) -> str:
     zk_dir = paths.zk_dir
-    latest_run_path = os.path.join(zk_dir, 'broadcast/Sequencer.s.sol/32382/run-latest.json')
+    l1_chain_id = args.l1_chain_id
+    latest_run_path = os.path.join(zk_dir, f'broadcast/Sequencer.s.sol/{l1_chain_id}/run-latest.json')
 
     with open(latest_run_path, 'r') as f:
         runinfo_str = f.read()
         runinfo = json.loads(runinfo_str)
 
-        return runinfo['receipts'][0]['contractAddress']
+        return runinfo['transactions'][0]['contractAddress']
 
 # deploy Create2, Nodekit-ZK
-def deploy_contracts(paths, deploy_config: str, deploy_l2: bool, jwt_secret: str = ''):
+def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secret: str = ''):
     rpc_url = paths.l1_rpc_url
     # rpc_url = 'http://localhost:8545'
     wait_for_rpc_server_local(rpc_url, jwt_secret)
     res = eth_accounts_local(rpc_url, jwt_secret)
     account = res['result'][0]
     log.info(f'Deploying with {account}')
+    mnemonic_words = args.mnemonic_words
 
     # # wait transaction indexing service to be available
     # time.sleep(30)
@@ -266,7 +308,7 @@ def deploy_contracts(paths, deploy_config: str, deploy_l2: bool, jwt_secret: str
 
     deploy_env = {
         'DEPLOYMENT_CONTEXT': deploy_config.removesuffix('.json'),
-        'MNEMONIC': 'test test test test test test test test test test test junk'
+        'MNEMONIC': mnemonic_words
     }
     if deploy_l2:
         # If deploying an L2 onto an existing L1, use a different deployer salt so the contracts
@@ -286,6 +328,13 @@ def deploy_contracts(paths, deploy_config: str, deploy_l2: bool, jwt_secret: str
         '--rpc-url', rpc_url,
     ], env=deploy_env, cwd=paths.zk_dir)
 
+    # update config for l2
+    # or will lead to unable to verify l2 blocks
+    sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
+    devnetL1_conf = read_json(paths.devnet_config_path)
+    devnetL1_conf['sequencerContractAddress'] = sequencer_contract_addr
+    write_json(paths.devnet_config_path, devnetL1_conf)
+
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
 
     log.info('Syncing contracts.')
@@ -300,6 +349,7 @@ def init_devnet_l1_deploy_config(paths, update_timestamp=False):
         deploy_config['l1GenesisBlockTimestamp'] = '{:#x}'.format(int(time.time()))
     write_json(paths.devnet_config_path, deploy_config)
 
+# unused
 def devnet_l1_genesis(paths, deploy_config: str):
     log.info('Generating L1 genesis state')
 
