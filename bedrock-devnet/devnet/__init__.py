@@ -397,6 +397,17 @@ def devnet_deploy(paths, args):
     seq_addr: str = args.seq_url
     seq_chain_id = seq_addr.split('/')[-1]
 
+    conf = {
+        l2_provider_url,
+        compose_file,
+        l1_rpc_url,
+        l1_ws_url,
+        seq_addr,
+        seq_chain_id
+    }
+
+    print(f'using config {conf}')
+
     # if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
     #     log.info('L1 genesis already generated.')
     # elif not args.deploy_l2:
