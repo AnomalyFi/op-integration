@@ -74,6 +74,10 @@ func (lc *limitClient) EthSubscribe(ctx context.Context, channel any, args ...an
 	return lc.c.EthSubscribe(ctx, channel, args...)
 }
 
+func (lc *limitClient) RawClient() *rpc.Client {
+	return lc.c.RawClient()
+}
+
 func (lc *limitClient) Close() {
 	lc.mutex.Lock()
 	lc.closed = true // No new waitgroup members after this is set

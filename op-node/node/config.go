@@ -76,6 +76,9 @@ type Config struct {
 
 	// Plasma DA config
 	Plasma plasma.CLIConfig
+
+	// NodeKit SEQ URL
+	NodeKitURL string
 }
 
 type RPCConfig struct {

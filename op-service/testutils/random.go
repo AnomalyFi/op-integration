@@ -7,6 +7,7 @@ import (
 	"math/rand"
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -99,6 +100,33 @@ func NextRandomL2Ref(rng *rand.Rand, l2BlockTime uint64, parent eth.L2BlockRef, 
 		Time:           parent.Time + l2BlockTime,
 		L1Origin:       eth.BlockID{},
 		SequenceNumber: seq,
+	}
+}
+
+func RandomL2BatchJustification(rng *rand.Rand) *eth.L2BatchJustification {
+	prev := RandomNodeKitHeader(rng)
+	next := RandomNodeKitHeader(rng)
+	return &eth.L2BatchJustification{
+		Prev:   &prev,
+		Next:   &next,
+		Blocks: make([]eth.NodeKitBlockJustification, 0),
+	}
+}
+
+func RandomNodeKitHeader(rng *rand.Rand) nodekit.Header {
+	return nodekit.Header{
+		Height:           rng.Uint64(),
+		Timestamp:        rng.Uint64(),
+		L1Head:           RandomBlockRef(rng).Number,
+		TransactionsRoot: RandomNmtRoot(rng),
+	}
+}
+
+func RandomNmtRoot(rng *rand.Rand) nodekit.NmtRoot {
+	bytes := make([]byte, 32)
+	rng.Read(bytes[:])
+	return nodekit.NmtRoot{
+		Root: bytes,
 	}
 }
 

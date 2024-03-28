@@ -17,7 +17,14 @@ import (
 func FuzzParseL1InfoDepositTxDataValid(f *testing.F) {
 	f.Fuzz(func(t *testing.T, fuzzedData []byte) {
 		// Create our fuzzer wrapper to generate complex values
-		typeProvider := fuzz.NewFromGoFuzz(fuzzedData).NilChance(0).MaxDepth(10000).NumElements(0, 0x100)
+		//typeProvider := fuzz.NewFromGoFuzz(fuzzedData).NilChance(0).MaxDepth(10000).NumElements(0, 0x100)
+		typeProvider := fuzz.NewFromGoFuzz(fuzzedData).
+			NilChance(0).
+			MaxDepth(10000).
+			NumElements(0, 0x100).
+			Funcs(func(e *eth.NodeKitBlockJustification, c fuzz.Continue) {
+				c.Fuzz(&e.Header)
+			})
 		fuzzerutils.AddFuzzerFunctions(typeProvider)
 
 		var l1Info testutils.MockBlockInfo
@@ -27,9 +34,11 @@ func FuzzParseL1InfoDepositTxDataValid(f *testing.F) {
 		var sysCfg eth.SystemConfig
 		typeProvider.Fuzz(&sysCfg)
 		var rollupCfg rollup.Config
+		var justification eth.L2BatchJustification
+		typeProvider.Fuzz(&justification)
 
 		// Create our deposit tx from our info
-		depTx, err := L1InfoDeposit(&rollupCfg, sysCfg, seqNr, &l1Info, 0)
+		depTx, err := L1InfoDeposit(&rollupCfg, sysCfg, seqNr, &l1Info, 0, &justification)
 		require.NoError(t, err, "error creating deposit tx from L1 info")
 
 		// Get our info from out deposit tx
@@ -46,6 +55,7 @@ func FuzzParseL1InfoDepositTxDataValid(f *testing.F) {
 		require.Equal(t, res.BatcherAddr, sysCfg.BatcherAddr)
 		require.Equal(t, res.L1FeeOverhead, sysCfg.Overhead)
 		require.Equal(t, res.L1FeeScalar, sysCfg.Scalar)
+		require.Equal(t, res.Justification, &justification)
 	})
 }
 
@@ -74,7 +84,7 @@ func FuzzDecodeDepositTxDataToL1Info(f *testing.F) {
 			GasLimit:    uint64(0),
 		}
 
-		depTx, err := L1InfoDeposit(&rollupCfg, sysCfg, res.SequenceNumber, &l1Info, 0)
+		depTx, err := L1InfoDeposit(&rollupCfg, sysCfg, res.SequenceNumber, &l1Info, 0, res.Justification)
 		require.NoError(t, err, "error creating deposit tx from L1 info")
 		require.Equal(t, depTx.Data, fuzzedData)
 	})

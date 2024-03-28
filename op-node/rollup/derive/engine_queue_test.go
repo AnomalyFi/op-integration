@@ -961,7 +961,7 @@ func TestBlockBuildingRace(t *testing.T) {
 		InfoBaseFee:     big.NewInt(7),
 		InfoReceiptRoot: common.Hash{},
 		InfoGasUsed:     0,
-	}, 0)
+	}, 0, testutils.RandomL2BatchJustification(rng))
 
 	require.NoError(t, err)
 	payloadA1 := &eth.ExecutionPayload{

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
 )
 
 type Metrics interface {
@@ -26,6 +28,7 @@ type Metrics interface {
 
 type L1Fetcher interface {
 	L1BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L1BlockRef, error)
+	L1SequencerCommitmentsFromHeight(firstBlockHeight uint64, numHeaders uint64, sequencerAddr common.Address) ([]nodekit.Commitment, error)
 	L1BlockRefByNumberFetcher
 	L1BlockRefByHashFetcher
 	L1ReceiptsFetcher
@@ -71,6 +74,10 @@ type DerivationPipeline struct {
 
 func NewDerivationPipeline(log log.Logger, rollupCfg *rollup.Config, l1Fetcher L1Fetcher, l1Blobs L1BlobsFetcher, plasma PlasmaInputFetcher, l2Source L2Source, engine LocalEngineControl, metrics Metrics, syncCfg *sync.Config, safeHeadListener SafeHeadListener) *DerivationPipeline {
 
+	var nodekitProvider NodeKitL1Provider
+	if rollupCfg.NodeKitContractAddress != nil {
+		nodekitProvider = NewNodeKitProvider(log, *rollupCfg.NodeKitContractAddress, l1Fetcher)
+	}
 	// Pull stages
 	l1Traversal := NewL1Traversal(log, rollupCfg, l1Fetcher)
 	dataSrc := NewDataSourceFactory(log, rollupCfg, l1Fetcher, l1Blobs, plasma) // auxiliary stage for L1Retrieval
@@ -78,7 +85,7 @@ func NewDerivationPipeline(log log.Logger, rollupCfg *rollup.Config, l1Fetcher L
 	frameQueue := NewFrameQueue(log, l1Src)
 	bank := NewChannelBank(log, rollupCfg, frameQueue, l1Fetcher, metrics)
 	chInReader := NewChannelInReader(rollupCfg, log, bank, metrics)
-	batchQueue := NewBatchQueue(log, rollupCfg, chInReader, l2Source)
+	batchQueue := NewBatchQueue(log, rollupCfg, chInReader, nodekitProvider, l2Source)
 	attrBuilder := NewFetchingAttributesBuilder(rollupCfg, l1Fetcher, l2Source)
 	attributesQueue := NewAttributesQueue(log, rollupCfg, attrBuilder, batchQueue)
 
@@ -184,4 +191,17 @@ func (dp *DerivationPipeline) Step(ctx context.Context) error {
 	} else {
 		return nil
 	}
+}
+
+type SequencerContractProvider interface {
+	// Verifies that a sequence of consecutive NodeKit commitments matches a trusted sequence.
+	// Returns a boolean indicating whether the commitments match the trusted sequence and nil error
+	// if able to successfully verify the commitments. If for any reason the authenticity of the
+	// commitments cannot be determined, a non-nil error is returned.
+	VerifyCommitments(firstHeight uint64, comms []nodekit.Commitment) (bool, error)
+}
+
+type NodeKitL1Provider interface {
+	SequencerContractProvider
+	L1BlockRefByNumberFetcher
 }

@@ -35,7 +35,25 @@ contract L1BlockBedrock_Test is L1BlockTest {
         external
     {
         vm.prank(depositor);
-        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs);
+       // l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs);
+
+        lb.setL1BlockValues(
+            L1Block.L1BlockValues({
+                number: n,
+                timestamp: t,
+                basefee: b,
+                hash: h,
+                sequenceNumber: s,
+                batcherHash: bt,
+                l1FeeOverhead: fo,
+                l1FeeScalar: fs,
+                nodekit: false,
+                nodekitL1ConfDepth: 0,
+                justification: "0xc0"
+            })
+        );
+
+
         assertEq(l1Block.number(), n);
         assertEq(l1Block.timestamp(), t);
         assertEq(l1Block.basefee(), b);
@@ -49,16 +67,33 @@ contract L1BlockBedrock_Test is L1BlockTest {
     /// @dev Tests that `setL1BlockValues` can set max values.
     function test_updateValues_succeeds() external {
         vm.prank(depositor);
-        l1Block.setL1BlockValues({
-            _number: type(uint64).max,
-            _timestamp: type(uint64).max,
-            _basefee: type(uint256).max,
-            _hash: keccak256(abi.encode(1)),
-            _sequenceNumber: type(uint64).max,
-            _batcherHash: bytes32(type(uint256).max),
-            _l1FeeOverhead: type(uint256).max,
-            _l1FeeScalar: type(uint256).max
-        });
+        // l1Block.setL1BlockValues({
+        //     _number: type(uint64).max,
+        //     _timestamp: type(uint64).max,
+        //     _basefee: type(uint256).max,
+        //     _hash: keccak256(abi.encode(1)),
+        //     _sequenceNumber: type(uint64).max,
+        //     _batcherHash: bytes32(type(uint256).max),
+        //     _l1FeeOverhead: type(uint256).max,
+        //     _l1FeeScalar: type(uint256).max
+
+        // });
+
+        lb.setL1BlockValues(
+            L1Block.L1BlockValues({
+                number: type(uint64).max,
+                timestamp: type(uint64).max,,
+                basefee: type(uint256).max,
+                hash: keccak256(abi.encode(1)),
+                sequenceNumber: type(uint64).max,
+                batcherHash: bytes32(type(uint256).max),
+                l1FeeOverhead: type(uint256).max,
+                l1FeeScalar: type(uint256).max,
+                nodekit: true,
+                nodekitL1ConfDepth: type(uint64).max,
+                justification: hex"c0"
+            })
+        );
     }
 }
 

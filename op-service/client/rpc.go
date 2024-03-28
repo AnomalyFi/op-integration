@@ -25,6 +25,7 @@ type RPC interface {
 	CallContext(ctx context.Context, result any, method string, args ...any) error
 	BatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 	EthSubscribe(ctx context.Context, channel any, args ...any) (ethereum.Subscription, error)
+	RawClient() *rpc.Client
 }
 
 type rpcConfig struct {
@@ -179,6 +180,11 @@ func (b *BaseRPCClient) EthSubscribe(ctx context.Context, channel any, args ...a
 	return b.c.EthSubscribe(ctx, channel, args...)
 }
 
+func (b *BaseRPCClient) RawClient() *rpc.Client {
+	return b.c
+}
+
+
 // InstrumentedRPCClient is an RPC client that tracks
 // Prometheus metrics for each call.
 type InstrumentedRPCClient struct {
@@ -212,6 +218,10 @@ func (ic *InstrumentedRPCClient) BatchCallContext(ctx context.Context, b []rpc.B
 
 func (ic *InstrumentedRPCClient) EthSubscribe(ctx context.Context, channel any, args ...any) (ethereum.Subscription, error) {
 	return ic.c.EthSubscribe(ctx, channel, args...)
+}
+
+func (ic *InstrumentedRPCClient) RawClient() *rpc.Client {
+	return ic.c.RawClient()
 }
 
 // instrumentBatch handles metrics for batch calls. Request metrics are

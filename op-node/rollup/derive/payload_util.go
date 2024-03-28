@@ -83,10 +83,12 @@ func PayloadToSystemConfig(rollupCfg *rollup.Config, payload *eth.ExecutionPaylo
 			binary.BigEndian.PutUint32(info.L1FeeScalar[28:32], info.BaseFeeScalar)
 		}
 		return eth.SystemConfig{
-			BatcherAddr: info.BatcherAddr,
-			Overhead:    info.L1FeeOverhead,
-			Scalar:      info.L1FeeScalar,
-			GasLimit:    uint64(payload.GasLimit),
+			BatcherAddr:        info.BatcherAddr,
+			Overhead:           info.L1FeeOverhead,
+			Scalar:             info.L1FeeScalar,
+			GasLimit:           uint64(payload.GasLimit),
+			NodeKit:            info.NodeKit,
+			NodeKitL1ConfDepth: info.NodeKitL1ConfDepth,
 		}, err
 	}
 }

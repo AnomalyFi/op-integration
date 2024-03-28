@@ -26,6 +26,8 @@ contract GasPriceOracle_Test is CommonTest {
     uint256 constant l1FeeScalar = 10;
     uint32 constant blobBaseFeeScalar = 15;
     uint32 constant baseFeeScalar = 20;
+    bool constant nodekit = false;
+    uint64 constant nodekitL1ConfDepth = 0;
 
     /// @dev Sets up the test suite.
     function setUp() public virtual override {
@@ -40,16 +42,31 @@ contract GasPriceOracleBedrock_Test is GasPriceOracle_Test {
         super.setUp();
 
         vm.prank(depositor);
-        l1Block.setL1BlockValues({
-            _number: number,
-            _timestamp: timestamp,
-            _basefee: baseFee,
-            _hash: hash,
-            _sequenceNumber: sequenceNumber,
-            _batcherHash: batcherHash,
-            _l1FeeOverhead: l1FeeOverhead,
-            _l1FeeScalar: l1FeeScalar
-        });
+        // l1Block.setL1BlockValues({
+        //     _number: number,
+        //     _timestamp: timestamp,
+        //     _basefee: baseFee,
+        //     _hash: hash,
+        //     _sequenceNumber: sequenceNumber,
+        //     _batcherHash: batcherHash,
+        //     _l1FeeOverhead: l1FeeOverhead,
+        //     _l1FeeScalar: l1FeeScalar
+        // });
+        l1Block.setL1BlockValues(
+            L1Block.L1BlockValues({
+                number: number,
+                timestamp: timestamp,
+                basefee: basefee,
+                hash: hash,
+                sequenceNumber: sequenceNumber,
+                batcherHash: batcherHash,
+                l1FeeOverhead: l1FeeOverhead,
+                l1FeeScalar: l1FeeScalar,
+                nodekit: nodekit,
+                nodekitL1ConfDepth: nodekitL1ConfDepth,
+                justification: hex"c0"
+            })
+        );
     }
 
     /// @dev Tests that `l1BaseFee` is set correctly.

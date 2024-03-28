@@ -229,13 +229,31 @@ func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*Singul
 	}
 
 	opaqueTxs := make([]hexutil.Bytes, 0, len(block.Transactions()))
-	for i, tx := range block.Transactions() {
+	blockTxs := block.Transactions()
+	blockRejected := block.Rejected()
+	nextTx := 0
+	nextRejected := 0
+	pos := uint64(0)
+	for nextTx < len(blockTxs) || nextRejected < len(blockRejected) {
+		if nextRejected < len(blockRejected) {
+			rejected := &blockRejected[nextRejected]
+			if rejected.Pos == pos {
+				opaqueTxs = append(opaqueTxs, rejected.Data)
+				nextRejected++
+				continue
+			}
+		}
+		// If there is no rejected transaction at this position, there must be a regular transaction.
+		tx := blockTxs[nextTx]
+		nextTx++
+		pos++
+
 		if tx.Type() == types.DepositTxType {
 			continue
 		}
 		otx, err := tx.MarshalBinary()
 		if err != nil {
-			return nil, nil, fmt.Errorf("could not encode tx %v in block %v: %w", i, tx.Hash(), err)
+			return nil, nil, fmt.Errorf("could not encode tx %v in block %v: %w", tx, tx.Hash(), err)
 		}
 		opaqueTxs = append(opaqueTxs, otx)
 	}
@@ -250,11 +268,12 @@ func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*Singul
 	}
 
 	return &SingularBatch{
-		ParentHash:   block.ParentHash(),
-		EpochNum:     rollup.Epoch(l1Info.Number),
-		EpochHash:    l1Info.BlockHash,
-		Timestamp:    block.Time(),
-		Transactions: opaqueTxs,
+		ParentHash:    block.ParentHash(),
+		EpochNum:      rollup.Epoch(l1Info.Number),
+		EpochHash:     l1Info.BlockHash,
+		Timestamp:     block.Time(),
+		Transactions:  opaqueTxs,
+		Justification: l1Info.Justification,
 	}, l1Info, nil
 }
 

@@ -17,12 +17,19 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @custom:value GAS_CONFIG           Represents an update to txn fee config on L2.
     /// @custom:value GAS_LIMIT            Represents an update to gas limit on L2.
     /// @custom:value UNSAFE_BLOCK_SIGNER  Represents an update to the signer key for unsafe
+    /// @custom:value NODEKIT             Represents an update to whether the NodeKit Sequencer is
+    ///                                    being used to build L2 blocks.
+    /// @custom:value NODEKIT_L1_CONF_DEPTH Represents an update to the confirmation depth for L1
+    ///                                      blocks when the NodeKit Sequencer is being used to
+    ///                                      build L2 blocks.
     ///                                    block distrubution.
     enum UpdateType {
         BATCHER,
         GAS_CONFIG,
         GAS_LIMIT,
-        UNSAFE_BLOCK_SIGNER
+        UNSAFE_BLOCK_SIGNER,
+        NODEKIT,
+        NODEKIT_L1_CONF_DEPTH
     }
 
     /// @notice Struct representing the addresses of L1 system contracts. These should be the
@@ -34,6 +41,31 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         address l2OutputOracle;
         address optimismPortal;
         address optimismMintableERC20Factory;
+    }
+
+    struct Initialize {
+        // Initial owner of the contract.
+        address owner;
+        // Initial overhead value.
+        uint256 overhead;
+        // Initial scalar value.
+        uint256 scalar;
+        // Initial batcher hash.
+        bytes32 batcherHash;
+        // Initial gas limit.
+        uint64 gasLimit;
+        // Whether to use the NodeKit Sequencer in the initial config.
+        bool nodekit;
+        // Initial confirmation depth for L1 blocks, when `_nodekit`.
+        uint64 nodekitL1ConfDepth;
+        // Initial unsafe block signer address.
+        address unsafeBlockSigner;
+        // Initial ResourceConfig.
+        ResourceMetering.ResourceConfig config;
+        // Batch inbox address. An identifier for the op-node to find canonical data.
+        address batchInbox;
+        // Set of L1 contract addresses. These should be the proxies.
+        SystemConfig.Addresses addresses;
     }
 
     /// @notice Version identifier, used for upgrades.
@@ -89,6 +121,13 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @notice L2 block gas limit.
     uint64 public gasLimit;
 
+     /// @notice Whether the NodeKit Sequencer is enabled.
+    bool public nodekit;
+
+
+    /// @notice Minimum confirmation depth for L1 origin blocks.
+    uint64 public nodekitL1ConfDepth;
+
     /// @notice The configuration for the deposit fee market.
     ///         Used by the OptimismPortal to meter the cost of buying L2 gas on L1.
     ///         Set as internal with a getter so that the struct is returned instead of a tuple.
@@ -111,75 +150,87 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     ///         in the singleton and is skipped by initialize when setting the start block.
     constructor() {
         Storage.setUint(START_BLOCK_SLOT, type(uint256).max);
-        initialize({
-            _owner: address(0xdEaD),
-            _overhead: 0,
-            _scalar: 0,
-            _batcherHash: bytes32(0),
-            _gasLimit: 1,
-            _unsafeBlockSigner: address(0),
-            _config: ResourceMetering.ResourceConfig({
-                maxResourceLimit: 1,
-                elasticityMultiplier: 1,
-                baseFeeMaxChangeDenominator: 2,
-                minimumBaseFee: 0,
-                systemTxMaxGas: 0,
-                maximumBaseFee: 0
-            }),
-            _batchInbox: address(0),
-            _addresses: SystemConfig.Addresses({
-                l1CrossDomainMessenger: address(0),
-                l1ERC721Bridge: address(0),
-                l1StandardBridge: address(0),
-                l2OutputOracle: address(0),
-                optimismPortal: address(0),
-                optimismMintableERC20Factory: address(0)
-            })
+        // initialize({
+        //     _owner: address(0xdEaD),
+        //     _overhead: 0,
+        //     _scalar: 0,
+        //     _batcherHash: bytes32(0),
+        //     _gasLimit: 1,
+        //     _unsafeBlockSigner: address(0),
+        //     _config: ResourceMetering.ResourceConfig({
+        //         maxResourceLimit: 1,
+        //         elasticityMultiplier: 1,
+        //         baseFeeMaxChangeDenominator: 2,
+        //         minimumBaseFee: 0,
+        //         systemTxMaxGas: 0,
+        //         maximumBaseFee: 0
+        //     }),
+        //     _batchInbox: address(0),
+        //     _addresses: SystemConfig.Addresses({
+        //         l1CrossDomainMessenger: address(0),
+        //         l1ERC721Bridge: address(0),
+        //         l1StandardBridge: address(0),
+        //         l2OutputOracle: address(0),
+        //         optimismPortal: address(0),
+        //         optimismMintableERC20Factory: address(0)
+        //     })
+        // });
+
+        ResourceMetering.ResourceConfig memory config = ResourceMetering.ResourceConfig({
+            maxResourceLimit: 1,
+            elasticityMultiplier: 1,
+            baseFeeMaxChangeDenominator: 2,
+            minimumBaseFee: 0,
+            systemTxMaxGas: 0,
+            maximumBaseFee: 0
         });
+
+        initialize(
+            Initialize({
+                owner: address(0xdEaD),
+                overhead: 0,
+                scalar: 0,
+                batcherHash: bytes32(0),
+                gasLimit: 1,
+                nodekit: false,
+                nodekitL1ConfDepth: 0,
+                unsafeBlockSigner: address(0),
+                config: config,
+                batchInbox: address(0),
+                addresses: SystemConfig.Addresses({
+                    l1CrossDomainMessenger: address(0),
+                    l1ERC721Bridge: address(0),
+                    l1StandardBridge: address(0),
+                    l2OutputOracle: address(0),
+                    optimismPortal: address(0),
+                    optimismMintableERC20Factory: address(0)
+                })
+            })
+        );
     }
 
     /// @notice Initializer.
     ///         The resource config must be set before the require check.
-    /// @param _owner             Initial owner of the contract.
-    /// @param _overhead          Initial overhead value.
-    /// @param _scalar            Initial scalar value.
-    /// @param _batcherHash       Initial batcher hash.
-    /// @param _gasLimit          Initial gas limit.
-    /// @param _unsafeBlockSigner Initial unsafe block signer address.
-    /// @param _config            Initial ResourceConfig.
-    /// @param _batchInbox        Batch inbox address. An identifier for the op-node to find
-    ///                           canonical data.
-    /// @param _addresses         Set of L1 contract addresses. These should be the proxies.
-    function initialize(
-        address _owner,
-        uint256 _overhead,
-        uint256 _scalar,
-        bytes32 _batcherHash,
-        uint64 _gasLimit,
-        address _unsafeBlockSigner,
-        ResourceMetering.ResourceConfig memory _config,
-        address _batchInbox,
-        SystemConfig.Addresses memory _addresses
-    )
-        public
-        initializer
-    {
+    function initialize(Initialize memory args) public initializer {
         __Ownable_init();
-        transferOwnership(_owner);
+        transferOwnership(args.owner);
 
         // These are set in ascending order of their UpdateTypes.
-        _setBatcherHash(_batcherHash);
-        _setGasConfig({ _overhead: _overhead, _scalar: _scalar });
-        _setGasLimit(_gasLimit);
+        _setBatcherHash(args.batcherHash);
+        _setGasConfig({ _overhead: args.overhead, _scalar: args.scalar });
+        _setGasLimit(args.gasLimit);
 
-        Storage.setAddress(UNSAFE_BLOCK_SIGNER_SLOT, _unsafeBlockSigner);
-        Storage.setAddress(BATCH_INBOX_SLOT, _batchInbox);
-        Storage.setAddress(L1_CROSS_DOMAIN_MESSENGER_SLOT, _addresses.l1CrossDomainMessenger);
-        Storage.setAddress(L1_ERC_721_BRIDGE_SLOT, _addresses.l1ERC721Bridge);
-        Storage.setAddress(L1_STANDARD_BRIDGE_SLOT, _addresses.l1StandardBridge);
-        Storage.setAddress(L2_OUTPUT_ORACLE_SLOT, _addresses.l2OutputOracle);
-        Storage.setAddress(OPTIMISM_PORTAL_SLOT, _addresses.optimismPortal);
-        Storage.setAddress(OPTIMISM_MINTABLE_ERC20_FACTORY_SLOT, _addresses.optimismMintableERC20Factory);
+        Storage.setAddress(UNSAFE_BLOCK_SIGNER_SLOT, args.unsafeBlockSigner);
+         _setNodeKit(args.nodekit);
+        _setNodeKitL1ConfDepth(args.nodekitL1ConfDepth);
+
+        Storage.setAddress(BATCH_INBOX_SLOT, args.batchInbox);
+        Storage.setAddress(L1_CROSS_DOMAIN_MESSENGER_SLOT, args.addresses.l1CrossDomainMessenger);
+        Storage.setAddress(L1_ERC_721_BRIDGE_SLOT, args.addresses.l1ERC721Bridge);
+        Storage.setAddress(L1_STANDARD_BRIDGE_SLOT, args.addresses.l1StandardBridge);
+        Storage.setAddress(L2_OUTPUT_ORACLE_SLOT, args.addresses.l2OutputOracle);
+        Storage.setAddress(OPTIMISM_PORTAL_SLOT, args.addresses.optimismPortal);
+        Storage.setAddress(OPTIMISM_MINTABLE_ERC20_FACTORY_SLOT, args.addresses.optimismMintableERC20Factory);
 
         _setStartBlock();
 
@@ -259,6 +310,29 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         bytes memory data = abi.encode(_unsafeBlockSigner);
         emit ConfigUpdate(VERSION, UpdateType.UNSAFE_BLOCK_SIGNER, data);
     }
+
+    function setNodeKit(bool _nodekit) external onlyOwner {
+        _setNodeKit(_nodekit);
+    }
+
+    function _setNodeKit(bool _nodekit) internal {
+        nodekit = _nodekit;
+
+        bytes memory data = abi.encode(_nodekit);
+        emit ConfigUpdate(VERSION, UpdateType.NODEKIT, data);
+    }
+
+     function setNodeKitL1ConfDepth(uint64 l1ConfDepth) external onlyOwner {
+        _setNodeKitL1ConfDepth(l1ConfDepth);
+    }
+
+    function _setNodeKitL1ConfDepth(uint64 l1ConfDepth) internal {
+        nodekitL1ConfDepth = l1ConfDepth;
+
+        bytes memory data = abi.encode(l1ConfDepth);
+        emit ConfigUpdate(VERSION, UpdateType.NODEKIT_L1_CONF_DEPTH, data);
+    }
+
 
     /// @notice Updates the batcher hash. Can only be called by the owner.
     /// @param _batcherHash New batcher hash.

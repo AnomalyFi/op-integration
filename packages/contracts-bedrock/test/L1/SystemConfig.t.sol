@@ -113,23 +113,44 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
         vm.prank(admin);
 
         vm.expectRevert("SystemConfig: gas limit too low");
+
         systemConfig.initialize({
-            _owner: alice,
-            _overhead: 2100,
-            _scalar: 1000000,
-            _batcherHash: bytes32(hex"abcd"),
-            _gasLimit: minimumGasLimit - 1,
-            _unsafeBlockSigner: address(1),
-            _config: Constants.DEFAULT_RESOURCE_CONFIG(),
-            _batchInbox: address(0),
-            _addresses: SystemConfig.Addresses({
-                l1CrossDomainMessenger: address(0),
-                l1ERC721Bridge: address(0),
-                l1StandardBridge: address(0),
-                l2OutputOracle: address(0),
-                optimismPortal: address(0),
-                optimismMintableERC20Factory: address(0)
+            SystemConfig.Initialize({
+                owner: alice,
+                overhead: 2100,
+                scalar: 1000000,
+                batcherHash: bytes32(hex"abcd"),
+                gasLimit:  minimumGasLimit - 1,
+                nodekit: nodekit,
+                nodekitL1ConfDepth: nodekitL1ConfDepth,
+                unsafeBlockSigner: address(1),
+                config: Constants.DEFAULT_RESOURCE_CONFIG(),
+                batchInbox: address(0),
+                addresses: SystemConfig.Addresses({
+                    l1CrossDomainMessenger: address(0),
+                    l1ERC721Bridge: address(0),
+                    l1StandardBridge: address(0),
+                    l2OutputOracle: address(0),
+                    optimismPortal: address(0),
+                    optimismMintableERC20Factory: address(0)
+                })
             })
+            // _owner: alice,
+            // _overhead: 2100,
+            // _scalar: 1000000,
+            // _batcherHash: bytes32(hex"abcd"),
+            // _gasLimit: minimumGasLimit - 1,
+            // _unsafeBlockSigner: address(1),
+            // _config: Constants.DEFAULT_RESOURCE_CONFIG(),
+            // _batchInbox: address(0),
+            // _addresses: SystemConfig.Addresses({
+            //     l1CrossDomainMessenger: address(0),
+            //     l1ERC721Bridge: address(0),
+            //     l1StandardBridge: address(0),
+            //     l2OutputOracle: address(0),
+            //     optimismPortal: address(0),
+            //     optimismMintableERC20Factory: address(0)
+            // })
         });
     }
 
@@ -142,24 +163,29 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
 
         // Initialize and check that StartBlock updates to current block number
         vm.prank(systemConfig.owner());
-        systemConfig.initialize({
-            _owner: alice,
-            _overhead: 2100,
-            _scalar: 1000000,
-            _batcherHash: bytes32(hex"abcd"),
-            _gasLimit: gasLimit,
-            _unsafeBlockSigner: address(1),
-            _config: Constants.DEFAULT_RESOURCE_CONFIG(),
-            _batchInbox: address(0),
-            _addresses: SystemConfig.Addresses({
-                l1CrossDomainMessenger: address(0),
-                l1ERC721Bridge: address(0),
-                l1StandardBridge: address(0),
-                l2OutputOracle: address(0),
-                optimismPortal: address(0),
-                optimismMintableERC20Factory: address(0)
+
+        systemConfig.initialize(
+            SystemConfig.Initialize({
+                owner: alice,
+                overhead: 2100,
+                scalar: 1000000,
+                batcherHash: bytes32(hex"abcd"),,
+                gasLimit: gasLimit,
+                nodekit: nodekit,
+                nodekitL1ConfDepth: nodekitL1ConfDepth,
+                unsafeBlockSigner: address(1),
+                config: Constants.DEFAULT_RESOURCE_CONFIG(),
+                batchInbox: address(0),
+                addresses: SystemConfig.Addresses({
+                    l1CrossDomainMessenger: address(0),
+                    l1ERC721Bridge: address(0),
+                    l1StandardBridge: address(0),
+                    l2OutputOracle: address(0),
+                    optimismPortal: address(0),
+                    optimismMintableERC20Factory: address(0)
+                })
             })
-        });
+        );
         assertEq(systemConfig.startBlock(), block.number);
     }
 
@@ -172,24 +198,30 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
 
         // Initialize and check that StartBlock doesn't update
         vm.prank(systemConfig.owner());
-        systemConfig.initialize({
-            _owner: alice,
-            _overhead: 2100,
-            _scalar: 1000000,
-            _batcherHash: bytes32(hex"abcd"),
-            _gasLimit: gasLimit,
-            _unsafeBlockSigner: address(1),
-            _config: Constants.DEFAULT_RESOURCE_CONFIG(),
-            _batchInbox: address(0),
-            _addresses: SystemConfig.Addresses({
-                l1CrossDomainMessenger: address(0),
-                l1ERC721Bridge: address(0),
-                l1StandardBridge: address(0),
-                l2OutputOracle: address(0),
-                optimismPortal: address(0),
-                optimismMintableERC20Factory: address(0)
+
+
+        systemConfig.initialize(
+            SystemConfig.Initialize({
+                owner: alice,
+                overhead: 2100,
+                scalar: 1000000,
+                batcherHash: bytes32(hex"abcd"),,
+                gasLimit: gasLimit,
+                nodekit: nodekit,
+                nodekitL1ConfDepth: nodekitL1ConfDepth,
+                unsafeBlockSigner: address(1),
+                config: Constants.DEFAULT_RESOURCE_CONFIG(),
+                batchInbox: address(0),
+                addresses: SystemConfig.Addresses({
+                    l1CrossDomainMessenger: address(0),
+                    l1ERC721Bridge: address(0),
+                    l1StandardBridge: address(0),
+                    l2OutputOracle: address(0),
+                    optimismPortal: address(0),
+                    optimismMintableERC20Factory: address(0)
+                })
             })
-        });
+        );
         assertEq(systemConfig.startBlock(), 1);
     }
 }

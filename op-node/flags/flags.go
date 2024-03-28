@@ -353,6 +353,12 @@ var (
 		Value:    time.Second * 1,
 		Category: SequencerCategory,
 	}
+	NodeKitURL = &cli.StringFlag{
+		Name:     "nodekit",
+		Usage:    "URL for NodeKit SEQ. Required to use NodeKit for OP Stack",
+		EnvVars:  prefixEnvVars("NODEKIT_URL"),
+		Required: false,
+	}
 )
 
 var requiredFlags = []cli.Flag{
@@ -362,6 +368,7 @@ var requiredFlags = []cli.Flag{
 }
 
 var optionalFlags = []cli.Flag{
+	NodeKitURL,
 	BeaconAddr,
 	BeaconHeader,
 	BeaconArchiverAddr,

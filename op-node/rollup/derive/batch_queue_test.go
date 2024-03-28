@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
@@ -163,6 +164,13 @@ func TestBatchQueue(t *testing.T) {
 	}
 }
 
+func mockL2() *testutils.MockL2Client {
+	var err error
+	l2 := &testutils.MockL2Client{}
+	l2.Mock.On("SystemConfigByL2Hash", mock.Anything).Return(eth.SystemConfig{}, &err)
+	return l2
+}
+
 // BatchQueueNewOrigin tests that the batch queue properly saves the new origin
 // when the safehead's origin is ahead of the pipeline's origin (as is after a reset).
 // This issue was fixed in https://github.com/ethereum-optimism/optimism/pull/3694
@@ -193,7 +201,7 @@ func BatchQueueNewOrigin(t *testing.T, batchType int) {
 		origin:  l1[0],
 	}
 
-	bq := NewBatchQueue(log, cfg, input, nil)
+	bq := NewBatchQueue(log, cfg, input, nil, mockL2())
 	_ = bq.Reset(context.Background(), l1[0], eth.SystemConfig{})
 	require.Equal(t, []eth.L1BlockRef{l1[0]}, bq.l1Blocks)
 
@@ -282,7 +290,7 @@ func BatchQueueEager(t *testing.T, batchType int) {
 		origin:  l1[0],
 	}
 
-	bq := NewBatchQueue(log, cfg, input, nil)
+	bq := NewBatchQueue(log, cfg, input, nil, mockL2())
 	_ = bq.Reset(context.Background(), l1[0], eth.SystemConfig{})
 	// Advance the origin
 	input.origin = l1[1]
@@ -360,7 +368,7 @@ func BatchQueueInvalidInternalAdvance(t *testing.T, batchType int) {
 		origin:  l1[0],
 	}
 
-	bq := NewBatchQueue(log, cfg, input, nil)
+	bq := NewBatchQueue(log, cfg, input, nil, mockL2())
 	_ = bq.Reset(context.Background(), l1[0], eth.SystemConfig{})
 
 	// Load continuous batches for epoch 0
@@ -475,7 +483,7 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 		origin:  l1[0],
 	}
 
-	bq := NewBatchQueue(log, cfg, input, nil)
+	bq := NewBatchQueue(log, cfg, input, nil, mockL2())
 	_ = bq.Reset(context.Background(), l1[0], eth.SystemConfig{})
 
 	for i := 0; i < len(expectedOutputBatches); i++ {
@@ -602,7 +610,7 @@ func BatchQueueAdvancedEpoch(t *testing.T, batchType int) {
 		origin:  l1[inputOriginNumber],
 	}
 
-	bq := NewBatchQueue(log, cfg, input, nil)
+	bq := NewBatchQueue(log, cfg, input, nil, mockL2())
 	_ = bq.Reset(context.Background(), l1[1], eth.SystemConfig{})
 
 	for i := 0; i < len(expectedOutputBatches); i++ {
@@ -693,7 +701,7 @@ func BatchQueueShuffle(t *testing.T, batchType int) {
 		origin:  l1[inputOriginNumber],
 	}
 
-	bq := NewBatchQueue(log, cfg, input, nil)
+	bq := NewBatchQueue(log, cfg, input, nil, mockL2())
 	_ = bq.Reset(context.Background(), l1[1], eth.SystemConfig{})
 
 	for i := 0; i < len(expectedOutputBatches); i++ {
@@ -808,7 +816,7 @@ func TestBatchQueueOverlappingSpanBatch(t *testing.T) {
 		}
 	}
 
-	bq := NewBatchQueue(log, cfg, input, &l2Client)
+	bq := NewBatchQueue(log, cfg, input, nil, &l2Client)
 	_ = bq.Reset(context.Background(), l1[0], eth.SystemConfig{})
 	// Advance the origin
 	input.origin = l1[1]
@@ -914,7 +922,7 @@ func TestBatchQueueComplex(t *testing.T) {
 		}
 	}
 
-	bq := NewBatchQueue(log, cfg, input, &l2Client)
+	bq := NewBatchQueue(log, cfg, input, nil, &l2Client)
 	_ = bq.Reset(context.Background(), l1[1], eth.SystemConfig{})
 
 	for i := 0; i < len(expectedOutputBatches); i++ {
@@ -984,7 +992,7 @@ func TestBatchQueueResetSpan(t *testing.T) {
 		origin:  l1[2],
 	}
 	l2Client := testutils.MockL2Client{}
-	bq := NewBatchQueue(log, cfg, input, &l2Client)
+	bq := NewBatchQueue(log, cfg, input, nil, &l2Client)
 	bq.l1Blocks = l1 // Set enough l1 blocks to derive span batch
 
 	// This NextBatch() will derive the span batch, return the first singular batch and save rest of batches in span.

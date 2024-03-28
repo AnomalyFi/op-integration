@@ -1,0 +1,36 @@
+name: Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - release-*
+      - integration
+      - 1.31
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  docker-l1:
+    uses: ./.github/workflows/docker.yml
+    with:
+        images: ghcr.io/anomalyfi/op-integration/l1
+        context: ./ops-bedrock
+        dockerfile: ./ops-bedrock/Dockerfile.l1
+    secrets: inherit
+
+  docker-l2:
+    uses: ./.github/workflows/docker.yml
+    with:
+        images: ghcr.io/anomalyfi/op-integration/l2
+        context: ./ops-bedrock
+        dockerfile: ./ops-bedrock/Dockerfile.l2
+    secrets: inherit
+
+  docker-stateviz:
+    uses: ./.github/workflows/docker.yml
+    with:
+        images: ghcr.io/anomalyfi/op-integration/stateviz
+        context: .
+        dockerfile: ./ops-bedrock/Dockerfile.stateviz
+    secrets: inherit

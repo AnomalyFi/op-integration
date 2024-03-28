@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
@@ -18,18 +19,19 @@ import (
 )
 
 const (
-	L1InfoFuncBedrockSignature = "setL1BlockValues(uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256)"
+	L1InfoFuncBedrockSignature = "setL1BlockValues((uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256,bool,uint64,bytes))"
 	L1InfoFuncEcotoneSignature = "setL1BlockValuesEcotone()"
 	L1InfoArguments            = 8
-	L1InfoBedrockLen           = 4 + 32*L1InfoArguments
-	L1InfoEcotoneLen           = 4 + 32*5 // after Ecotone upgrade, args are packed into 5 32-byte slots
+	//L1InfoBedrockLen           = 4 + 32*L1InfoArguments
+	L1InfoEcotoneLen = 4 + 32*5 // after Ecotone upgrade, args are packed into 5 32-byte slots
 )
 
 var (
-	L1InfoFuncBedrockBytes4 = crypto.Keccak256([]byte(L1InfoFuncBedrockSignature))[:4]
-	L1InfoFuncEcotoneBytes4 = crypto.Keccak256([]byte(L1InfoFuncEcotoneSignature))[:4]
-	L1InfoDepositerAddress  = common.HexToAddress("0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001")
-	L1BlockAddress          = predeploys.L1BlockAddr
+	L1InfoFuncBedrockBytes4   = crypto.Keccak256([]byte(L1InfoFuncBedrockSignature))[:4]
+	L1InfoFuncEcotoneBytes4   = crypto.Keccak256([]byte(L1InfoFuncEcotoneSignature))[:4]
+	L1InfoDepositerAddress    = common.HexToAddress("0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001")
+	L1BlockAddress            = predeploys.L1BlockAddr
+	L1InfoJustificationOffset = new(big.Int).SetUint64(352) // Table below
 )
 
 const (
@@ -51,6 +53,13 @@ type L1BlockInfo struct {
 	L1FeeOverhead eth.Bytes32 // ignored after Ecotone upgrade
 	L1FeeScalar   eth.Bytes32 // ignored after Ecotone upgrade
 
+	// Whether NodeKit mode is enabled.
+	NodeKit bool
+	// When using NodeKit, the configured confirmation depth for L1 origins.
+	NodeKitL1ConfDepth uint64
+
+	Justification *eth.L2BatchJustification `rlp:"nil"`
+
 	BlobBaseFee       *big.Int // added by Ecotone upgrade
 	BaseFeeScalar     uint32   // added by Ecotone upgrade
 	BlobBaseFeeScalar uint32   // added by Ecotone upgrade
@@ -61,6 +70,7 @@ type L1BlockInfo struct {
 // | Bytes   | Field                    |
 // +---------+--------------------------+
 // | 4       | Function signature       |
+// | 32      | Struct fields offset (32)|
 // | 32      | Number                   |
 // | 32      | Time                     |
 // | 32      | BaseFee                  |
@@ -69,11 +79,20 @@ type L1BlockInfo struct {
 // | 32      | BatcherHash              |
 // | 32      | L1FeeOverhead            |
 // | 32      | L1FeeScalar              |
+// | 32      | NodeKit                  |
+// | 32      | NodeKitL1ConfDepth      |
+// | variable| Justification            |
+// | 32      | L1InfoJustificationOffset|
+// | 		 | (this is how dynamic     |
+// | 		 | types are ABI encoded)   |
 // +---------+--------------------------+
 
 func (info *L1BlockInfo) marshalBinaryBedrock() ([]byte, error) {
-	w := bytes.NewBuffer(make([]byte, 0, L1InfoBedrockLen))
+	w := new(bytes.Buffer)
 	if err := solabi.WriteSignature(w, L1InfoFuncBedrockBytes4); err != nil {
+		return nil, err
+	}
+	if err := solabi.WriteUint64(w, 32); err != nil {
 		return nil, err
 	}
 	if err := solabi.WriteUint64(w, info.Number); err != nil {
@@ -100,18 +119,40 @@ func (info *L1BlockInfo) marshalBinaryBedrock() ([]byte, error) {
 	if err := solabi.WriteEthBytes32(w, info.L1FeeScalar); err != nil {
 		return nil, err
 	}
+
+	if err := solabi.WriteBool(w, info.NodeKit); err != nil {
+		return nil, err
+	}
+	if err := solabi.WriteUint64(w, info.NodeKitL1ConfDepth); err != nil {
+		return nil, err
+	}
+
+	rlpBytes, err := rlp.EncodeToBytes(info.Justification)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := solabi.WriteUint256(w, L1InfoJustificationOffset); err != nil {
+		return nil, err
+	}
+	if err := solabi.WriteBytes(w, rlpBytes); err != nil {
+		return nil, err
+	}
+
 	return w.Bytes(), nil
 }
 
 func (info *L1BlockInfo) unmarshalBinaryBedrock(data []byte) error {
-	if len(data) != L1InfoBedrockLen {
-		return fmt.Errorf("data is unexpected length: %d", len(data))
-	}
 	reader := bytes.NewReader(data)
 
 	var err error
 	if _, err := solabi.ReadAndValidateSignature(reader, L1InfoFuncBedrockBytes4); err != nil {
 		return err
+	}
+	if fieldsOffset, err := solabi.ReadUint64(reader); err != nil {
+		return err
+	} else if fieldsOffset != 32 {
+		return fmt.Errorf("invalid struct fields offset (%d, expected 32)", fieldsOffset)
 	}
 	if info.Number, err = solabi.ReadUint64(reader); err != nil {
 		return err
@@ -137,10 +178,42 @@ func (info *L1BlockInfo) unmarshalBinaryBedrock(data []byte) error {
 	if info.L1FeeScalar, err = solabi.ReadEthBytes32(reader); err != nil {
 		return err
 	}
+
+	if info.NodeKit, err = solabi.ReadBool(reader); err != nil {
+		return err
+	}
+	if info.NodeKitL1ConfDepth, err = solabi.ReadUint64(reader); err != nil {
+		return err
+	}
+
+	// Read the offset of the Justification bytes followed by the bytes themselves.
+	rlpOffset, err := solabi.ReadUint256(reader)
+	if err != nil {
+		return err
+	}
+	if rlpOffset.Cmp(L1InfoJustificationOffset) != 0 {
+		return fmt.Errorf("invalid justification offset (%d, expected %d)", rlpOffset, L1InfoJustificationOffset)
+	}
+	rlpBytes, err := solabi.ReadBytes(reader)
+	if err != nil {
+		return err
+	}
+
+	if !(len(rlpBytes) == 1 && rlpBytes[0] == 0xc0) {
+		if err := rlp.DecodeBytes(rlpBytes, &info.Justification); err != nil {
+			return err
+		}
+	}
+
 	if !solabi.EmptyReader(reader) {
 		return errors.New("too many bytes")
 	}
 	return nil
+}
+
+// Whether the rollup is using the NodeKit sequencer at this point in its history.
+func (info *L1BlockInfo) UsingNodeKit() bool {
+	return info.Justification != nil
 }
 
 // Ecotone Binary Format
@@ -260,14 +333,17 @@ func L1BlockInfoFromBytes(rollupCfg *rollup.Config, l2BlockTime uint64, data []b
 
 // L1InfoDeposit creates a L1 Info deposit transaction based on the L1 block,
 // and the L2 block-height difference with the start of the epoch.
-func L1InfoDeposit(rollupCfg *rollup.Config, sysCfg eth.SystemConfig, seqNumber uint64, block eth.BlockInfo, l2BlockTime uint64) (*types.DepositTx, error) {
+func L1InfoDeposit(rollupCfg *rollup.Config, sysCfg eth.SystemConfig, seqNumber uint64, block eth.BlockInfo, l2BlockTime uint64, justification *eth.L2BatchJustification) (*types.DepositTx, error) {
 	l1BlockInfo := L1BlockInfo{
-		Number:         block.NumberU64(),
-		Time:           block.Time(),
-		BaseFee:        block.BaseFee(),
-		BlockHash:      block.Hash(),
-		SequenceNumber: seqNumber,
-		BatcherAddr:    sysCfg.BatcherAddr,
+		Number:             block.NumberU64(),
+		Time:               block.Time(),
+		BaseFee:            block.BaseFee(),
+		BlockHash:          block.Hash(),
+		SequenceNumber:     seqNumber,
+		BatcherAddr:        sysCfg.BatcherAddr,
+		NodeKit:            sysCfg.NodeKit,
+		NodeKitL1ConfDepth: sysCfg.NodeKitL1ConfDepth,
+		Justification:      justification,
 	}
 	var data []byte
 	if isEcotoneButNotFirstBlock(rollupCfg, l2BlockTime) {
@@ -322,8 +398,8 @@ func L1InfoDeposit(rollupCfg *rollup.Config, sysCfg eth.SystemConfig, seqNumber 
 }
 
 // L1InfoDepositBytes returns a serialized L1-info attributes transaction.
-func L1InfoDepositBytes(rollupCfg *rollup.Config, sysCfg eth.SystemConfig, seqNumber uint64, l1Info eth.BlockInfo, l2BlockTime uint64) ([]byte, error) {
-	dep, err := L1InfoDeposit(rollupCfg, sysCfg, seqNumber, l1Info, l2BlockTime)
+func L1InfoDepositBytes(rollupCfg *rollup.Config, sysCfg eth.SystemConfig, seqNumber uint64, l1Info eth.BlockInfo, l2BlockTime uint64, justification *eth.L2BatchJustification) ([]byte, error) {
+	dep, err := L1InfoDeposit(rollupCfg, sysCfg, seqNumber, l1Info, l2BlockTime, justification)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create L1 info tx: %w", err)
 	}

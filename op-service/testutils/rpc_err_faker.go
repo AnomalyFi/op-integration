@@ -49,4 +49,8 @@ func (r RPCErrFaker) EthSubscribe(ctx context.Context, channel any, args ...any)
 	return r.RPC.EthSubscribe(ctx, channel, args...)
 }
 
+func (r RPCErrFaker) RawClient() *rpc.Client {
+	return nil
+}
+
 var _ client.RPC = (*RPCErrFaker)(nil)

@@ -15,6 +15,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+
+	"github.com/ethereum-optimism/optimism/op-service/nodekit"
+
 	"github.com/holiman/uint256"
 )
 
@@ -318,8 +321,60 @@ type PayloadAttributes struct {
 	Transactions []Data `json:"transactions,omitempty"`
 	// NoTxPool to disable adding any transactions from the transaction-pool.
 	NoTxPool bool `json:"noTxPool,omitempty"`
+	// NodeKit indicates whether NodeKit mode is enabled. If so, invalid transactions will be
+	// silently rejected, instead of causing the whole block to fail.
+	NodeKit bool `json:"nodekit,omitempty"`
 	// GasLimit override
 	GasLimit *Uint64Quantity `json:"gasLimit,omitempty"`
+}
+
+// Justification for the inclusion of a list of transactions from the NodeKit Sequencer in an L2
+// batch.
+type NodeKitBlockJustification struct {
+	// The header of the NodeKit block containing the range of transactions.
+	Header nodekit.Header `json:"header"`
+	// Proof that a certain range of transactions corresponds to the NodeKit block with Header.
+	// This proof may be empty in the case where the L2 batch is forced to be empty due to its L1
+	// origin being too old.
+	//Proof nodekit.NmtProof `json:"proof"`
+}
+
+// Justification for the inclusion of a range of NodeKit blocks in an L2 batch.
+type L2BatchJustification struct {
+	// Each NodeKit block to be included in the L2 batch, in order, with transactions and namespace
+	// proofs.
+	Blocks []NodeKitBlockJustification `json:"blocks"`
+
+	// The last NodeKit block before Blocks, if it exists. This proves that no NodeKit blocks were
+	// omitted from the start of Blocks, by showing that Prev is the immediate predecessor of the
+	// first block in Blocks and has a timestamp earlier than the L2 batch time. This will be nil in
+	// the case where the NodeKit genesis block falls within or after the window for this L2 batch.
+	Prev *nodekit.Header `json:"prev" rlp:"nil"`
+
+	// The first NodeKit block after Blocks. This proves that no NodeKit blocks were omitted from
+	// the end of Blocks, by showing that Next is the immediate successor of the last block in
+	// Blocks and has a timestamp later than the L2 batch window.
+	Next *nodekit.Header `json:"next"`
+}
+
+func (j *L2BatchJustification) First() *nodekit.Header {
+	if j.Prev != nil {
+		return j.Prev
+	}
+	if len(j.Blocks) != 0 {
+		return &j.Blocks[0].Header
+	}
+	return j.Next
+}
+
+func (j *L2BatchJustification) Last() *nodekit.Header {
+	if j.Next != nil {
+		return j.Next
+	}
+	if len(j.Blocks) != 0 {
+		return &j.Blocks[len(j.Blocks)-1].Header
+	}
+	return j.Prev
 }
 
 type ExecutePayloadStatus string
@@ -381,6 +436,10 @@ type SystemConfig struct {
 	Scalar Bytes32 `json:"scalar"`
 	// GasLimit identifies the L2 block gas limit
 	GasLimit uint64 `json:"gasLimit"`
+	// Whether to use the NodeKit sequencer
+	NodeKit bool `json:"nodekit"`
+	// The minimum confirmation depth for L1 origins when using NodeKit sequencer
+	NodeKitL1ConfDepth uint64 `json:"nodekitL1ConfDepth"`
 	// More fields can be added for future SystemConfig versions.
 }
 

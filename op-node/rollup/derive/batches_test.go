@@ -1519,7 +1519,7 @@ func TestValidBatch(t *testing.T) {
 		if testCase.DeltaTime != nil {
 			rcfg.DeltaTime = testCase.DeltaTime
 		}
-		validity := CheckBatch(ctx, &rcfg, logger, testCase.L1Blocks, testCase.L2SafeHead, &testCase.Batch, &l2Client)
+		validity := CheckBatch(ctx, &rcfg, logger, &eth.SystemConfig{}, testCase.L1Blocks, testCase.L2SafeHead, &testCase.Batch, nil, &l2Client)
 		require.Equal(t, testCase.Expected, validity, "batch check must return expected validity level")
 		if expLog := testCase.ExpectedLog; expLog != "" {
 			// Check if ExpectedLog is contained in the log buffer

@@ -84,6 +84,13 @@ type DeployConfig struct {
 	// L1UseClique represents whether or not to use the clique consensus engine.
 	L1UseClique bool `json:"l1UseClique"`
 
+	// NodeKit ContractAddress
+	NodeKitContractAddress *common.Address `json:"nodekitContractAddress,omitempty"`
+	// This enables use of NodeKit
+	NodeKit bool `json:"nodekit,omitempty"`
+	// The minimum depth of L1 origins when this is using NodeKit
+	NodeKitL1ConfDepth uint64 `json:"nodekitL1ConfDepth,omitempty"`
+
 	L1BlockTime                 uint64         `json:"l1BlockTime"`
 	L1GenesisBlockTimestamp     hexutil.Uint64 `json:"l1GenesisBlockTimestamp"`
 	L1GenesisBlockNonce         hexutil.Uint64 `json:"l1GenesisBlockNonce"`
@@ -571,10 +578,12 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 			},
 			L2Time: l1StartBlock.Time(),
 			SystemConfig: eth.SystemConfig{
-				BatcherAddr: d.BatchSenderAddress,
-				Overhead:    eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleOverhead))),
-				Scalar:      eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleScalar))),
-				GasLimit:    uint64(d.L2GenesisBlockGasLimit),
+				BatcherAddr:        d.BatchSenderAddress,
+				Overhead:           eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleOverhead))),
+				Scalar:             eth.Bytes32(common.BigToHash(new(big.Int).SetUint64(d.GasPriceOracleScalar))),
+				GasLimit:           uint64(d.L2GenesisBlockGasLimit),
+				NodeKit:            d.NodeKit,
+				NodeKitL1ConfDepth: d.NodeKitL1ConfDepth,
 			},
 		},
 		BlockTime:              d.L2BlockTime,
@@ -596,6 +605,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		DAChallengeAddress:     d.DAChallengeProxy,
 		DAChallengeWindow:      d.DAChallengeWindow,
 		DAResolveWindow:        d.DAResolveWindow,
+		NodeKitContractAddress: d.NodeKitContractAddress,
 	}, nil
 }
 

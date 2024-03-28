@@ -43,11 +43,12 @@ func TestAttributesQueue(t *testing.T) {
 	safeHead.Time = l1Info.InfoTime
 
 	batch := SingularBatch{
-		ParentHash:   safeHead.Hash,
-		EpochNum:     rollup.Epoch(l1Info.InfoNum),
-		EpochHash:    l1Info.InfoHash,
-		Timestamp:    safeHead.Time + cfg.BlockTime,
-		Transactions: []eth.Data{eth.Data("foobar"), eth.Data("example")},
+		ParentHash:    safeHead.Hash,
+		EpochNum:      rollup.Epoch(l1Info.InfoNum),
+		EpochHash:     l1Info.InfoHash,
+		Timestamp:     safeHead.Time + cfg.BlockTime,
+		Transactions:  []eth.Data{eth.Data("foobar"), eth.Data("example")},
+		Justification: testutils.RandomL2BatchJustification(rng),
 	}
 
 	parentL1Cfg := eth.SystemConfig{
@@ -67,7 +68,7 @@ func TestAttributesQueue(t *testing.T) {
 	l2Fetcher.ExpectSystemConfigByL2Hash(safeHead.Hash, parentL1Cfg, nil)
 
 	rollupCfg := rollup.Config{}
-	l1InfoTx, err := L1InfoDepositBytes(&rollupCfg, expectedL1Cfg, safeHead.SequenceNumber+1, l1Info, 0)
+	l1InfoTx, err := L1InfoDepositBytes(&rollupCfg, expectedL1Cfg, safeHead.SequenceNumber+1, l1Info, 0, batch.Justification)
 	require.NoError(t, err)
 	attrs := eth.PayloadAttributes{
 		Timestamp:             eth.Uint64Quantity(safeHead.Time + cfg.BlockTime),
@@ -75,6 +76,7 @@ func TestAttributesQueue(t *testing.T) {
 		SuggestedFeeRecipient: predeploys.SequencerFeeVaultAddr,
 		Transactions:          []eth.Data{l1InfoTx, eth.Data("foobar"), eth.Data("example")},
 		NoTxPool:              true,
+		NodeKit:               batch.Justification != nil,
 		GasLimit:              (*eth.Uint64Quantity)(&expectedL1Cfg.GasLimit),
 	}
 	attrBuilder := NewFetchingAttributesBuilder(cfg, l1Fetcher, l2Fetcher)

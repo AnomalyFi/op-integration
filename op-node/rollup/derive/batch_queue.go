@@ -35,6 +35,7 @@ type NextBatchProvider interface {
 type SafeBlockFetcher interface {
 	L2BlockRefByNumber(context.Context, uint64) (eth.L2BlockRef, error)
 	PayloadByNumber(context.Context, uint64) (*eth.ExecutionPayloadEnvelope, error)
+	SystemConfigL2Fetcher
 }
 
 // BatchQueue contains a set of batches for every L1 block.
@@ -59,15 +60,17 @@ type BatchQueue struct {
 	// nextSpan is cached SingularBatches derived from SpanBatch
 	nextSpan []*SingularBatch
 
+	l1 NodeKitL1Provider
 	l2 SafeBlockFetcher
 }
 
 // NewBatchQueue creates a BatchQueue, which should be Reset(origin) before use.
-func NewBatchQueue(log log.Logger, cfg *rollup.Config, prev NextBatchProvider, l2 SafeBlockFetcher) *BatchQueue {
+func NewBatchQueue(log log.Logger, cfg *rollup.Config, prev NextBatchProvider, l1 NodeKitL1Provider, l2 SafeBlockFetcher) *BatchQueue {
 	return &BatchQueue{
 		log:    log,
 		config: cfg,
 		prev:   prev,
+		l1:     l1,
 		l2:     l2,
 	}
 }
@@ -146,6 +149,11 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 		bq.log.Info("Advancing bq origin", "origin", bq.origin, "originBehind", originBehind)
 	}
 
+	sysCfg, err := bq.l2.SystemConfigByL2Hash(ctx, parent.Hash)
+	if err != nil {
+		return nil, false, NewTemporaryError(fmt.Errorf("failed to retrieve L2 parent SystemConfig: %w", err))
+	}
+
 	// Load more data into the batch queue
 	outOfData := false
 	if batch, err := bq.prev.NextBatch(ctx); err == io.EOF {
@@ -153,7 +161,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	} else if err != nil {
 		return nil, false, err
 	} else if !originBehind {
-		bq.AddBatch(ctx, batch, parent)
+		bq.AddBatch(ctx, &sysCfg, batch, parent)
 	}
 
 	// Skip adding data unless we are up to date with the origin, but do fully
@@ -167,7 +175,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	}
 
 	// Finally attempt to derive more batches
-	batch, err := bq.deriveNextBatch(ctx, outOfData, parent)
+	batch, err := bq.deriveNextBatch(ctx, &sysCfg, outOfData, parent)
 	if err == io.EOF && outOfData {
 		return nil, false, io.EOF
 	} else if err == io.EOF {
@@ -220,7 +228,7 @@ func (bq *BatchQueue) Reset(ctx context.Context, base eth.L1BlockRef, _ eth.Syst
 	return io.EOF
 }
 
-func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, parent eth.L2BlockRef) {
+func (bq *BatchQueue) AddBatch(ctx context.Context, sysCfg *eth.SystemConfig, batch Batch, parent eth.L2BlockRef) {
 	if len(bq.l1Blocks) == 0 {
 		panic(fmt.Errorf("cannot add batch with timestamp %d, no origin was prepared", batch.GetTimestamp()))
 	}
@@ -228,7 +236,9 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, parent eth.L2Bl
 		L1InclusionBlock: bq.origin,
 		Batch:            batch,
 	}
-	validity := CheckBatch(ctx, bq.config, bq.log, bq.l1Blocks, parent, &data, bq.l2)
+	//TODO fix this
+	validity := CheckBatch(ctx, bq.config, bq.log, sysCfg, bq.l1Blocks, parent, &data, bq.l1, bq.l2)
+
 	if validity == BatchDrop {
 		return // if we do drop the batch, CheckBatch will log the drop reason with WARN level.
 	}
@@ -240,7 +250,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, parent eth.L2Bl
 // following the validity rules imposed on consecutive batches,
 // based on currently available buffered batch and L1 origin information.
 // If no batch can be derived yet, then (nil, io.EOF) is returned.
-func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, parent eth.L2BlockRef) (Batch, error) {
+func (bq *BatchQueue) deriveNextBatch(ctx context.Context, sysCfg *eth.SystemConfig, outOfData bool, parent eth.L2BlockRef) (Batch, error) {
 	if len(bq.l1Blocks) == 0 {
 		return nil, NewCriticalError(errors.New("cannot derive next batch, no origin was prepared"))
 	}
@@ -265,7 +275,7 @@ func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, paren
 	var remaining []*BatchWithL1InclusionBlock
 batchLoop:
 	for i, batch := range bq.batches {
-		validity := CheckBatch(ctx, bq.config, bq.log.New("batch_index", i), bq.l1Blocks, parent, batch, bq.l2)
+		validity := CheckBatch(ctx, bq.config, bq.log.New("batch_index", i), sysCfg, bq.l1Blocks, parent, batch, bq.l1, bq.l2)
 		switch validity {
 		case BatchFuture:
 			remaining = append(remaining, batch)
@@ -324,11 +334,12 @@ batchLoop:
 	if nextTimestamp < nextEpoch.Time || firstOfEpoch {
 		bq.log.Info("Generating next batch", "epoch", epoch, "timestamp", nextTimestamp)
 		return &SingularBatch{
-			ParentHash:   parent.Hash,
-			EpochNum:     rollup.Epoch(epoch.Number),
-			EpochHash:    epoch.Hash,
-			Timestamp:    nextTimestamp,
-			Transactions: nil,
+			ParentHash:    parent.Hash,
+			EpochNum:      rollup.Epoch(epoch.Number),
+			EpochHash:     epoch.Hash,
+			Timestamp:     nextTimestamp,
+			Transactions:  nil,
+			Justification: nil,
 		}, nil
 	}
 
