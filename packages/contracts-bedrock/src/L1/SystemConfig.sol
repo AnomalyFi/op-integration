@@ -234,8 +234,8 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
 
         _setStartBlock();
 
-        _setResourceConfig(_config);
-        require(_gasLimit >= minimumGasLimit(), "SystemConfig: gas limit too low");
+        _setResourceConfig(args.config);
+        require(args.gasLimit >= minimumGasLimit(), "SystemConfig: gas limit too low");
     }
 
     /// @notice Returns the minimum L2 gas limit that can be safely set for the system to

@@ -37,7 +37,7 @@ contract L1BlockBedrock_Test is L1BlockTest {
         vm.prank(depositor);
        // l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs);
 
-        lb.setL1BlockValues(
+        l1Block.setL1BlockValues(
             L1Block.L1BlockValues({
                 number: n,
                 timestamp: t,
@@ -79,10 +79,10 @@ contract L1BlockBedrock_Test is L1BlockTest {
 
         // });
 
-        lb.setL1BlockValues(
+        l1Block.setL1BlockValues(
             L1Block.L1BlockValues({
                 number: type(uint64).max,
-                timestamp: type(uint64).max,,
+                timestamp: type(uint64).max,
                 basefee: type(uint256).max,
                 hash: keccak256(abi.encode(1)),
                 sequenceNumber: type(uint64).max,

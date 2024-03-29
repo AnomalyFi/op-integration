@@ -4,6 +4,10 @@ pragma solidity 0.8.15;
 // Testing utilities
 import { CommonTest } from "test/setup/CommonTest.sol";
 
+//Deps
+import { L1Block } from "src/L2/L1Block.sol";
+
+
 // Libraries
 import { Encoding } from "src/libraries/Encoding.sol";
 
@@ -56,7 +60,7 @@ contract GasPriceOracleBedrock_Test is GasPriceOracle_Test {
             L1Block.L1BlockValues({
                 number: number,
                 timestamp: timestamp,
-                basefee: basefee,
+                basefee: baseFee,
                 hash: hash,
                 sequenceNumber: sequenceNumber,
                 batcherHash: batcherHash,

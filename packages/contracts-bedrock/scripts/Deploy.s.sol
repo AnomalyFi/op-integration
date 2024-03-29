@@ -937,25 +937,7 @@ contract Deploy is Deployer {
             _proxy: payable(systemConfigProxy),
             _implementation: systemConfig,
             _innerCallData: abi.encodeCall(
-                // SystemConfig.initialize,
-                // (
-                //     cfg.finalSystemOwner(),
-                //     cfg.gasPriceOracleOverhead(),
-                //     cfg.gasPriceOracleScalar(),
-                //     batcherHash,
-                //     uint64(cfg.l2GenesisBlockGasLimit()),
-                //     cfg.p2pSequencerAddress(),
-                //     Constants.DEFAULT_RESOURCE_CONFIG(),
-                //     cfg.batchInboxAddress(),
-                //     SystemConfig.Addresses({
-                //         l1CrossDomainMessenger: mustGetAddress("L1CrossDomainMessengerProxy"),
-                //         l1ERC721Bridge: mustGetAddress("L1ERC721BridgeProxy"),
-                //         l1StandardBridge: mustGetAddress("L1StandardBridgeProxy"),
-                //         l2OutputOracle: mustGetAddress("L2OutputOracleProxy"),
-                //         optimismPortal: mustGetAddress("OptimismPortalProxy"),
-                //         optimismMintableERC20Factory: mustGetAddress("OptimismMintableERC20FactoryProxy")
-                //     })
-                // )
+                SystemConfig.initialize,
                 SystemConfig.Initialize({
                         owner: cfg.finalSystemOwner(),
                         overhead: cfg.gasPriceOracleOverhead(),
@@ -966,7 +948,7 @@ contract Deploy is Deployer {
                         nodekitL1ConfDepth: uint64(cfg.nodekitL1ConfDepth()),
                         unsafeBlockSigner: cfg.p2pSequencerAddress(),
                         config: Constants.DEFAULT_RESOURCE_CONFIG(),
-                        startBlock: startBlock,
+                        //startBlock: startBlock,
                         batchInbox: cfg.batchInboxAddress(),
                         addresses: SystemConfig.Addresses({
                             l1CrossDomainMessenger: mustGetAddress("L1CrossDomainMessengerProxy"),

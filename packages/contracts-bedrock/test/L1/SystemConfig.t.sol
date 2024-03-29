@@ -106,6 +106,7 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
     function test_initialize_lowGasLimit_reverts() external {
         uint64 minimumGasLimit = systemConfig.minimumGasLimit();
 
+
         // Wipe out the initialized slot so the proxy can be initialized again
         vm.store(address(systemConfig), bytes32(0), bytes32(0));
 
@@ -114,15 +115,15 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
 
         vm.expectRevert("SystemConfig: gas limit too low");
 
-        systemConfig.initialize({
+        systemConfig.initialize(
             SystemConfig.Initialize({
                 owner: alice,
                 overhead: 2100,
                 scalar: 1000000,
                 batcherHash: bytes32(hex"abcd"),
                 gasLimit:  minimumGasLimit - 1,
-                nodekit: nodekit,
-                nodekitL1ConfDepth: nodekitL1ConfDepth,
+                nodekit: false,
+                nodekitL1ConfDepth: 0,
                 unsafeBlockSigner: address(1),
                 config: Constants.DEFAULT_RESOURCE_CONFIG(),
                 batchInbox: address(0),
@@ -151,7 +152,7 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
             //     optimismPortal: address(0),
             //     optimismMintableERC20Factory: address(0)
             // })
-        });
+        );
     }
 
     /// @dev Tests that startBlock is updated correctly when it's zero.
@@ -164,15 +165,16 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
         // Initialize and check that StartBlock updates to current block number
         vm.prank(systemConfig.owner());
 
+
         systemConfig.initialize(
             SystemConfig.Initialize({
                 owner: alice,
                 overhead: 2100,
                 scalar: 1000000,
-                batcherHash: bytes32(hex"abcd"),,
+                batcherHash: bytes32(hex"abcd"),
                 gasLimit: gasLimit,
-                nodekit: nodekit,
-                nodekitL1ConfDepth: nodekitL1ConfDepth,
+                nodekit: false,
+                nodekitL1ConfDepth: 0,
                 unsafeBlockSigner: address(1),
                 config: Constants.DEFAULT_RESOURCE_CONFIG(),
                 batchInbox: address(0),
@@ -200,15 +202,16 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
         vm.prank(systemConfig.owner());
 
 
+
         systemConfig.initialize(
             SystemConfig.Initialize({
                 owner: alice,
                 overhead: 2100,
                 scalar: 1000000,
-                batcherHash: bytes32(hex"abcd"),,
+                batcherHash: bytes32(hex"abcd"),
                 gasLimit: gasLimit,
-                nodekit: nodekit,
-                nodekitL1ConfDepth: nodekitL1ConfDepth,
+                nodekit: false,
+                nodekitL1ConfDepth: 0,
                 unsafeBlockSigner: address(1),
                 config: Constants.DEFAULT_RESOURCE_CONFIG(),
                 batchInbox: address(0),

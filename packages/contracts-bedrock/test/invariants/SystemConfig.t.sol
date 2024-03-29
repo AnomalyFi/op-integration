@@ -13,6 +13,7 @@ contract SystemConfig_GasLimitLowerBound_Invariant is Test {
         Proxy proxy = new Proxy(msg.sender);
         SystemConfig configImpl = new SystemConfig();
 
+
         vm.prank(msg.sender);
         proxy.upgradeToAndCall(
             address(configImpl),
@@ -23,10 +24,10 @@ contract SystemConfig_GasLimitLowerBound_Invariant is Test {
                         owner: address(0xbeef),
                         overhead: 2100,
                         scalar: 1000000,
-                        batcherHash: bytes32(hex"abcd"),,
-                        gasLimit: gasLimit,
-                        nodekit: nodekit,
-                        nodekitL1ConfDepth: nodekitL1ConfDepth,
+                        batcherHash: bytes32(hex"abcd"),
+                        gasLimit:  30_000_000, // gas limit,
+                        nodekit: false,
+                        nodekitL1ConfDepth: 0,
                         unsafeBlockSigner: address(1),
                         config: Constants.DEFAULT_RESOURCE_CONFIG(),
                         batchInbox: address(0),
