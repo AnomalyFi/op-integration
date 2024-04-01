@@ -18,7 +18,7 @@
           go = prev."go_1_${toString goVersion}";
           # Overlaying nodejs here to ensure nodePackages use the desired
           # version of nodejs.
-          nodejs = prev.nodejs-20_x;
+          nodejs = prev.nodejs-18_x;
           pnpm = prev.nodePackages.pnpm;
           yarn = prev.nodePackages.yarn;
         })

@@ -122,19 +122,23 @@ func FuzzL1InfoBedrockAgainstContract(f *testing.F) {
 		opts.NoSend = true
 		opts.Nonce = common.Big0
 		// Create the SetL1BlockValues transaction
+
+		val := bindings.L1BlockL1BlockValues{
+			Number:             number,
+			Timestamp:          time,
+			Basefee:            BytesToBigInt(baseFee),
+			Hash:               common.BytesToHash(hash),
+			SequenceNumber:     seqNumber,
+			BatcherHash:        eth.AddressAsLeftPaddedHash(common.BytesToAddress(batcherHash)),
+			L1FeeOverhead:      common.BytesToHash(l1FeeOverhead).Big(),
+			L1FeeScalar:        common.BytesToHash(l1FeeScalar).Big(),
+			Nodekit:            false,
+			NodekitL1ConfDepth: 0,
+			Justification:      []byte{0xc0},
+		}
 		tx, err := l1BlockInfoContract.SetL1BlockValues(
 			opts,
-			number,
-			time,
-			BytesToBigInt(baseFee),
-			common.BytesToHash(hash),
-			seqNumber,
-			eth.AddressAsLeftPaddedHash(common.BytesToAddress(batcherHash)),
-			common.BytesToHash(l1FeeOverhead).Big(),
-			common.BytesToHash(l1FeeScalar).Big(),
-			// Since we set `Justification: nil`, the RLP encoded bytes will encode an empty list.
-			// This is encoded by `c0` to signify a list followed by no elements.
-			[]byte{0xc0},
+			val,
 		)
 		if err != nil {
 			t.Fatalf("Failed to create the transaction: %v", err)

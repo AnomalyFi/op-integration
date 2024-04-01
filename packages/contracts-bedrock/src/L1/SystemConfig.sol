@@ -43,30 +43,30 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         address optimismMintableERC20Factory;
     }
 
-    struct Initialize {
-        // Initial owner of the contract.
-        address owner;
-        // Initial overhead value.
-        uint256 overhead;
-        // Initial scalar value.
-        uint256 scalar;
-        // Initial batcher hash.
-        bytes32 batcherHash;
-        // Initial gas limit.
-        uint64 gasLimit;
-        // Whether to use the NodeKit Sequencer in the initial config.
-        bool nodekit;
-        // Initial confirmation depth for L1 blocks, when `_nodekit`.
-        uint64 nodekitL1ConfDepth;
-        // Initial unsafe block signer address.
-        address unsafeBlockSigner;
-        // Initial ResourceConfig.
-        ResourceMetering.ResourceConfig config;
-        // Batch inbox address. An identifier for the op-node to find canonical data.
-        address batchInbox;
-        // Set of L1 contract addresses. These should be the proxies.
-        SystemConfig.Addresses addresses;
-    }
+    // struct Initialize {
+    //     // Initial owner of the contract.
+    //     address owner;
+    //     // Initial overhead value.
+    //     uint256 overhead;
+    //     // Initial scalar value.
+    //     uint256 scalar;
+    //     // Initial batcher hash.
+    //     bytes32 batcherHash;
+    //     // Initial gas limit.
+    //     uint64 gasLimit;
+    //     // Whether to use the NodeKit Sequencer in the initial config.
+    //     bool nodekit;
+    //     // Initial confirmation depth for L1 blocks, when `_nodekit`.
+    //     uint64 nodekitL1ConfDepth;
+    //     // Initial unsafe block signer address.
+    //     address unsafeBlockSigner;
+    //     // Initial ResourceConfig.
+    //     ResourceMetering.ResourceConfig config;
+    //     // Batch inbox address. An identifier for the op-node to find canonical data.
+    //     address batchInbox;
+    //     // Set of L1 contract addresses. These should be the proxies.
+    //     SystemConfig.Addresses addresses;
+    // }
 
     /// @notice Version identifier, used for upgrades.
     uint256 public constant VERSION = 0;
@@ -150,92 +150,122 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     ///         in the singleton and is skipped by initialize when setting the start block.
     constructor() {
         Storage.setUint(START_BLOCK_SLOT, type(uint256).max);
-        // initialize({
-        //     _owner: address(0xdEaD),
-        //     _overhead: 0,
-        //     _scalar: 0,
-        //     _batcherHash: bytes32(0),
-        //     _gasLimit: 1,
-        //     _unsafeBlockSigner: address(0),
-        //     _config: ResourceMetering.ResourceConfig({
-        //         maxResourceLimit: 1,
-        //         elasticityMultiplier: 1,
-        //         baseFeeMaxChangeDenominator: 2,
-        //         minimumBaseFee: 0,
-        //         systemTxMaxGas: 0,
-        //         maximumBaseFee: 0
-        //     }),
-        //     _batchInbox: address(0),
-        //     _addresses: SystemConfig.Addresses({
-        //         l1CrossDomainMessenger: address(0),
-        //         l1ERC721Bridge: address(0),
-        //         l1StandardBridge: address(0),
-        //         l2OutputOracle: address(0),
-        //         optimismPortal: address(0),
-        //         optimismMintableERC20Factory: address(0)
-        //     })
+
+
+        // ResourceMetering.ResourceConfig memory config = ResourceMetering.ResourceConfig({
+        //     maxResourceLimit: 1,
+        //     elasticityMultiplier: 1,
+        //     baseFeeMaxChangeDenominator: 2,
+        //     minimumBaseFee: 0,
+        //     systemTxMaxGas: 0,
+        //     maximumBaseFee: 0
         // });
 
-        ResourceMetering.ResourceConfig memory config = ResourceMetering.ResourceConfig({
-            maxResourceLimit: 1,
-            elasticityMultiplier: 1,
-            baseFeeMaxChangeDenominator: 2,
-            minimumBaseFee: 0,
-            systemTxMaxGas: 0,
-            maximumBaseFee: 0
-        });
+        // initialize(
+        //     Initialize({
+        //         owner: address(0xdEaD),
+        //         overhead: 0,
+        //         scalar: 0,
+        //         batcherHash: bytes32(0),
+        //         gasLimit: 1,
+        //         nodekit: false,
+        //         nodekitL1ConfDepth: 0,
+        //         unsafeBlockSigner: address(0),
+        //         config: config,
+        //         batchInbox: address(0),
+        //         addresses: SystemConfig.Addresses({
+        //             l1CrossDomainMessenger: address(0),
+        //             l1ERC721Bridge: address(0),
+        //             l1StandardBridge: address(0),
+        //             l2OutputOracle: address(0),
+        //             optimismPortal: address(0),
+        //             optimismMintableERC20Factory: address(0)
+        //         })
+        //     })
+        // );
 
-        initialize(
-            Initialize({
-                owner: address(0xdEaD),
-                overhead: 0,
-                scalar: 0,
-                batcherHash: bytes32(0),
-                gasLimit: 1,
-                nodekit: false,
-                nodekitL1ConfDepth: 0,
-                unsafeBlockSigner: address(0),
-                config: config,
-                batchInbox: address(0),
-                addresses: SystemConfig.Addresses({
-                    l1CrossDomainMessenger: address(0),
-                    l1ERC721Bridge: address(0),
-                    l1StandardBridge: address(0),
-                    l2OutputOracle: address(0),
-                    optimismPortal: address(0),
-                    optimismMintableERC20Factory: address(0)
-                })
+        initialize({
+            _owner: address(0xdEaD),
+            _overhead: 0,
+            _scalar: 0,
+            _batcherHash: bytes32(0),
+            _gasLimit: 1,
+            _nodekit: false,
+            _nodekitL1ConfDepth: 0,
+            _unsafeBlockSigner: address(0),
+            _config: ResourceMetering.ResourceConfig({
+                maxResourceLimit: 1,
+                elasticityMultiplier: 1,
+                baseFeeMaxChangeDenominator: 2,
+                minimumBaseFee: 0,
+                systemTxMaxGas: 0,
+                maximumBaseFee: 0
+            }),
+            _batchInbox: address(0),
+            _addresses: SystemConfig.Addresses({
+                l1CrossDomainMessenger: address(0),
+                l1ERC721Bridge: address(0),
+                l1StandardBridge: address(0),
+                l2OutputOracle: address(0),
+                optimismPortal: address(0),
+                optimismMintableERC20Factory: address(0)
             })
-        );
+        });
     }
 
     /// @notice Initializer.
     ///         The resource config must be set before the require check.
-    function initialize(Initialize memory args) public initializer {
+    /// @param _owner             Initial owner of the contract.
+    /// @param _overhead          Initial overhead value.
+    /// @param _scalar            Initial scalar value.
+    /// @param _batcherHash       Initial batcher hash.
+    /// @param _gasLimit          Initial gas limit.
+    /// @param _nodekit           Is NodeKit Enabled?
+    /// @param _nodekitL1ConfDepth Conf Depth
+    /// @param _unsafeBlockSigner Initial unsafe block signer address.
+    /// @param _config            Initial ResourceConfig.
+    /// @param _batchInbox        Batch inbox address. An identifier for the op-node to find
+    ///                           canonical data.
+    /// @param _addresses         Set of L1 contract addresses. These should be the proxies.
+    function initialize(
+        address _owner,
+        uint256 _overhead,
+        uint256 _scalar,
+        bytes32 _batcherHash,
+        uint64 _gasLimit,
+        bool _nodekit,
+        uint64 _nodekitL1ConfDepth,
+        address _unsafeBlockSigner,
+        ResourceMetering.ResourceConfig memory _config,
+        address _batchInbox,
+        SystemConfig.Addresses memory _addresses
+    )
+        public
+        initializer
+    {
         __Ownable_init();
-        transferOwnership(args.owner);
+        transferOwnership(_owner);
 
         // These are set in ascending order of their UpdateTypes.
-        _setBatcherHash(args.batcherHash);
-        _setGasConfig({ _overhead: args.overhead, _scalar: args.scalar });
-        _setGasLimit(args.gasLimit);
+        _setBatcherHash(_batcherHash);
+        _setGasConfig({ _overhead: _overhead, _scalar: _scalar });
+        _setGasLimit(_gasLimit);
+        _setNodeKit(_nodekit);
+        _setNodeKitL1ConfDepth(_nodekitL1ConfDepth);
 
-        Storage.setAddress(UNSAFE_BLOCK_SIGNER_SLOT, args.unsafeBlockSigner);
-         _setNodeKit(args.nodekit);
-        _setNodeKitL1ConfDepth(args.nodekitL1ConfDepth);
-
-        Storage.setAddress(BATCH_INBOX_SLOT, args.batchInbox);
-        Storage.setAddress(L1_CROSS_DOMAIN_MESSENGER_SLOT, args.addresses.l1CrossDomainMessenger);
-        Storage.setAddress(L1_ERC_721_BRIDGE_SLOT, args.addresses.l1ERC721Bridge);
-        Storage.setAddress(L1_STANDARD_BRIDGE_SLOT, args.addresses.l1StandardBridge);
-        Storage.setAddress(L2_OUTPUT_ORACLE_SLOT, args.addresses.l2OutputOracle);
-        Storage.setAddress(OPTIMISM_PORTAL_SLOT, args.addresses.optimismPortal);
-        Storage.setAddress(OPTIMISM_MINTABLE_ERC20_FACTORY_SLOT, args.addresses.optimismMintableERC20Factory);
+        Storage.setAddress(UNSAFE_BLOCK_SIGNER_SLOT, _unsafeBlockSigner);
+        Storage.setAddress(BATCH_INBOX_SLOT, _batchInbox);
+        Storage.setAddress(L1_CROSS_DOMAIN_MESSENGER_SLOT, _addresses.l1CrossDomainMessenger);
+        Storage.setAddress(L1_ERC_721_BRIDGE_SLOT, _addresses.l1ERC721Bridge);
+        Storage.setAddress(L1_STANDARD_BRIDGE_SLOT, _addresses.l1StandardBridge);
+        Storage.setAddress(L2_OUTPUT_ORACLE_SLOT, _addresses.l2OutputOracle);
+        Storage.setAddress(OPTIMISM_PORTAL_SLOT, _addresses.optimismPortal);
+        Storage.setAddress(OPTIMISM_MINTABLE_ERC20_FACTORY_SLOT, _addresses.optimismMintableERC20Factory);
 
         _setStartBlock();
 
-        _setResourceConfig(args.config);
-        require(args.gasLimit >= minimumGasLimit(), "SystemConfig: gas limit too low");
+        _setResourceConfig(_config);
+        require(_gasLimit >= minimumGasLimit(), "SystemConfig: gas limit too low");
     }
 
     /// @notice Returns the minimum L2 gas limit that can be safely set for the system to

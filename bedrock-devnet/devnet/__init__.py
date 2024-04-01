@@ -322,17 +322,17 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
 
     # deploy nodekit-zk contracts
     #TODO add back later
-    # run_command([
-    #     'forge', 'script', 'DeploySequencer', '--broadcast',
-    #     '--rpc-url', rpc_url,
-    # ], env=deploy_env, cwd=paths.zk_dir)
+    run_command([
+        'forge', 'script', 'DeploySequencer', '--broadcast',
+        '--rpc-url', rpc_url,
+    ], env=deploy_env, cwd=paths.zk_dir)
 
     # update config for l2
     # or will lead to unable to verify l2 blocks
-    # sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
-    # devnetL1_conf = read_json(paths.devnet_config_path)
-    # devnetL1_conf['sequencerContractAddress'] = sequencer_contract_addr
-    # write_json(paths.devnet_config_path, devnetL1_conf)
+    sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
+    devnetL1_conf = read_json(paths.devnet_config_path)
+    devnetL1_conf['nodekitContractAddress'] = sequencer_contract_addr
+    write_json(paths.devnet_config_path, devnetL1_conf)
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
 

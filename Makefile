@@ -19,9 +19,9 @@ lint-go:
 .PHONY: lint-go
 
 build-ts: submodules
-	if [ -n "$$NVM_DIR" ]; then \
-		. $$NVM_DIR/nvm.sh && nvm use; \
-	fi
+	# if [ -n "$$NVM_DIR" ]; then \
+	# 	. $$NVM_DIR/nvm.sh && nvm use; \
+	# fi
 	pnpm install
 	pnpm build
 .PHONY: build-ts

@@ -151,3 +151,10 @@ Feature branches are typically used when there are conflicts between 2 projects 
 ## License
 
 All other files within this repository are licensed under the [MIT License](https://github.com/ethereum-optimism/optimism/blob/master/LICENSE) unless stated otherwise.
+
+export MNEMONIC="test test test test test test test test test test test junk"
+forge script DeploySequencer --broadcast --rpc-url http://54.144.62.243:8545
+
+
+
+address: 0x5FbDB2315678afecb367f032d93F642f64180aa3
