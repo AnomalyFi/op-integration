@@ -29,6 +29,8 @@ contract SystemConfig_Initialize_Test is SystemConfig_Init {
     address unsafeBlockSigner;
     address systemConfigImpl;
     address optimismMintableERC20Factory;
+    bool nodekit;
+    uint64 nodekitL1ConfDepth;
 
     function setUp() public virtual override {
         super.setUp();
@@ -38,6 +40,9 @@ contract SystemConfig_Initialize_Test is SystemConfig_Init {
         scalar = deploy.cfg().gasPriceOracleScalar();
         batcherHash = bytes32(uint256(uint160(deploy.cfg().batchSenderAddress())));
         gasLimit = uint64(deploy.cfg().l2GenesisBlockGasLimit());
+        nodekit = deploy.cfg().nodekit();
+        nodekitL1ConfDepth = uint64(deploy.cfg().nodekitL1ConfDepth());
+
         unsafeBlockSigner = deploy.cfg().p2pSequencerAddress();
         systemConfigImpl = deploy.mustGetAddress("SystemConfig");
         optimismMintableERC20Factory = deploy.mustGetAddress("OptimismMintableERC20FactoryProxy");

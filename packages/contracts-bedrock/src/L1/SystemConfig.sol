@@ -96,9 +96,8 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @notice L2 block gas limit.
     uint64 public gasLimit;
 
-     /// @notice Whether the NodeKit Sequencer is enabled.
+    /// @notice Whether the NodeKit Sequencer is enabled.
     bool public nodekit;
-
 
     /// @notice Minimum confirmation depth for L1 origin blocks.
     uint64 public nodekitL1ConfDepth;
