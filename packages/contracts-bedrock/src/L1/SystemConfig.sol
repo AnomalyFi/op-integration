@@ -43,31 +43,6 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         address optimismMintableERC20Factory;
     }
 
-    // struct Initialize {
-    //     // Initial owner of the contract.
-    //     address owner;
-    //     // Initial overhead value.
-    //     uint256 overhead;
-    //     // Initial scalar value.
-    //     uint256 scalar;
-    //     // Initial batcher hash.
-    //     bytes32 batcherHash;
-    //     // Initial gas limit.
-    //     uint64 gasLimit;
-    //     // Whether to use the NodeKit Sequencer in the initial config.
-    //     bool nodekit;
-    //     // Initial confirmation depth for L1 blocks, when `_nodekit`.
-    //     uint64 nodekitL1ConfDepth;
-    //     // Initial unsafe block signer address.
-    //     address unsafeBlockSigner;
-    //     // Initial ResourceConfig.
-    //     ResourceMetering.ResourceConfig config;
-    //     // Batch inbox address. An identifier for the op-node to find canonical data.
-    //     address batchInbox;
-    //     // Set of L1 contract addresses. These should be the proxies.
-    //     SystemConfig.Addresses addresses;
-    // }
-
     /// @notice Version identifier, used for upgrades.
     uint256 public constant VERSION = 0;
 
@@ -150,39 +125,6 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     ///         in the singleton and is skipped by initialize when setting the start block.
     constructor() {
         Storage.setUint(START_BLOCK_SLOT, type(uint256).max);
-
-
-        // ResourceMetering.ResourceConfig memory config = ResourceMetering.ResourceConfig({
-        //     maxResourceLimit: 1,
-        //     elasticityMultiplier: 1,
-        //     baseFeeMaxChangeDenominator: 2,
-        //     minimumBaseFee: 0,
-        //     systemTxMaxGas: 0,
-        //     maximumBaseFee: 0
-        // });
-
-        // initialize(
-        //     Initialize({
-        //         owner: address(0xdEaD),
-        //         overhead: 0,
-        //         scalar: 0,
-        //         batcherHash: bytes32(0),
-        //         gasLimit: 1,
-        //         nodekit: false,
-        //         nodekitL1ConfDepth: 0,
-        //         unsafeBlockSigner: address(0),
-        //         config: config,
-        //         batchInbox: address(0),
-        //         addresses: SystemConfig.Addresses({
-        //             l1CrossDomainMessenger: address(0),
-        //             l1ERC721Bridge: address(0),
-        //             l1StandardBridge: address(0),
-        //             l2OutputOracle: address(0),
-        //             optimismPortal: address(0),
-        //             optimismMintableERC20Factory: address(0)
-        //         })
-        //     })
-        // );
 
         initialize({
             _owner: address(0xdEaD),
@@ -352,7 +294,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         emit ConfigUpdate(VERSION, UpdateType.NODEKIT, data);
     }
 
-     function setNodeKitL1ConfDepth(uint64 l1ConfDepth) external onlyOwner {
+    function setNodeKitL1ConfDepth(uint64 l1ConfDepth) external onlyOwner {
         _setNodeKitL1ConfDepth(l1ConfDepth);
     }
 
