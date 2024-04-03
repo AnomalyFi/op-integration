@@ -158,7 +158,7 @@ contract Initializer_Test is Bridge_Initializer {
                         bytes32(0),
                         1,
                         false,
-                        0,
+                       // 0,
                         address(0),
                         ResourceMetering.ResourceConfig({
                             maxResourceLimit: 1,
@@ -196,7 +196,7 @@ contract Initializer_Test is Bridge_Initializer {
                         bytes32(0),
                         1,
                         false,
-                        0,
+                        //0,
                         address(0),
                         ResourceMetering.ResourceConfig({
                             maxResourceLimit: 1,
