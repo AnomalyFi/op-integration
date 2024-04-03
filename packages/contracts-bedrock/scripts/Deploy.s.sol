@@ -945,7 +945,7 @@ contract Deploy is Deployer {
                     batcherHash,
                     uint64(cfg.l2GenesisBlockGasLimit()),
                     cfg.nodekit(),
-                    uint64(cfg.nodekitL1ConfDepth()),
+                    //uint64(cfg.nodekitL1ConfDepth()),
                     cfg.p2pSequencerAddress(),
                     Constants.DEFAULT_RESOURCE_CONFIG(),
                     cfg.batchInboxAddress(),

@@ -30,7 +30,7 @@ contract SystemConfig_Initialize_Test is SystemConfig_Init {
     address systemConfigImpl;
     address optimismMintableERC20Factory;
     bool nodekit;
-    uint64 nodekitL1ConfDepth;
+    //uint64 nodekitL1ConfDepth;
 
     function setUp() public virtual override {
         super.setUp();
@@ -41,7 +41,7 @@ contract SystemConfig_Initialize_Test is SystemConfig_Init {
         batcherHash = bytes32(uint256(uint160(deploy.cfg().batchSenderAddress())));
         gasLimit = uint64(deploy.cfg().l2GenesisBlockGasLimit());
         nodekit = deploy.cfg().nodekit();
-        nodekitL1ConfDepth = uint64(deploy.cfg().nodekitL1ConfDepth());
+        //nodekitL1ConfDepth = uint64(deploy.cfg().nodekitL1ConfDepth());
 
         unsafeBlockSigner = deploy.cfg().p2pSequencerAddress();
         systemConfigImpl = deploy.mustGetAddress("SystemConfig");
@@ -127,7 +127,7 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
             _batcherHash: bytes32(hex"abcd"),
             _gasLimit: minimumGasLimit - 1,
             _nodekit: false,
-            _nodekitL1ConfDepth: 0,
+           // _nodekitL1ConfDepth: 0,
             _unsafeBlockSigner: address(1),
             _config: Constants.DEFAULT_RESOURCE_CONFIG(),
             _batchInbox: address(0),
@@ -159,7 +159,7 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
             _batcherHash: bytes32(hex"abcd"),
             _gasLimit: gasLimit,
             _nodekit: false,
-            _nodekitL1ConfDepth: 0,
+            //_nodekitL1ConfDepth: 0,
             _unsafeBlockSigner: address(1),
             _config: Constants.DEFAULT_RESOURCE_CONFIG(),
             _batchInbox: address(0),
@@ -193,7 +193,7 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
             _batcherHash: bytes32(hex"abcd"),
             _gasLimit: gasLimit,
             _nodekit: false,
-            _nodekitL1ConfDepth: 0,
+            //_nodekitL1ConfDepth: 0,
             _unsafeBlockSigner: address(1),
             _config: Constants.DEFAULT_RESOURCE_CONFIG(),
             _batchInbox: address(0),

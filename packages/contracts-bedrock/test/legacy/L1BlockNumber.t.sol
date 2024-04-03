@@ -45,7 +45,7 @@ contract L1BlockNumberTest is Test {
                 l1FeeOverhead: 2,
                 l1FeeScalar: 3,
                 nodekit: false,
-                nodekitL1ConfDepth: 0,
+            //    nodekitL1ConfDepth: 0,
                 justification: hex"c0"
             })
         );

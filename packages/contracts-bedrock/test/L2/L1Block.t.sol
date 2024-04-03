@@ -48,7 +48,7 @@ contract L1BlockBedrock_Test is L1BlockTest {
                 l1FeeOverhead: fo,
                 l1FeeScalar: fs,
                 nodekit: false,
-                nodekitL1ConfDepth: 0,
+             //   nodekitL1ConfDepth: 0,
                 justification: "0xc0"
             })
         );
@@ -90,7 +90,7 @@ contract L1BlockBedrock_Test is L1BlockTest {
                 l1FeeOverhead: type(uint256).max,
                 l1FeeScalar: type(uint256).max,
                 nodekit: true,
-                nodekitL1ConfDepth: type(uint64).max,
+          //      nodekitL1ConfDepth: type(uint64).max,
                 justification: hex"c0"
             })
         );

@@ -53,7 +53,7 @@ contract L1Block is ISemver {
     bool public nodekit;
 
     /// @notice Minimum confirmation depth for L1 origin blocks.
-    uint64 public nodekitL1ConfDepth;
+    //uint64 public nodekitL1ConfDepth;
 
     /// @custom:semver 1.2.0
     string public constant version = "1.2.0";
@@ -78,7 +78,7 @@ contract L1Block is ISemver {
         // Whether the NodeKit Sequencer is enabled.
         bool nodekit;
         // Minimum confirmation depth for L1 origin blocks.
-        uint64 nodekitL1ConfDepth;
+        //uint64 nodekitL1ConfDepth;
         // The RLP-encoded L2 batch justification.
         bytes justification;
     }
@@ -97,7 +97,7 @@ contract L1Block is ISemver {
         l1FeeOverhead = v.l1FeeOverhead;
         l1FeeScalar = v.l1FeeScalar;
         nodekit = v.nodekit;
-        nodekitL1ConfDepth = v.nodekitL1ConfDepth;
+        //nodekitL1ConfDepth = v.nodekitL1ConfDepth;
     }
 
     /// @notice Updates the L1 block values for an Ecotone upgraded chain.
