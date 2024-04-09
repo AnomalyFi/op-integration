@@ -27,7 +27,7 @@ contract SystemConfig_GasLimitLowerBound_Invariant is Test {
                     bytes32(hex"abcd"), // batcher hash
                     30_000_000, // gas limit
                     false, // nodekit
-                    //0, // nodekit depth
+                    0, // nodekit depth
                     address(1), // unsafe block signer
                     Constants.DEFAULT_RESOURCE_CONFIG(),
                     address(0), // _batchInbox

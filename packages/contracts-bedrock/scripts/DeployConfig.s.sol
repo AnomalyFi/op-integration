@@ -64,7 +64,7 @@ contract DeployConfig is Script {
     uint256 public preimageOracleMinProposalSize;
     uint256 public preimageOracleChallengePeriod;
     bool public nodekit;
-    //uint256 public nodekitL1ConfDepth;
+    uint256 public nodekitL1ConfDepth;
     uint256 public systemConfigStartBlock;
     uint256 public requiredProtocolVersion;
     uint256 public recommendedProtocolVersion;
@@ -150,9 +150,9 @@ contract DeployConfig is Script {
 
         nodekit = stdJson.readBool(_json, "$.nodekit");
 
-        // if (nodekit) {
-        //     nodekitL1ConfDepth = stdJson.readUint(_json, "$.nodekitL1ConfDepth");
-        // }
+        if (nodekit) {
+            nodekitL1ConfDepth = stdJson.readUint(_json, "$.nodekitL1ConfDepth");
+        }
     }
 
     function l1StartingBlockTag() public returns (bytes32) {

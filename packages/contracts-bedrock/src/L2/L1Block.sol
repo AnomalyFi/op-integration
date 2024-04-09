@@ -53,7 +53,7 @@ contract L1Block is ISemver {
     bool public nodekit;
 
     /// @notice Minimum confirmation depth for L1 origin blocks.
-    //uint64 public nodekitL1ConfDepth;
+    uint64 public nodekitL1ConfDepth;
 
     /// @custom:semver 1.2.0
     string public constant version = "1.2.0";
@@ -93,6 +93,8 @@ contract L1Block is ISemver {
     /// @param _batcherHash    Versioned hash to authenticate batcher by.
     /// @param _l1FeeOverhead  L1 fee overhead.
     /// @param _l1FeeScalar    L1 fee scalar.
+    /// @param _nodekit        Is NodeKit enabled?
+    /// @param _nodekitL1ConfDepth        Minimum confirmation depth for L1 origin blocks.
     function setL1BlockValues(
         uint64 _number,
         uint64 _timestamp,
@@ -102,7 +104,8 @@ contract L1Block is ISemver {
         bytes32 _batcherHash,
         uint256 _l1FeeOverhead,
         uint256 _l1FeeScalar,
-        bool _nodekit
+        bool _nodekit,
+        uint64 nodekitL1ConfDepth
     )
         external
     {
@@ -117,7 +120,7 @@ contract L1Block is ISemver {
         l1FeeOverhead = _l1FeeOverhead;
         l1FeeScalar = _l1FeeScalar;
         nodekit = _nodekit;
-        //nodekitL1ConfDepth = _nodekitL1ConfDepth;
+        nodekitL1ConfDepth = _nodekitL1ConfDepth;
     }
 
     /// @notice Updates the L1 block values for an Ecotone upgraded chain.

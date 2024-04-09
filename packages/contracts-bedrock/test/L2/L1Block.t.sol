@@ -35,7 +35,7 @@ contract L1BlockBedrock_Test is L1BlockTest {
         external
     {
         vm.prank(depositor);
-        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs, false);
+        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs, false, 0);
 
         // l1Block.setL1BlockValues(
         //     L1Block.L1BlockValues({
@@ -76,7 +76,8 @@ contract L1BlockBedrock_Test is L1BlockTest {
             _batcherHash: bytes32(type(uint256).max),
             _l1FeeOverhead: type(uint256).max,
             _l1FeeScalar: type(uint256).max,
-            _nodekit: true
+            _nodekit: true,
+            _nodekitL1ConfDepth: 0
         });
 
         // l1Block.setL1BlockValues(

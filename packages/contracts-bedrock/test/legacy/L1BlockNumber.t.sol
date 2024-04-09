@@ -33,7 +33,8 @@ contract L1BlockNumberTest is Test {
             _batcherHash: bytes32(uint256(0)),
             _l1FeeOverhead: 2,
             _l1FeeScalar: 3,
-            _nodekit: true
+            _nodekit: true,
+            _nodekitL1ConfDepth: 0
         });
         // lb.setL1BlockValues(
         //     L1Block.L1BlockValues({

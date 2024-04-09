@@ -29,7 +29,7 @@ contract GasPriceOracle_Test is CommonTest {
     uint32 constant blobBaseFeeScalar = 15;
     uint32 constant baseFeeScalar = 20;
     bool constant nodekit = false;
-   // uint64 constant nodekitL1ConfDepth = 0;
+    uint64 constant nodekitL1ConfDepth = 0;
 
     /// @dev Sets up the test suite.
     function setUp() public virtual override {

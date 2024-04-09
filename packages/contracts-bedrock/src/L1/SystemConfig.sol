@@ -99,8 +99,8 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @notice Whether the NodeKit Sequencer is enabled.
     bool public nodekit;
 
-    // /// @notice Minimum confirmation depth for L1 origin blocks.
-    // uint64 public nodekitL1ConfDepth;
+    /// @notice Minimum confirmation depth for L1 origin blocks.
+    uint64 public nodekitL1ConfDepth;
 
     /// @notice The configuration for the deposit fee market.
     ///         Used by the OptimismPortal to meter the cost of buying L2 gas on L1.
@@ -132,7 +132,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
             _batcherHash: bytes32(0),
             _gasLimit: 1,
             _nodekit: false,
-            //_nodekitL1ConfDepth: 0,
+            _nodekitL1ConfDepth: 0,
             _unsafeBlockSigner: address(0),
             _config: ResourceMetering.ResourceConfig({
                 maxResourceLimit: 1,
@@ -162,7 +162,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
     /// @param _batcherHash       Initial batcher hash.
     /// @param _gasLimit          Initial gas limit.
     /// @param _nodekit           Is NodeKit Enabled?
-    // /// @param _nodekitL1ConfDepth Conf Depth
+    /// @param _nodekitL1ConfDepth Conf Depth
     /// @param _unsafeBlockSigner Initial unsafe block signer address.
     /// @param _config            Initial ResourceConfig.
     /// @param _batchInbox        Batch inbox address. An identifier for the op-node to find
@@ -175,7 +175,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         bytes32 _batcherHash,
         uint64 _gasLimit,
         bool _nodekit,
-       // uint64 _nodekitL1ConfDepth,
+        uint64 _nodekitL1ConfDepth,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config,
         address _batchInbox,
@@ -192,7 +192,7 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         _setGasConfig({ _overhead: _overhead, _scalar: _scalar });
         _setGasLimit(_gasLimit);
         _setNodeKit(_nodekit);
-        //_setNodeKitL1ConfDepth(_nodekitL1ConfDepth);
+        _setNodeKitL1ConfDepth(_nodekitL1ConfDepth);
 
         Storage.setAddress(UNSAFE_BLOCK_SIGNER_SLOT, _unsafeBlockSigner);
         Storage.setAddress(BATCH_INBOX_SLOT, _batchInbox);
@@ -348,20 +348,20 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         emit ConfigUpdate(VERSION, UpdateType.NODEKIT, data);
     }
 
-    // /// @notice Updates the NodeKit L1Conf variable.  Can only be called by the owner.
-    // /// @param _nodekitL1ConfDepth Configure conf depth
-    // function setNodeKitL1ConfDepth(uint64 _nodekitL1ConfDepth) external onlyOwner {
-    //     _setNodeKitL1ConfDepth(_nodekitL1ConfDepth);
-    // }
+    /// @notice Updates the NodeKit L1Conf variable.  Can only be called by the owner.
+    /// @param _nodekitL1ConfDepth Configure conf depth
+    function setNodeKitL1ConfDepth(uint64 _nodekitL1ConfDepth) external onlyOwner {
+        _setNodeKitL1ConfDepth(_nodekitL1ConfDepth);
+    }
 
-    // /// @notice Internal function for updating the NodeKit L1Conf variable.
-    // /// @param _nodekitL1ConfDepth Configure conf depth
-    // function _setNodeKitL1ConfDepth(uint64 _nodekitL1ConfDepth) internal {
-    //     nodekitL1ConfDepth = _nodekitL1ConfDepth;
+    /// @notice Internal function for updating the NodeKit L1Conf variable.
+    /// @param _nodekitL1ConfDepth Configure conf depth
+    function _setNodeKitL1ConfDepth(uint64 _nodekitL1ConfDepth) internal {
+        nodekitL1ConfDepth = _nodekitL1ConfDepth;
 
-    //     bytes memory data = abi.encode(_nodekitL1ConfDepth);
-    //     emit ConfigUpdate(VERSION, UpdateType.NODEKIT_L1_CONF_DEPTH, data);
-    // }
+        bytes memory data = abi.encode(_nodekitL1ConfDepth);
+        emit ConfigUpdate(VERSION, UpdateType.NODEKIT_L1_CONF_DEPTH, data);
+    }
 
     /// @notice Sets the start block in a backwards compatible way. Proxies
     ///         that were initialized before the startBlock existed in storage
