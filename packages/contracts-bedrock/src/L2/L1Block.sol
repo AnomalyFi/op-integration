@@ -105,7 +105,7 @@ contract L1Block is ISemver {
         uint256 _l1FeeOverhead,
         uint256 _l1FeeScalar,
         bool _nodekit,
-        uint64 nodekitL1ConfDepth
+        uint64 _nodekitL1ConfDepth
     )
         external
     {
