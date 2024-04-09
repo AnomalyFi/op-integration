@@ -40,7 +40,8 @@ contract SystemConfig_Initialize_Test is SystemConfig_Init {
         scalar = deploy.cfg().gasPriceOracleScalar();
         batcherHash = bytes32(uint256(uint160(deploy.cfg().batchSenderAddress())));
         gasLimit = uint64(deploy.cfg().l2GenesisBlockGasLimit());
-        nodekit = deploy.cfg().nodekit();
+        nodekit = false;
+        //deploy.cfg().nodekit();
         //nodekitL1ConfDepth = uint64(deploy.cfg().nodekitL1ConfDepth());
 
         unsafeBlockSigner = deploy.cfg().p2pSequencerAddress();

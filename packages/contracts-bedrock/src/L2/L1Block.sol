@@ -58,46 +58,66 @@ contract L1Block is ISemver {
     /// @custom:semver 1.2.0
     string public constant version = "1.2.0";
 
-    struct L1BlockValues {
-        // L1 blocknumber.
-        uint64 number;
-        // L1 timestamp.
-        uint64 timestamp;
-        // L1 basefee.
-        uint256 basefee;
-        // L1 blockhash.
-        bytes32 hash;
-        // Number of L2 blocks since epoch start.
-        uint64 sequenceNumber;
-        // Versioned hash to authenticate batcher by.
-        bytes32 batcherHash;
-        // L1 fee overhead.
-        uint256 l1FeeOverhead;
-        // L1 fee scalar.
-        uint256 l1FeeScalar;
-        // Whether the NodeKit Sequencer is enabled.
-        bool nodekit;
-        // Minimum confirmation depth for L1 origin blocks.
-        //uint64 nodekitL1ConfDepth;
-        // The RLP-encoded L2 batch justification.
-        bytes justification;
-    }
+    // struct L1BlockValues {
+    //     // L1 blocknumber.
+    //     uint64 number;
+    //     // L1 timestamp.
+    //     uint64 timestamp;
+    //     // L1 basefee.
+    //     uint256 basefee;
+    //     // L1 blockhash.
+    //     bytes32 hash;
+    //     // Number of L2 blocks since epoch start.
+    //     uint64 sequenceNumber;
+    //     // Versioned hash to authenticate batcher by.
+    //     bytes32 batcherHash;
+    //     // L1 fee overhead.
+    //     uint256 l1FeeOverhead;
+    //     // L1 fee scalar.
+    //     uint256 l1FeeScalar;
+    //     // Whether the NodeKit Sequencer is enabled.
+    //     bool nodekit;
+    //     // Minimum confirmation depth for L1 origin blocks.
+    //     //uint64 nodekitL1ConfDepth;
+    //     // The RLP-encoded L2 batch justification.
+    //     bytes justification;
+    // }
 
     /// @custom:legacy
     /// @notice Updates the L1 block values.
-    function setL1BlockValues(L1BlockValues calldata v) external {
+        /// @param _number         L1 blocknumber.
+    /// @param _timestamp      L1 timestamp.
+    /// @param _basefee        L1 basefee.
+    /// @param _hash           L1 blockhash.
+    /// @param _sequenceNumber Number of L2 blocks since epoch start.
+    /// @param _batcherHash    Versioned hash to authenticate batcher by.
+    /// @param _l1FeeOverhead  L1 fee overhead.
+    /// @param _l1FeeScalar    L1 fee scalar.
+    function setL1BlockValues(
+        uint64 _number,
+        uint64 _timestamp,
+        uint256 _basefee,
+        bytes32 _hash,
+        uint64 _sequenceNumber,
+        bytes32 _batcherHash,
+        uint256 _l1FeeOverhead,
+        uint256 _l1FeeScalar,
+        bool _nodekit
+    )
+        external
+    {
         require(msg.sender == DEPOSITOR_ACCOUNT, "L1Block: only the depositor account can set L1 block values");
 
-        number = v.number;
-        timestamp = v.timestamp;
-        basefee = v.basefee;
-        hash = v.hash;
-        sequenceNumber = v.sequenceNumber;
-        batcherHash = v.batcherHash;
-        l1FeeOverhead = v.l1FeeOverhead;
-        l1FeeScalar = v.l1FeeScalar;
-        nodekit = v.nodekit;
-        //nodekitL1ConfDepth = v.nodekitL1ConfDepth;
+        number = _number;
+        timestamp = _timestamp;
+        basefee = _basefee;
+        hash = _hash;
+        sequenceNumber = _sequenceNumber;
+        batcherHash = _batcherHash;
+        l1FeeOverhead = _l1FeeOverhead;
+        l1FeeScalar = _l1FeeScalar;
+        nodekit = _nodekit;
+        //nodekitL1ConfDepth = _nodekitL1ConfDepth;
     }
 
     /// @notice Updates the L1 block values for an Ecotone upgraded chain.

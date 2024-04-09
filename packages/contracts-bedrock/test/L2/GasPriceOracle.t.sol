@@ -4,8 +4,6 @@ pragma solidity 0.8.15;
 // Testing utilities
 import { CommonTest } from "test/setup/CommonTest.sol";
 
-//Deps
-import { L1Block } from "src/L2/L1Block.sol";
 
 
 // Libraries
@@ -46,31 +44,17 @@ contract GasPriceOracleBedrock_Test is GasPriceOracle_Test {
         super.setUp();
 
         vm.prank(depositor);
-        // l1Block.setL1BlockValues({
-        //     _number: number,
-        //     _timestamp: timestamp,
-        //     _basefee: baseFee,
-        //     _hash: hash,
-        //     _sequenceNumber: sequenceNumber,
-        //     _batcherHash: batcherHash,
-        //     _l1FeeOverhead: l1FeeOverhead,
-        //     _l1FeeScalar: l1FeeScalar
-        // });
-        l1Block.setL1BlockValues(
-            L1Block.L1BlockValues({
-                number: number,
-                timestamp: timestamp,
-                basefee: baseFee,
-                hash: hash,
-                sequenceNumber: sequenceNumber,
-                batcherHash: batcherHash,
-                l1FeeOverhead: l1FeeOverhead,
-                l1FeeScalar: l1FeeScalar,
-                nodekit: nodekit,
-               // nodekitL1ConfDepth: nodekitL1ConfDepth,
-                justification: hex"c0"
-            })
-        );
+        l1Block.setL1BlockValues({
+            _number: number,
+            _timestamp: timestamp,
+            _basefee: baseFee,
+            _hash: hash,
+            _sequenceNumber: sequenceNumber,
+            _batcherHash: batcherHash,
+            _l1FeeOverhead: l1FeeOverhead,
+            _l1FeeScalar: l1FeeScalar,
+            _nodekit: nodekit
+        });
     }
 
     /// @dev Tests that `l1BaseFee` is set correctly.
