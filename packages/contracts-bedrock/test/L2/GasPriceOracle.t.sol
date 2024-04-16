@@ -28,7 +28,7 @@ contract GasPriceOracle_Test is CommonTest {
     uint256 constant l1FeeScalar = 10;
     uint32 constant blobBaseFeeScalar = 15;
     uint32 constant baseFeeScalar = 20;
-    bool constant nodekit = false;
+    bool constant nodekit = true;
     uint64 constant nodekitL1ConfDepth = 0;
 
     /// @dev Sets up the test suite.

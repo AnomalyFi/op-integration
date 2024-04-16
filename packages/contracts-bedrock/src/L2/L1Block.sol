@@ -58,34 +58,9 @@ contract L1Block is ISemver {
     /// @custom:semver 1.2.0
     string public constant version = "1.2.0";
 
-    // struct L1BlockValues {
-    //     // L1 blocknumber.
-    //     uint64 number;
-    //     // L1 timestamp.
-    //     uint64 timestamp;
-    //     // L1 basefee.
-    //     uint256 basefee;
-    //     // L1 blockhash.
-    //     bytes32 hash;
-    //     // Number of L2 blocks since epoch start.
-    //     uint64 sequenceNumber;
-    //     // Versioned hash to authenticate batcher by.
-    //     bytes32 batcherHash;
-    //     // L1 fee overhead.
-    //     uint256 l1FeeOverhead;
-    //     // L1 fee scalar.
-    //     uint256 l1FeeScalar;
-    //     // Whether the NodeKit Sequencer is enabled.
-    //     bool nodekit;
-    //     // Minimum confirmation depth for L1 origin blocks.
-    //     //uint64 nodekitL1ConfDepth;
-    //     // The RLP-encoded L2 batch justification.
-    //     bytes justification;
-    // }
-
     /// @custom:legacy
     /// @notice Updates the L1 block values.
-        /// @param _number         L1 blocknumber.
+    /// @param _number         L1 blocknumber.
     /// @param _timestamp      L1 timestamp.
     /// @param _basefee        L1 basefee.
     /// @param _hash           L1 blockhash.
@@ -93,8 +68,8 @@ contract L1Block is ISemver {
     /// @param _batcherHash    Versioned hash to authenticate batcher by.
     /// @param _l1FeeOverhead  L1 fee overhead.
     /// @param _l1FeeScalar    L1 fee scalar.
-    /// @param _nodekit        Is NodeKit enabled?
-    /// @param _nodekitL1ConfDepth        Minimum confirmation depth for L1 origin blocks.
+    /// @param _nodekit        Enable NodeKit
+    /// @param _nodekitL1ConfDepth       Minimum confirmation depth for L1 origin blocks.
     function setL1BlockValues(
         uint64 _number,
         uint64 _timestamp,

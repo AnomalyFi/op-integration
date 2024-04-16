@@ -30,29 +30,14 @@ contract L1BlockBedrock_Test is L1BlockTest {
         uint64 s,
         bytes32 bt,
         uint256 fo,
-        uint256 fs
+        uint256 fs,
+        bool nk,
+        uint64 cd
     )
         external
     {
         vm.prank(depositor);
-        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs, false, 0);
-
-        // l1Block.setL1BlockValues(
-        //     L1Block.L1BlockValues({
-        //         number: n,
-        //         timestamp: t,
-        //         basefee: b,
-        //         hash: h,
-        //         sequenceNumber: s,
-        //         batcherHash: bt,
-        //         l1FeeOverhead: fo,
-        //         l1FeeScalar: fs,
-        //         nodekit: false,
-        //      //   nodekitL1ConfDepth: 0,
-        //         justification: "0xc0"
-        //     })
-        // );
-
+        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs, nk, cd);
 
         assertEq(l1Block.number(), n);
         assertEq(l1Block.timestamp(), t);
@@ -62,6 +47,8 @@ contract L1BlockBedrock_Test is L1BlockTest {
         assertEq(l1Block.batcherHash(), bt);
         assertEq(l1Block.l1FeeOverhead(), fo);
         assertEq(l1Block.l1FeeScalar(), fs);
+        // assertEq(l1Block.nodekit(), nk);
+        // assertEq(l1Block.nodekitL1ConfDepth(), cd);
     }
 
     /// @dev Tests that `setL1BlockValues` can set max values.
@@ -77,24 +64,8 @@ contract L1BlockBedrock_Test is L1BlockTest {
             _l1FeeOverhead: type(uint256).max,
             _l1FeeScalar: type(uint256).max,
             _nodekit: true,
-            _nodekitL1ConfDepth: 0
+            _nodekitL1ConfDepth: type(uint64).max
         });
-
-        // l1Block.setL1BlockValues(
-        //     L1Block.L1BlockValues({
-        //         number: type(uint64).max,
-        //         timestamp: type(uint64).max,
-        //         basefee: type(uint256).max,
-        //         hash: keccak256(abi.encode(1)),
-        //         sequenceNumber: type(uint64).max,
-        //         batcherHash: bytes32(type(uint256).max),
-        //         l1FeeOverhead: type(uint256).max,
-        //         l1FeeScalar: type(uint256).max,
-        //         nodekit: true,
-        //   //      nodekitL1ConfDepth: type(uint64).max,
-        //         justification: hex"c0"
-        //     })
-        // );
     }
 }
 

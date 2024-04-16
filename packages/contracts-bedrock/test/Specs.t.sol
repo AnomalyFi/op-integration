@@ -342,6 +342,8 @@ contract Specification_Test is CommonTest {
         _addSpec({ _name: "SystemConfig", _sel: _getSel("gasLimit()") });
         _addSpec({ _name: "SystemConfig", _sel: SystemConfig.initialize.selector });
         _addSpec({ _name: "SystemConfig", _sel: SystemConfig.minimumGasLimit.selector });
+        _addSpec({ _name: "SystemConfig", _sel: _getSel("nodekit()") });
+        _addSpec({ _name: "SystemConfig", _sel: _getSel("nodekitL1ConfDepth()") });
         _addSpec({ _name: "SystemConfig", _sel: _getSel("overhead()") });
         _addSpec({ _name: "SystemConfig", _sel: _getSel("owner()") });
         _addSpec({ _name: "SystemConfig", _sel: _getSel("renounceOwnership()"), _auth: Role.SYSTEMCONFIGOWNER });
