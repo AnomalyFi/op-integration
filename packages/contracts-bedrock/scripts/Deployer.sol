@@ -5,7 +5,7 @@ import { Script } from "forge-std/Script.sol";
 import { Artifacts } from "scripts/Artifacts.s.sol";
 import { Config } from "scripts/Config.sol";
 import { DeployConfig } from "scripts/DeployConfig.s.sol";
-import { USE_FAULT_PROOFS_SLOT } from "scripts/DeployConfig.s.sol";
+// import { USE_FAULT_PROOFS_SLOT } from "scripts/DeployConfig.s.sol";
 
 /// @title Deployer
 /// @author tynes
@@ -20,16 +20,16 @@ abstract contract Deployer is Script, Artifacts {
 
         // Load the `useFaultProofs` slot value prior to etching the DeployConfig's bytecode and reading the deploy
         // config file. If this slot has already been set, it will override the preference in the deploy config.
-        bytes32 useFaultProofsOverride = vm.load(address(cfg), USE_FAULT_PROOFS_SLOT);
+        // bytes32 useFaultProofsOverride = vm.load(address(cfg), USE_FAULT_PROOFS_SLOT);
 
         vm.etch(address(cfg), vm.getDeployedCode("DeployConfig.s.sol:DeployConfig"));
         vm.label(address(cfg), "DeployConfig");
         vm.allowCheatcodes(address(cfg));
         cfg.read(Config.deployConfigPath());
 
-        if (useFaultProofsOverride != 0) {
-            vm.store(address(cfg), USE_FAULT_PROOFS_SLOT, useFaultProofsOverride);
-        }
+        // if (useFaultProofsOverride != 0) {
+        //     vm.store(address(cfg), USE_FAULT_PROOFS_SLOT, useFaultProofsOverride);
+        // }
     }
 
     /// @notice Returns the name of the deployment script. Children contracts
