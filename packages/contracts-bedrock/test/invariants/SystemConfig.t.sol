@@ -13,7 +13,6 @@ contract SystemConfig_GasLimitLowerBound_Invariant is Test {
         Proxy proxy = new Proxy(msg.sender);
         SystemConfig configImpl = new SystemConfig();
 
-
         vm.prank(msg.sender);
 
         proxy.upgradeToAndCall(
@@ -42,8 +41,6 @@ contract SystemConfig_GasLimitLowerBound_Invariant is Test {
                 )
             )
         );
-
-
 
         config = SystemConfig(address(proxy));
 

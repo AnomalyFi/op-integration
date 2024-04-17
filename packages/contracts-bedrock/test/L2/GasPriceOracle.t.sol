@@ -4,8 +4,6 @@ pragma solidity 0.8.15;
 // Testing utilities
 import { CommonTest } from "test/setup/CommonTest.sol";
 
-
-
 // Libraries
 import { Encoding } from "src/libraries/Encoding.sol";
 

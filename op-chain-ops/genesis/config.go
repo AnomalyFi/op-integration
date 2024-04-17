@@ -923,14 +923,16 @@ func NewL2StorageConfig(config *DeployConfig, block *types.Block) (state.Storage
 		"bridge":        predeploys.L2StandardBridgeAddr,
 	}
 	storage["L1Block"] = state.StorageValues{
-		"number":         block.Number(),
-		"timestamp":      block.Time(),
-		"basefee":        block.BaseFee(),
-		"hash":           block.Hash(),
-		"sequenceNumber": 0,
-		"batcherHash":    eth.AddressAsLeftPaddedHash(config.BatchSenderAddress),
-		"l1FeeOverhead":  config.GasPriceOracleOverhead,
-		"l1FeeScalar":    config.GasPriceOracleScalar,
+		"number":             block.Number(),
+		"timestamp":          block.Time(),
+		"basefee":            block.BaseFee(),
+		"hash":               block.Hash(),
+		"sequenceNumber":     0,
+		"batcherHash":        eth.AddressAsLeftPaddedHash(config.BatchSenderAddress),
+		"l1FeeOverhead":      config.GasPriceOracleOverhead,
+		"l1FeeScalar":        config.GasPriceOracleScalar,
+		"nodekit":            false,
+		"nodekitL1ConfDepth": 3,
 	}
 	storage["LegacyERC20ETH"] = state.StorageValues{
 		"_name":   "Ether",

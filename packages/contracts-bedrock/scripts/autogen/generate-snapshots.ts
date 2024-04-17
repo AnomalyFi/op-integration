@@ -95,6 +95,7 @@ const main = async () => {
 
       const contractName = parseArtifactName(name)
 
+      console.log(contractName)
       // HACK: This is a hack to ignore libraries and abstract contracts. Not robust against changes to solc's internal ast repr
       const isContract = artifact.ast.nodes.some((node: any) => {
         return (

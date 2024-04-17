@@ -111,7 +111,6 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
     function test_initialize_lowGasLimit_reverts() external {
         uint64 minimumGasLimit = systemConfig.minimumGasLimit();
 
-
         // Wipe out the initialized slot so the proxy can be initialized again
         vm.store(address(systemConfig), bytes32(0), bytes32(0));
 
@@ -184,7 +183,6 @@ contract SystemConfig_Initialize_TestFail is SystemConfig_Initialize_Test {
 
         // Initialize and check that StartBlock doesn't update
         vm.prank(systemConfig.owner());
-
 
         systemConfig.initialize({
             _owner: alice,

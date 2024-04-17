@@ -118,6 +118,32 @@
   },
   {
     "inputs": [],
+    "name": "nodekit",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nodekitL1ConfDepth",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "number",
     "outputs": [
       {
@@ -183,6 +209,16 @@
         "internalType": "uint256",
         "name": "_l1FeeScalar",
         "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "_nodekit",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint64",
+        "name": "_nodekitL1ConfDepth",
+        "type": "uint64"
       }
     ],
     "name": "setL1BlockValues",

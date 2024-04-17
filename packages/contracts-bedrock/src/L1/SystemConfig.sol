@@ -282,7 +282,6 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         emit ConfigUpdate(VERSION, UpdateType.UNSAFE_BLOCK_SIGNER, data);
     }
 
-
     /// @notice Updates the batcher hash. Can only be called by the owner.
     /// @param _batcherHash New batcher hash.
     function setBatcherHash(bytes32 _batcherHash) external onlyOwner {
@@ -331,7 +330,6 @@ contract SystemConfig is OwnableUpgradeable, ISemver {
         bytes memory data = abi.encode(_gasLimit);
         emit ConfigUpdate(VERSION, UpdateType.GAS_LIMIT, data);
     }
-
 
     /// @notice Updates the NodeKit variable.  Can only be called by the owner.
     /// @param _nodekit Turn on or off NodeKit

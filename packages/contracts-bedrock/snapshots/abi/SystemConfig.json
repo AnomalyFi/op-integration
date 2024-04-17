@@ -201,6 +201,16 @@
         "type": "uint64"
       },
       {
+        "internalType": "bool",
+        "name": "_nodekit",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint64",
+        "name": "_nodekitL1ConfDepth",
+        "type": "uint64"
+      },
+      {
         "internalType": "address",
         "name": "_unsafeBlockSigner",
         "type": "address"
@@ -345,6 +355,32 @@
   {
     "inputs": [],
     "name": "minimumGasLimit",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nodekit",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nodekitL1ConfDepth",
     "outputs": [
       {
         "internalType": "uint64",
@@ -512,6 +548,32 @@
       }
     ],
     "name": "setGasLimit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "_nodekit",
+        "type": "bool"
+      }
+    ],
+    "name": "setNodeKit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint64",
+        "name": "_nodekitL1ConfDepth",
+        "type": "uint64"
+      }
+    ],
+    "name": "setNodeKitL1ConfDepth",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
