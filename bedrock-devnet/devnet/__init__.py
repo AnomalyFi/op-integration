@@ -54,6 +54,11 @@ parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and node
 parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-zk contract', type=str, default='test test test test test test test test test test test junk')
 
 
+# Global environment variables
+DEVNET_NO_BUILD = os.getenv('DEVNET_NO_BUILD') == "true"
+DEVNET_FPAC = os.getenv('DEVNET_FPAC') == "true"
+DEVNET_PLASMA = os.getenv('DEVNET_PLASMA') == "true"
+
 log = logging.getLogger()
 
 class Bunch:
@@ -348,6 +353,11 @@ def init_devnet_l1_deploy_config(paths, update_timestamp=False):
     deploy_config = read_json(paths.devnet_config_template_path)
     if update_timestamp:
         deploy_config['l1GenesisBlockTimestamp'] = '{:#x}'.format(int(time.time()))
+    if DEVNET_FPAC:
+        deploy_config['useFaultProofs'] = True
+        deploy_config['faultGameMaxDuration'] = 10
+    if DEVNET_PLASMA:
+        deploy_config['usePlasma'] = True
     write_json(paths.devnet_config_path, deploy_config)
 
 # unused
