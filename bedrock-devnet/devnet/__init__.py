@@ -50,6 +50,7 @@ parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=boo
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
 parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
+parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-zk contract', type=str, default='test test test test test test test test test test test junk')
 
@@ -103,6 +104,7 @@ def main():
     eth_pos_dir: str = args.eth_pos_dir
     zk_dir: str = args.zk_dir
     nodekit_l1_dir: str = args.nodekit_l1_dir
+    l2_chain_id: int = int(args.l2_chain_id)
 
     jwt_secret: str = args.jwt_secret
 
@@ -161,20 +163,20 @@ def main():
     # print(priv)
     # return
 
-    if launch_nodekit_l1:
-        log.info('launching nodekit l1')
-        deploy_nodekit_i1(paths, args)
-        return
+    # TODO: to be removed
+    # if launch_nodekit_l1:
+    #     log.info('launching nodekit l1')
+    #     deploy_nodekit_i1(paths, args)
+    #     return
 
     if launch_l2:
         log.info('launching op stack')
         devnet_deploy(paths, args)
         return
 
-
     if _deploy_contracts:
         try:
-            init_devnet_l1_deploy_config(paths, update_timestamp=True)
+            init_devnet_l1_deploy_config(paths, update_timestamp=True, l2_chain_id=l2_chain_id)
             deploy_contracts(paths, args, args.deploy_config, True, jwt_secret)
             log.info('contracts deployed')
         except Exception as e:
@@ -259,7 +261,6 @@ def stop_eth_devnet(eth_pos_dir: str):
 #     return bip44_derivation.private_key()
 
 
-
 def get_nodekit_zk_contract_addr(paths, args) -> str:
     zk_dir = paths.zk_dir
     l1_chain_id = args.l1_chain_id
@@ -326,18 +327,19 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
         '--unlocked'
     ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
 
-    # deploy nodekit-zk contracts
-    #TODO add back later
-    run_command([
-        'forge', 'script', 'DeploySequencer', '--broadcast',
-        '--rpc-url', rpc_url,
-    ], env=deploy_env, cwd=paths.zk_dir)
+    # TODO: to be removed since sequencerContractAddr is not used by either op-node or other op contracts
+    # # deploy nodekit-zk contracts
+    # #TODO add back later
+    # run_command([
+    #     'forge', 'script', 'DeploySequencer', '--broadcast',
+    #     '--rpc-url', rpc_url,
+    # ], env=deploy_env, cwd=paths.zk_dir)
 
     # update config for l2
     # or will lead to unable to verify l2 blocks
-    sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
+    # sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
     devnetL1_conf = read_json(paths.devnet_config_path)
-    devnetL1_conf['nodekitContractAddress'] = sequencer_contract_addr
+    # devnetL1_conf['nodekitContractAddress'] = sequencer_contract_addr
     write_json(paths.devnet_config_path, devnetL1_conf)
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
@@ -349,7 +351,7 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
     #     '--rpc-url', rpc_url
     # ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
 
-def init_devnet_l1_deploy_config(paths, update_timestamp=False):
+def init_devnet_l1_deploy_config(paths, update_timestamp=False, l2_chain_id=45200):
     deploy_config = read_json(paths.devnet_config_template_path)
     if update_timestamp:
         deploy_config['l1GenesisBlockTimestamp'] = '{:#x}'.format(int(time.time()))
@@ -358,6 +360,8 @@ def init_devnet_l1_deploy_config(paths, update_timestamp=False):
         deploy_config['faultGameMaxDuration'] = 10
     if DEVNET_PLASMA:
         deploy_config['usePlasma'] = True
+
+    deploy_config['l2ChainID'] = l2_chain_id
     write_json(paths.devnet_config_path, deploy_config)
 
 # unused

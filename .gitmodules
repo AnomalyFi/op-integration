@@ -26,9 +26,6 @@
 [submodule "packages/contracts-bedrock/lib/lib-keccak"]
 	path = packages/contracts-bedrock/lib/lib-keccak
 	url = https://github.com/ethereum-optimism/lib-keccak
-[submodule "nodekit-l1"]
-	path = nodekit-l1
-	url = https://github.com/AnomalyFi/nodekit-l1
 [submodule "nodekit-zk"]
 	path = nodekit-zk
 	url = https://github.com/AnomalyFi/nodekit-zk
