@@ -7,7 +7,7 @@
   inputs.flake-compat.flake = false;
 
   # Closes commit in foundry.nix to forge 94ae897 used in CI.
-  inputs.foundry.url = "github:shazow/foundry.nix/e541c43c012d16c6a6f2a8a7a7145dc0f76f004f";
+  inputs.foundry.url = "github:shazow/foundry.nix/8106bd9505c6f7f9e434da0e8df4cdd291209e5a";
 
 
   outputs = { self, flake-utils, nixpkgs, foundry, ... }:

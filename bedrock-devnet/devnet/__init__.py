@@ -308,6 +308,7 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
         'DEPLOYMENT_CONTEXT': deploy_config.removesuffix('.json'),
         'MNEMONIC': mnemonic_words
     }
+    print(f'deploy_env: {deploy_env}')
     if deploy_l2:
         # If deploying an L2 onto an existing L1, use a different deployer salt so the contracts
         # will not collide with those of the existing L2.
@@ -336,11 +337,12 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
 
-    log.info('Syncing contracts.')
-    run_command([
-        'forge', 'script', fqn, '--sig', 'sync()',
-        '--rpc-url', rpc_url
-    ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
+    # TODO: to be removed, seems in the recent version of optimisim, they removed sync from Deployer contract
+    # log.info('Syncing contracts.')
+    # run_command([
+    #     'forge', 'script', fqn, '--sig', 'sync()',
+    #     '--rpc-url', rpc_url
+    # ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
 
 def init_devnet_l1_deploy_config(paths, update_timestamp=False):
     deploy_config = read_json(paths.devnet_config_template_path)
@@ -465,7 +467,7 @@ def devnet_deploy(paths, args):
             'go', 'run', 'cmd/main.go', 'genesis', 'l2',
             '--l1-rpc', l1_rpc_url,
             '--deploy-config', paths.devnet_config_path,
-            '--deployment-dir', paths.deployment_dir,
+            '--l1-deployments', pjoin(paths.deployment_dir, '.deploy'),
             '--outfile.l2', pjoin(paths.devnet_dir, 'genesis-l2.json'),
             '--outfile.rollup', pjoin(paths.devnet_dir, 'rollup.json')
         ], cwd=paths.op_node_dir)
