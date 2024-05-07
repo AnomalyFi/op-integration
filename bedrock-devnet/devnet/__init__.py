@@ -407,6 +407,9 @@ def devnet_l1_genesis(paths, deploy_config: str):
 def devnet_deploy(paths, args):
     nodekit = args.nodekit
     l2 = args.l2
+    l2_chain_id = int(args.l2_chain_id)
+    # which will be prepended to names of docker volumnes and services so we can run several rollups
+    composer_project_name = f'op-devnet_{l2_chain_id}'
     l2_provider_url = args.l2_provider_url
     compose_file = args.compose_file
     l1_rpc_url = args.l1_rpc_url
@@ -425,6 +428,7 @@ def devnet_deploy(paths, args):
 
     print(f'using config {conf}')
 
+    # TODO: to be removed since we don't need to launch l2 ourselves
     # if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
     #     log.info('L1 genesis already generated.')
     # elif not args.deploy_l2:
@@ -498,6 +502,7 @@ def devnet_deploy(paths, args):
         'SEQ_ADDR': seq_addr,
         'SEQ_CHAIN_ID': seq_chain_id,
         'OP1_L2_RPC_PORT': str(l2_provider_port),
+        'COMPOSE_PROJECT_NAME': composer_project_name
     })
 
     # l2_provider_port = int(l2_provider_url.split(':')[-1])
@@ -525,7 +530,8 @@ def devnet_deploy(paths, args):
         'SEQ_ADDR': seq_addr,
         'SEQ_CHAIN_ID': seq_chain_id,
         'L1WS': l1_ws_url,
-        'L1RPC': l1_rpc_url
+        'L1RPC': l1_rpc_url,
+        'COMPOSE_PROJECT_NAME': composer_project_name
     })
 
     #log.info('Starting block explorer')
