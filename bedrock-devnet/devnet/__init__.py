@@ -48,6 +48,7 @@ parser.add_argument('--l1-ws-url', help='l1 ws url', type=str, default='ws://loc
 parser.add_argument('--launch-l2', help='if launch l2', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
+parser.add_argument('--nodekit-contract', help='nodekit commitment contract address on l1', type=str, default='')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
 parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
 parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
@@ -281,6 +282,7 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
     account = res['result'][0]
     log.info(f'Deploying with {account}')
     mnemonic_words = args.mnemonic_words
+    sequencer_contract_addr: str = args.nodekit_contract
 
     # # wait transaction indexing service to be available
     # time.sleep(30)
@@ -339,7 +341,7 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
     # or will lead to unable to verify l2 blocks
     # sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
     devnetL1_conf = read_json(paths.devnet_config_path)
-    # devnetL1_conf['nodekitContractAddress'] = sequencer_contract_addr
+    devnetL1_conf['nodekitContractAddress'] = sequencer_contract_addr
     write_json(paths.devnet_config_path, devnetL1_conf)
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
