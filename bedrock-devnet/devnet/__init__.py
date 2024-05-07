@@ -497,6 +497,8 @@ def devnet_deploy(paths, args):
     l2_provider_port = int(l2_provider_url.split(':')[-1])
     l2_provider_http = l2_provider_url
 
+    log.info(f'l2 provider http: {l2_provider_http}, port: {l2_provider_port}')
+
     log.info('Bringing up L2.')
     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2', f'{l2}-geth-proxy'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
@@ -616,6 +618,7 @@ def wait_for_rpc_server(url):
             conn.request('POST', '/', body, headers)
             response = conn.getresponse()
             conn.close()
+            log.info(response)
             if response.status < 300:
                 log.info(f'RPC server at {url} ready')
                 return
