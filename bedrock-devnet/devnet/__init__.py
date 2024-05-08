@@ -48,8 +48,10 @@ parser.add_argument('--l1-ws-url', help='l1 ws url', type=str, default='ws://loc
 parser.add_argument('--launch-l2', help='if launch l2', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
+parser.add_argument('--nodekit-contract', help='nodekit commitment contract address on l1', type=str, default='')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
 parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
+parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-zk contract', type=str, default='test test test test test test test test test test test junk')
 
@@ -103,6 +105,7 @@ def main():
     eth_pos_dir: str = args.eth_pos_dir
     zk_dir: str = args.zk_dir
     nodekit_l1_dir: str = args.nodekit_l1_dir
+    l2_chain_id: int = int(args.l2_chain_id)
 
     jwt_secret: str = args.jwt_secret
 
@@ -161,20 +164,20 @@ def main():
     # print(priv)
     # return
 
-    if launch_nodekit_l1:
-        log.info('launching nodekit l1')
-        deploy_nodekit_i1(paths, args)
-        return
+    # TODO: to be removed
+    # if launch_nodekit_l1:
+    #     log.info('launching nodekit l1')
+    #     deploy_nodekit_i1(paths, args)
+    #     return
 
     if launch_l2:
         log.info('launching op stack')
         devnet_deploy(paths, args)
         return
 
-
     if _deploy_contracts:
         try:
-            init_devnet_l1_deploy_config(paths, update_timestamp=True)
+            init_devnet_l1_deploy_config(paths, update_timestamp=True, l2_chain_id=l2_chain_id)
             deploy_contracts(paths, args, args.deploy_config, True, jwt_secret)
             log.info('contracts deployed')
         except Exception as e:
@@ -259,7 +262,6 @@ def stop_eth_devnet(eth_pos_dir: str):
 #     return bip44_derivation.private_key()
 
 
-
 def get_nodekit_zk_contract_addr(paths, args) -> str:
     zk_dir = paths.zk_dir
     l1_chain_id = args.l1_chain_id
@@ -280,6 +282,7 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
     account = res['result'][0]
     log.info(f'Deploying with {account}')
     mnemonic_words = args.mnemonic_words
+    sequencer_contract_addr: str = args.nodekit_contract
 
     # # wait transaction indexing service to be available
     # time.sleep(30)
@@ -326,16 +329,17 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
         '--unlocked'
     ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
 
-    # deploy nodekit-zk contracts
-    #TODO add back later
-    run_command([
-        'forge', 'script', 'DeploySequencer', '--broadcast',
-        '--rpc-url', rpc_url,
-    ], env=deploy_env, cwd=paths.zk_dir)
+    # TODO: to be removed since sequencerContractAddr is not used by either op-node or other op contracts
+    # # deploy nodekit-zk contracts
+    # #TODO add back later
+    # run_command([
+    #     'forge', 'script', 'DeploySequencer', '--broadcast',
+    #     '--rpc-url', rpc_url,
+    # ], env=deploy_env, cwd=paths.zk_dir)
 
     # update config for l2
     # or will lead to unable to verify l2 blocks
-    sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
+    # sequencer_contract_addr = get_nodekit_zk_contract_addr(paths, args)
     devnetL1_conf = read_json(paths.devnet_config_path)
     devnetL1_conf['nodekitContractAddress'] = sequencer_contract_addr
     write_json(paths.devnet_config_path, devnetL1_conf)
@@ -349,7 +353,7 @@ def deploy_contracts(paths, args, deploy_config: str, deploy_l2: bool, jwt_secre
     #     '--rpc-url', rpc_url
     # ], env=deploy_env, cwd=paths.contracts_bedrock_dir)
 
-def init_devnet_l1_deploy_config(paths, update_timestamp=False):
+def init_devnet_l1_deploy_config(paths, update_timestamp=False, l2_chain_id=45200):
     deploy_config = read_json(paths.devnet_config_template_path)
     if update_timestamp:
         deploy_config['l1GenesisBlockTimestamp'] = '{:#x}'.format(int(time.time()))
@@ -358,6 +362,8 @@ def init_devnet_l1_deploy_config(paths, update_timestamp=False):
         deploy_config['faultGameMaxDuration'] = 10
     if DEVNET_PLASMA:
         deploy_config['usePlasma'] = True
+
+    deploy_config['l2ChainID'] = l2_chain_id
     write_json(paths.devnet_config_path, deploy_config)
 
 # unused
@@ -403,6 +409,9 @@ def devnet_l1_genesis(paths, deploy_config: str):
 def devnet_deploy(paths, args):
     nodekit = args.nodekit
     l2 = args.l2
+    l2_chain_id = int(args.l2_chain_id)
+    # which will be prepended to names of docker volumnes and services so we can run several rollups
+    composer_project_name = f'op-devnet_{l2_chain_id}'
     l2_provider_url = args.l2_provider_url
     compose_file = args.compose_file
     l1_rpc_url = args.l1_rpc_url
@@ -421,6 +430,7 @@ def devnet_deploy(paths, args):
 
     print(f'using config {conf}')
 
+    # TODO: to be removed since we don't need to launch l2 ourselves
     # if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
     #     log.info('L1 genesis already generated.')
     # elif not args.deploy_l2:
@@ -487,6 +497,8 @@ def devnet_deploy(paths, args):
     l2_provider_port = int(l2_provider_url.split(':')[-1])
     l2_provider_http = l2_provider_url
 
+    log.info(f'l2 provider http: {l2_provider_http}, port: {l2_provider_port}')
+
     log.info('Bringing up L2.')
     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2', f'{l2}-geth-proxy'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
@@ -494,6 +506,7 @@ def devnet_deploy(paths, args):
         'SEQ_ADDR': seq_addr,
         'SEQ_CHAIN_ID': seq_chain_id,
         'OP1_L2_RPC_PORT': str(l2_provider_port),
+        'COMPOSE_PROJECT_NAME': composer_project_name
     })
 
     # l2_provider_port = int(l2_provider_url.split(':')[-1])
@@ -521,7 +534,8 @@ def devnet_deploy(paths, args):
         'SEQ_ADDR': seq_addr,
         'SEQ_CHAIN_ID': seq_chain_id,
         'L1WS': l1_ws_url,
-        'L1RPC': l1_rpc_url
+        'L1RPC': l1_rpc_url,
+        'COMPOSE_PROJECT_NAME': composer_project_name
     })
 
     #log.info('Starting block explorer')
@@ -604,6 +618,7 @@ def wait_for_rpc_server(url):
             conn.request('POST', '/', body, headers)
             response = conn.getresponse()
             conn.close()
+            log.info(response)
             if response.status < 300:
                 log.info(f'RPC server at {url} ready')
                 return
