@@ -132,6 +132,7 @@ func NewDriver(
 	syncCfg *sync.Config,
 	sequencerConductor conductor.SequencerConductor,
 	plasma derive.PlasmaInputFetcher,
+	broadcastPayloadAttrs func(id string, data []byte),
 ) *Driver {
 	l1 = NewMeteredL1Fetcher(l1, metrics)
 	l1State := NewL1State(log, metrics)
@@ -139,10 +140,12 @@ func NewDriver(
 	findL1Origin := NewL1OriginSelector(log, cfg, sequencerConfDepth)
 	verifConfDepth := NewConfDepth(driverCfg.VerifierConfDepth, l1State.L1Head, l1)
 	engine := derive.NewEngineController(l2, log, metrics, cfg, syncCfg.SyncMode)
-	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, engine, metrics, syncCfg, safeHeadListener)
 	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, l2)
+	attrsSequencer := derive.NewAttributesSequencer(log, findL1Origin, attrBuilder, broadcastPayloadAttrs, metrics)
+	// derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, attrsSequencer, engine, metrics, syncCfg, safeHeadListener)
+	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, attrsSequencer, engine, metrics, syncCfg, safeHeadListener)
 	meteredEngine := NewMeteredEngine(cfg, engine, metrics, log) // Only use the metered engine in the sequencer b/c it records sequencing metrics.
-	sequencer := NewSequencer(log, cfg, meteredEngine, l2, attrBuilder, findL1Origin, nodekitClient, metrics)
+	sequencer := NewSequencer(log, cfg, meteredEngine, l2, attrBuilder, findL1Origin, nodekitClient, metrics, broadcastPayloadAttrs)
 	driverCtx, driverCancel := context.WithCancel(context.Background())
 	asyncGossiper := async.NewAsyncGossiper(driverCtx, network, log, metrics)
 	return &Driver{

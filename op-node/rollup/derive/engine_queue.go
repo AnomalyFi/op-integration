@@ -189,6 +189,8 @@ type EngineQueue struct {
 	metrics   Metrics
 	l1Fetcher L1Fetcher
 
+	attrsSequencer *AttributesSequencer
+
 	syncCfg *sync.Config
 
 	safeHeadNotifs       SafeHeadListener // notified when safe head is updated
@@ -196,7 +198,7 @@ type EngineQueue struct {
 }
 
 // NewEngineQueue creates a new EngineQueue, which should be Reset(origin) before use.
-func NewEngineQueue(log log.Logger, cfg *rollup.Config, l2Source L2Source, engine LocalEngineControl, metrics Metrics, prev NextAttributesProvider, l1Fetcher L1Fetcher, syncCfg *sync.Config, safeHeadNotifs SafeHeadListener) *EngineQueue {
+func NewEngineQueue(log log.Logger, cfg *rollup.Config, l2Source L2Source, engine LocalEngineControl, metrics Metrics, prev NextAttributesProvider, l1Fetcher L1Fetcher, attrsSequencer *AttributesSequencer, syncCfg *sync.Config, safeHeadNotifs SafeHeadListener) *EngineQueue {
 	return &EngineQueue{
 		log:            log,
 		cfg:            cfg,
@@ -207,6 +209,7 @@ func NewEngineQueue(log log.Logger, cfg *rollup.Config, l2Source L2Source, engin
 		unsafePayloads: NewPayloadsQueue(log, maxUnsafePayloadsMemory, payloadMemSize),
 		prev:           prev,
 		l1Fetcher:      l1Fetcher,
+		attrsSequencer: attrsSequencer,
 		syncCfg:        syncCfg,
 		safeHeadNotifs: safeHeadNotifs,
 	}
@@ -533,6 +536,9 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 	eq.unsafePayloads.Pop()
 	eq.log.Trace("Executed unsafe payload", "hash", ref.Hash, "number", ref.Number, "timestamp", ref.Time, "l1Origin", ref.L1Origin)
 	eq.logSyncProgress("unsafe payload from sequencer")
+
+	// no use for attrs here, boadcasting inside of PreparePayloadAttributes is enough
+	_, err = eq.attrsSequencer.PreparePayloadAttributes(ctx, eq.ec.UnsafeL2Head())
 
 	return nil
 }

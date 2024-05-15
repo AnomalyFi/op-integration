@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -13,12 +16,12 @@ import (
 	plasma "github.com/ethereum-optimism/optimism/op-plasma"
 	"github.com/ethereum-optimism/optimism/op-service/httputil"
 
-	"github.com/hashicorp/go-multierror"
-	"github.com/libp2p/go-libp2p/core/peer"
-
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/hashicorp/go-multierror"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/r3labs/sse"
 
 	"github.com/ethereum-optimism/optimism/op-node/heartbeat"
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
@@ -56,6 +59,7 @@ type OpNode struct {
 	l1Source  *sources.L1Client     // L1 Client to fetch data from
 	l2Driver  *driver.Driver        // L2 Engine to Sync
 	l2Source  *sources.EngineClient // L2 Execution Engine RPC bindings
+	mevSource *sources.MevClient    // MEV source for external builders' blocks
 	server    *rpcServer            // RPC server hosting the rollup-node API
 	p2pNode   *p2p.NodeP2P          // P2P node functionality
 	p2pSigner p2p.Signer            // p2p gogssip application messages will be signed with this signer
@@ -70,6 +74,8 @@ type OpNode struct {
 	metricsSrv   *httputil.HTTPServer
 
 	beacon *sources.L1BeaconClient
+
+	httpEventStreamServer *sse.Server
 
 	// some resources cannot be stopped directly, like the p2p gossipsub router (not our design),
 	// and depend on this ctx to be closed.
@@ -136,6 +142,9 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	if err := n.initRuntimeConfig(ctx, cfg); err != nil { // depends on L2, to signal initial runtime values to
 		return fmt.Errorf("failed to init the runtime config: %w", err)
 	}
+	if err := n.initMev(ctx, cfg); err != nil {
+		return err
+	}
 	if err := n.initP2PSigner(ctx, cfg); err != nil {
 		return fmt.Errorf("failed to init the P2P signer: %w", err)
 	}
@@ -145,6 +154,9 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	// Only expose the server at the end, ensuring all RPC backend components are initialized.
 	if err := n.initRPCServer(cfg); err != nil {
 		return fmt.Errorf("failed to init the RPC server: %w", err)
+	}
+	if err := n.initHttpEventStreamServer(ctx, cfg); err != nil {
+		return err
 	}
 	if err := n.initMetricsServer(cfg); err != nil {
 		return fmt.Errorf("failed to init the metrics server: %w", err)
@@ -378,6 +390,8 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	if err != nil {
 		return fmt.Errorf("failed to create Engine client: %w", err)
 	}
+	// must initialize mevSouce before l2
+	n.l2Source.MevClient = n.mevSource
 
 	if err := cfg.Rollup.ValidateL2Config(ctx, n.l2Source, cfg.Sync.SyncMode == sync.ELSync); err != nil {
 		return err
@@ -410,7 +424,21 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 		nodekitClient = nodekit.NewClient(n.log, cfg.NodeKitURL)
 	}
 
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n.beacon, nodekitClient, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, n.safeDB, &cfg.Sync, sequencerConductor, plasmaDA)
+	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n.beacon, nodekitClient, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, n.safeDB, &cfg.Sync, sequencerConductor, plasmaDA, func(id string, data []byte) {
+		n.httpEventStreamServer.Publish(id, &sse.Event{
+			Data: data,
+		})
+	})
+	return nil
+}
+
+func (n *OpNode) initMev(ctx context.Context, cfg *Config) error {
+	mevSource, err := cfg.Mev.Setup(ctx, n.log)
+	if err != nil {
+		return fmt.Errorf("failed to setup MEV client: %w", err)
+	}
+
+	n.mevSource = mevSource
 	return nil
 }
 
@@ -431,6 +459,25 @@ func (n *OpNode) initRPCServer(cfg *Config) error {
 		return fmt.Errorf("unable to start RPC server: %w", err)
 	}
 	n.server = server
+	return nil
+}
+
+func (n *OpNode) initHttpEventStreamServer(ctx context.Context, cfg *Config) error {
+	server := sse.New()
+	server.CreateStream("payload_attributes")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/eth/v1/events", server.HTTPHandler)
+
+	n.httpEventStreamServer = server
+
+	go func() {
+		addr := net.JoinHostPort(cfg.RPC.ListenAddr, strconv.Itoa(cfg.RPC.ListenPort+1))
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Crit("error starting http stream server", "err", err)
+		}
+	}()
+
 	return nil
 }
 
@@ -604,6 +651,8 @@ func (n *OpNode) OnUnsafeL2Payload(ctx context.Context, from peer.ID, envelope *
 	return nil
 }
 
+// TODO: in nethermindeth optimism, they have a rpcSync to fetch L2Range before p2pnode fetch
+// which is optional so we could add it or not?
 func (n *OpNode) RequestL2Range(ctx context.Context, start, end eth.L2BlockRef) error {
 	if n.p2pNode != nil && n.p2pNode.AltSyncEnabled() {
 		if unixTimeStale(start.Time, 12*time.Hour) {

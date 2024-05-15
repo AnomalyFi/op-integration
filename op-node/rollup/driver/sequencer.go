@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -63,10 +64,11 @@ type Sequencer struct {
 
 	engine derive.EngineControl
 
-	cfgFetcher       derive.SystemConfigL2Fetcher
-	attrBuilder      derive.AttributesBuilder
-	l1OriginSelector L1OriginSelectorIface
-	nodekit          nodekit.RPCInterface
+	cfgFetcher            derive.SystemConfigL2Fetcher
+	attrBuilder           derive.AttributesBuilder
+	l1OriginSelector      L1OriginSelectorIface
+	nodekit               nodekit.RPCInterface
+	broadcastPayloadAttrs func(id string, data []byte)
 
 	metrics SequencerMetrics
 
@@ -78,19 +80,20 @@ type Sequencer struct {
 	nodekitBatch *InProgressBatch
 }
 
-func NewSequencer(log log.Logger, rollupCfg *rollup.Config, engine derive.EngineControl, cfgFetcher derive.SystemConfigL2Fetcher, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, nodekit nodekit.RPCInterface, metrics SequencerMetrics) *Sequencer {
+func NewSequencer(log log.Logger, rollupCfg *rollup.Config, engine derive.EngineControl, cfgFetcher derive.SystemConfigL2Fetcher, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, nodekit nodekit.RPCInterface, metrics SequencerMetrics, broadcastPayloadAttrs func(id string, data []byte)) *Sequencer {
 	return &Sequencer{
-		log:              log,
-		rollupCfg:        rollupCfg,
-		mode:             Unknown,
-		engine:           engine,
-		timeNow:          time.Now,
-		cfgFetcher:       cfgFetcher,
-		attrBuilder:      attributesBuilder,
-		l1OriginSelector: l1OriginSelector,
-		nodekit:          nodekit,
-		metrics:          metrics,
-		nodekitBatch:     nil,
+		log:                   log,
+		rollupCfg:             rollupCfg,
+		mode:                  Unknown,
+		engine:                engine,
+		timeNow:               time.Now,
+		cfgFetcher:            cfgFetcher,
+		attrBuilder:           attributesBuilder,
+		l1OriginSelector:      l1OriginSelector,
+		nodekit:               nodekit,
+		metrics:               metrics,
+		nodekitBatch:          nil,
+		broadcastPayloadAttrs: broadcastPayloadAttrs,
 	}
 }
 
@@ -193,6 +196,7 @@ func (d *Sequencer) tryToSealNodeKitBatch(ctx context.Context, agossip async.Asy
 // execution payload.
 func (d *Sequencer) sealNodeKitBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
 	batch := d.nodekitBatch
+	l2Head := batch.onto
 
 	sysCfg, err := d.cfgFetcher.SystemConfigByL2Hash(ctx, batch.onto.Hash)
 	if err != nil {
@@ -220,6 +224,32 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context, agossip async.AsyncGos
 	}
 	attrs.NoTxPool = true
 	attrs.Transactions = append(attrs.Transactions, batch.transactions...)
+
+	// trigger next block production by javalin
+	go func() {
+		attrsEvent := &eth.BuilderPayloadAttributesEvent{
+			Version: "",
+			Data: eth.BuilderPayloadAttributesEventData{
+				ProposalSlot:    l2Head.Number + 1,
+				ParentBlockHash: l2Head.Hash,
+				PayloadAttributes: eth.BuilderPayloadAttributes{
+					Timestamp:             uint64(attrs.Timestamp),
+					PrevRandao:            common.Hash(attrs.PrevRandao),
+					SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+					GasLimit:              uint64(*attrs.GasLimit),
+					// here we include zero transactions just to trigger javalin block production
+					// javalin will fetch transactions from op-geth mempool
+					Transactions: types.Transactions{},
+				},
+			},
+		}
+
+		attrsData, err := json.Marshal(attrsEvent)
+		if err != nil {
+			d.log.Error("failed to marshal payload attributes", "err", err)
+		}
+		d.broadcastPayloadAttrs("payload_attributes", attrsData)
+	}()
 
 	d.log.Debug("prepared attributes for new NodeKit block",
 		"num", batch.onto.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin)
@@ -495,6 +525,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 		return nil, nil
 	}
 }
+
 func (d *Sequencer) buildNodeKitBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
 	// First, check if there has been a reorg. If so, drop the current block and restart.
 	//TODO check this out for reorg

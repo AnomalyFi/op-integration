@@ -2,6 +2,7 @@ package sources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -31,7 +32,16 @@ func EngineClientDefaultConfig(config *rollup.Config) *EngineClientConfig {
 // EngineClient extends L2Client with engine API bindings.
 type EngineClient struct {
 	*L2Client
+	// TODO: remove this after integrating mev client?
 	*EngineAPIClient
+	MevClient *MevClient
+}
+
+func (ec *EngineClient) GetMevPayload(ctx context.Context, parent common.Hash) (*eth.ExecutionPayload, error) {
+	if ec.MevClient == nil {
+		return nil, errors.New("trying to get mev payload while mev client is nil")
+	}
+	return ec.MevClient.GetMevPayload(ctx, parent)
 }
 
 func NewEngineClient(client client.RPC, log log.Logger, metrics caching.Metrics, config *EngineClientConfig) (*EngineClient, error) {
