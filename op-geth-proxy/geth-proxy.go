@@ -14,6 +14,8 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/peterbourgon/ff/v3"
 
 	trpc "github.com/AnomalyFi/seq-sdk/client"
@@ -66,12 +68,19 @@ func ForwardToSequencer(message rpcMessage) {
 		return
 	}
 
-	_, err = cli.SubmitTx(context.Background(), *chain_id, 1337, buf, txnBytes)
-
+	txHash, err := cli.SubmitTx(context.Background(), *chain_id, 1337, buf, txnBytes)
 	if err != nil {
 		log.Println("Failed to submit to SEQ: ", err)
 		return
 	}
+
+	tx := types.Transaction{}
+	err = tx.UnmarshalBinary(txnBytes)
+	if err != nil {
+		log.Println("unable to marshal transaction")
+	}
+
+	log.Printf("Submitted transaction(%s) to SEQ, seqTxHash: %s\n", tx.Hash().Hex(), txHash)
 }
 
 type baseHandle struct{}
