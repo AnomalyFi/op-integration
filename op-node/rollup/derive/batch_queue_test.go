@@ -189,7 +189,7 @@ func BatchQueueNewOrigin(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     2,
 		DeltaTime:         getDeltaTime(batchType),
@@ -250,7 +250,7 @@ func BatchQueueEager(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(batchType),
@@ -328,7 +328,7 @@ func BatchQueueInvalidInternalAdvance(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     2,
 		DeltaTime:         getDeltaTime(batchType),
@@ -447,7 +447,7 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     2,
 		DeltaTime:         getDeltaTime(batchType),
@@ -564,7 +564,7 @@ func BatchQueueAdvancedEpoch(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(batchType),
@@ -651,7 +651,7 @@ func BatchQueueShuffle(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(batchType),
@@ -749,7 +749,7 @@ func TestBatchQueueOverlappingSpanBatch(t *testing.T) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(SpanBatchType),
@@ -854,7 +854,7 @@ func TestBatchQueueComplex(t *testing.T) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(SpanBatchType),
@@ -972,7 +972,7 @@ func TestBatchQueueResetSpan(t *testing.T) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(SpanBatchType),

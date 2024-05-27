@@ -22,7 +22,7 @@ import (
 func TestPreparePayloadAttributes(t *testing.T) {
 	// test sysCfg, only init the necessary fields
 	cfg := &rollup.Config{
-		BlockTime:              2,
+		BlockTime:              2000,
 		L1ChainID:              big.NewInt(101),
 		L2ChainID:              big.NewInt(102),
 		DepositContractAddress: common.Address{0xbb},
@@ -199,6 +199,7 @@ func TestPreparePayloadAttributes(t *testing.T) {
 		require.True(t, attrs.NoTxPool)
 	})
 	// Test that the payload attributes builder changes the deposit format based on L2-time-based regolith activation
+	//TODO this will fail with updated timestamps
 	t.Run("regolith", func(t *testing.T) {
 		testCases := []struct {
 			name         string

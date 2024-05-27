@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	trpc "github.com/AnomalyFi/seq-sdk/client"
@@ -25,17 +24,8 @@ type Client struct {
 }
 
 func NewClient(log log.Logger, url string) *Client {
-	// if !strings.HasSuffix(url, "/") {
-	// 	url += "/"
-	// }
 	ss := strings.Split(url, "/")
 	chainID := ss[len(ss)-1]
-
-	// // id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// id := *chain_id
-
-	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// urlNew := *sequencerAddr
 
 	cli := trpc.NewJSONRPCClient(url, 1337, chainID)
 
@@ -50,25 +40,14 @@ func NewClient(log log.Logger, url string) *Client {
 
 // TODO really need
 func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end uint64) (WindowStart, error) {
-	//var res WindowStart
-	//getBlockHeadersByStart
+	start_time := start
+	end_time := end
 
-	start_time := start * 1000
-	end_time := end * 1000
-
-	// // id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// id := *chain_id
-
-	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// urlNew := *sequencerAddr
-
-	// cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 	cli := c.client
 
 	res, err := cli.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
 
 	log.Info("seq info", "chain-id", c.chainID, "sequencer-addr", c.seqAddr)
-	//res, err := c.client.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
 
 	//TODO is this causing the error: We skipped an L1 block and the next L1 block is eligible as an origin, advancing by one
 	if err != nil {
@@ -86,7 +65,7 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 	}
 
 	if len(res.Prev.BlockId) == 0 {
-		err = errors.New("Zero Length Id")
+		err = errors.New("zero length id")
 		c.log.Error("Error in FetchHeadersForWindow", "error", err)
 	}
 
@@ -98,7 +77,6 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 	var next *Header
 
 	if !(res.Next == (types.BlockInfo{})) {
-		//! TODO this is where the error is. It's on the c.log.Error line
 		next, err = convertBlockInfoToHeader(res.Next)
 		if err != nil {
 			return WindowStart{}, err
@@ -116,23 +94,12 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 }
 
 func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64, end uint64) (WindowMore, error) {
-	//var res WindowMore
 	var next *Header
-	//getBlockHeadersByHeight
 
-	// // id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// id := *chain_id
-
-	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// urlNew := *sequencerAddr
-
-	// cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
-
-	end_time := end * 1000
+	end_time := end
 
 	cli := c.client
 	res, err := cli.GetBlockHeadersByHeight(context.Background(), from, int64(end_time))
-	//c.client.GetBlockHeadersByHeight(context.Background(), from, int64(end))
 
 	if err != nil {
 		return WindowMore{}, err
@@ -141,7 +108,7 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 	blocks := make([]Header, len(res.Blocks))
 	for i, blk := range res.Blocks {
 		if len(blk.BlockId) == 0 {
-			err = errors.New("Zero Length Id")
+			err = errors.New("zero length id")
 			c.log.Error("Error in FetchRemainingHeadersForWindow", "error", err)
 		}
 		t, err := convertBlockInfoToHeader(blk)
@@ -152,7 +119,6 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 	}
 
 	if !(res.Next == (types.BlockInfo{})) {
-		//! TODO this is where the error is. It's on the c.log.Error line
 		next, err = convertBlockInfoToHeader(res.Next)
 		if err != nil {
 			return WindowMore{}, err
@@ -168,18 +134,8 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 }
 
 func (c *Client) FetchTransactionsInBlock(ctx context.Context, header *Header, namespace uint64) (TransactionsInBlock, error) {
-	//var res NamespaceResponse
-	// id := "86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// id := chain_id
-
-	// // urlNew := "http://3.215.71.153:9650/ext/bc/86EitdioXJeGS3UYQDjWT7dr8AaGkzQU7eq8VUx2Hdgy1G37t"
-	// urlNew := sequencerAddr
-
-	// cli := trpc.NewJSONRPCClient(*urlNew, 1337, *id)
-
 	cli := c.client
-	// TODO First I encode the integer to bytes form. Then I use hex.EncodeToString on it.
-	//hex.EncodeToString(action.ChainId)
+
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, namespace)
 	hexNamespace := hex.EncodeToString(buf)
@@ -191,7 +147,6 @@ func (c *Client) FetchTransactionsInBlock(ctx context.Context, header *Header, n
 
 	nRes := convertSEQTransactionResponseToNamespaceResponse(res)
 	return nRes.Validate(header, namespace)
-	//res.Validate(header, namespace)
 }
 
 // Function to convert SEQTransaction to Transaction
@@ -208,7 +163,7 @@ func convertBlockInfoToHeader(blockInfo types.BlockInfo) (*Header, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmp := blockInfo.Timestamp / 1000
+	tmp := blockInfo.Timestamp
 	return &Header{
 		TransactionsRoot: NmtRoot{
 			Root: bytes,
@@ -233,28 +188,15 @@ func convertSEQTransactionResponseToNamespaceResponse(seqResponse *types.SEQTran
 }
 
 type NamespaceResponse struct {
-	//Proof        *json.RawMessage `json:"proof"`
 	Transactions *[]Transaction `json:"transactions"`
 }
 
 // Validate a NamespaceResponse and extract the transactions.
 // NMT proof validation is currently stubbed out.
 func (res *NamespaceResponse) Validate(header *Header, namespace uint64) (TransactionsInBlock, error) {
-	// if res.Proof == nil {
-	// 	return TransactionsInBlock{}, fmt.Errorf("field proof of type NamespaceResponse is required")
-	// }
 	if res.Transactions == nil {
 		return TransactionsInBlock{}, fmt.Errorf("field transactions of type NamespaceResponse is required")
 	}
-
-	// Check that these transactions are only and all of the transactions from `namespace` in the
-	// block with `header`.
-	//proof := NmtProof(*res.Proof)
-	// if err := proof.Validate(header.TransactionsRoot, *res.Transactions); err != nil {
-	// 	return TransactionsInBlock{}, err
-	// }
-
-	// Extract the transactions.
 
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, namespace)
@@ -269,15 +211,5 @@ func (res *NamespaceResponse) Validate(header *Header, namespace uint64) (Transa
 
 	return TransactionsInBlock{
 		Transactions: txs,
-		//Proof:        proof,
 	}, nil
-}
-
-func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-	if len(value) == 0 {
-		return fallback
-	}
-
-	return value
 }

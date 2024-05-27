@@ -24,7 +24,7 @@ func TestOriginSelectorAdvances(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	cfg := &rollup.Config{
 		MaxSequencerDrift: 500,
-		BlockTime:         2,
+		BlockTime:         2000,
 	}
 	l1 := &testutils.MockL1Source{}
 	defer l1.AssertExpectations(t)
@@ -65,7 +65,7 @@ func TestOriginSelectorRespectsOriginTiming(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	cfg := &rollup.Config{
 		MaxSequencerDrift: 500,
-		BlockTime:         2,
+		BlockTime:         2000,
 	}
 	l1 := &testutils.MockL1Source{}
 	defer l1.AssertExpectations(t)
@@ -105,7 +105,7 @@ func TestOriginSelectorRespectsConfDepth(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	cfg := &rollup.Config{
 		MaxSequencerDrift: 500,
-		BlockTime:         2,
+		BlockTime:         2000,
 	}
 	l1 := &testutils.MockL1Source{}
 	defer l1.AssertExpectations(t)
@@ -148,7 +148,7 @@ func TestOriginSelectorStrictConfDepth(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	cfg := &rollup.Config{
 		MaxSequencerDrift: 8,
-		BlockTime:         2,
+		BlockTime:         2000,
 	}
 	l1 := &testutils.MockL1Source{}
 	defer l1.AssertExpectations(t)
@@ -186,7 +186,7 @@ func TestOriginSelectorSeqDriftRespectsNextOriginTime(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	cfg := &rollup.Config{
 		MaxSequencerDrift: 8,
-		BlockTime:         2,
+		BlockTime:         2000,
 	}
 	l1 := &testutils.MockL1Source{}
 	defer l1.AssertExpectations(t)
@@ -228,7 +228,7 @@ func TestOriginSelectorHandlesLateL1Blocks(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	cfg := &rollup.Config{
 		MaxSequencerDrift: 8,
-		BlockTime:         2,
+		BlockTime:         2000,
 	}
 	l1 := &testutils.MockL1Source{}
 	defer l1.AssertExpectations(t)
