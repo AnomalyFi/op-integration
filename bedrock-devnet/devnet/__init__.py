@@ -504,7 +504,7 @@ def devnet_deploy(paths, args):
     log.info(f'l2 provider http: {l2_provider_http}, port: {l2_provider_port}')
 
     log.info('Bringing up L2.')
-    run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2', f'{l2}-geth-proxy'], cwd=paths.ops_bedrock_dir, env={
+    run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2',], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
         'DEVNET_DIR': paths.devnet_dir,
         'SEQ_ADDR': seq_addr,
