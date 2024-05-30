@@ -30,7 +30,7 @@ exec geth \
 	--http.vhosts="*" \
 	--http.addr=0.0.0.0 \
 	--http.port="$RPC_PORT" \
-	--http.api=web3,debug,eth,txpool,net,engine \
+	--http.api=web3,debug,eth,txpool,net,engine,admin \
 	--ws \
 	--ws.addr=0.0.0.0 \
 	--ws.port="$WS_PORT" \
@@ -38,7 +38,7 @@ exec geth \
 	--ws.api=debug,eth,txpool,net,engine \
 	--syncmode=full \
 	--nodiscover \
-	--maxpeers=0 \
+	--maxpeers=10 \
 	--networkid="$CHAIN_ID" \
 	--rpc.allow-unprotected-txs \
 	--authrpc.addr="0.0.0.0" \
