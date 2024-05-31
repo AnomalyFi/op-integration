@@ -1,5 +1,6 @@
 import argparse
 import logging
+import re
 import os
 import jwt
 import subprocess
@@ -47,7 +48,6 @@ parser.add_argument('--l1-rpc-url', help='l1 rpc url', type=str, default='http:/
 parser.add_argument('--l1-ws-url', help='l1 ws url', type=str, default='ws://localhost:8546')
 parser.add_argument('--launch-l2', help='if launch l2', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=bool, action=argparse.BooleanOptionalAction)
-parser.add_argument('--launch-builder', help='if launch builder', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
 parser.add_argument('--nodekit-contract', help='nodekit commitment contract address on l1', type=str, default='')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
@@ -112,7 +112,6 @@ def main():
 
     l1_rpc_url: str = args.l1_rpc_url
     launch_l2: bool = args.launch_l2
-    _launch_builder: bool = args.launch_builder
     launch_nodekit_l1: bool = args.launch_nodekit_l1
     _deploy_contracts: bool = args.deploy_contracts
 
@@ -171,8 +170,6 @@ def main():
     #     log.info('launching nodekit l1')
     #     deploy_nodekit_i1(paths, args)
     #     return
-    if _launch_builder:
-        launch_builder(paths, args)
 
     if launch_l2:
         log.info('launching op stack')
@@ -408,16 +405,6 @@ def devnet_l1_genesis(paths, deploy_config: str):
     finally:
         geth.terminate()
 
-def launch_builder(paths, args):
-    l2_chain_id = int(args.l2_chain_id)
-    composer_project_name = f'op-devnet_{l2_chain_id}'
-    compose_file = args.compose_file
-    run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'l2-builder', 'op-node-builder'], cwd=paths.ops_bedrock_dir, env={
-        'PWD': paths.ops_bedrock_dir,
-        'DEVNET_DIR': paths.devnet_dir,
-        'COMPOSE_PROJECT_NAME': composer_project_name
-    })
-
 # Bring up the devnet where the contracts are deployed to L1
 def devnet_deploy(paths, args):
     nodekit = args.nodekit
@@ -531,6 +518,7 @@ def devnet_deploy(paths, args):
     # l2_provider_http = l2_provider_url.removeprefix('http://')
     wait_up(l2_provider_port)
     wait_for_rpc_server_local(l2_provider_http)
+    enode = get_enode(composer_project_name, "op1-l2", paths.ops_bedrock_dir)
 
     l2_output_oracle = addresses['L2OutputOracleProxy']
     log.info(f'Using L2OutputOracle {l2_output_oracle}')
@@ -556,8 +544,30 @@ def devnet_deploy(paths, args):
         'COMPOSE_PROJECT_NAME': composer_project_name
     })
 
-    #log.info('Starting block explorer')
-    #run_command(['docker-compose', '-f', compose_file, 'up', '-d', f'{l2}-blockscout'], cwd=paths.ops_bedrock_dir)
+    enr = get_enr(composer_project_name, "op1-node", paths.ops_bedrock_dir)
+
+    log.info(f"Bringing up Builder1. Bootnode={enode}")
+    run_command(
+        ["docker compose", "up", "-d", "l2-builder"],
+        cwd=paths.ops_bedrock_dir,
+        env={"PWD": paths.ops_bedrock_dir, "ENODE": enode, "COMPOSE_PROJECT_NAME": composer_project_name},
+    )
+    # TODO: to be injected
+    wait_up(9500)
+    wait_for_rpc_server("127.0.0.1:9500")
+
+    log.info(f"Bringing up op-node for builder. Bootnode={enr}")
+    run_command(
+        ["docker compose", "up", "-d", "op-node-builder"],
+        cwd=paths.ops_bedrock_dir,
+        env={
+            "PWD": paths.ops_bedrock_dir,
+            "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
+            "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+            "ENR": enr,
+            'COMPOSE_PROJECT_NAME': composer_project_name
+        },
+    )
 
     log.info('Devnet ready.')
 
@@ -703,6 +713,60 @@ def devnet_test(paths, l2_provider_url):
            '--l1-contracts-json-path', paths.addresses_json_path, '--l2-provider-url', l2_provider_url, '--signer-index', '15'],
           cwd=paths.sdk_dir, timeout=8*60),
     ], max_workers=2)
+
+def get_enr(project_name, container_id, cwd):
+    def extract_enr_value(log_line):
+        match = re.search(r"enr=(\S+)", log_line)
+        if match:
+            return match.group(1)
+        return None
+
+    for _ in range(10):
+        try:
+            logs = subprocess.check_output(
+                f"docker compose -p {project_name} logs {container_id} | grep enr",
+                stderr=subprocess.STDOUT,
+                shell=True,
+                text=True,
+                cwd=cwd,
+            )
+            for line in logs.splitlines():
+                enr_value = extract_enr_value(line)
+                if enr_value:
+                    print(f"Found enr value: {enr_value}")
+                    return enr_value
+        except Exception as e:
+            print(f"Couldn't get enr, retrying: {e}")
+            time.sleep(1)
+
+    raise Exception("Timing out while waiting for enr")
+
+def get_enode(project_name, container_id, cwd):
+    def extract_enode_value(log_line):
+        match = re.search(r"self=(\S+)", log_line)
+        if match:
+            return match.group(1)
+        return None
+
+    for _ in range(10):
+        try:
+            logs = subprocess.check_output(
+                f"docker compose -p {project_name} logs {container_id} | grep enode",
+                stderr=subprocess.STDOUT,
+                shell=True,
+                text=True,
+                cwd=cwd,
+            )
+            for line in logs.splitlines():
+                enode_value = extract_enode_value(line)
+                if enode_value:
+                    print(f"Found enode value: {enode_value}")
+                    return enode_value
+        except Exception as e:
+            print(f"Couldn't get enode, retrying: {e}")
+            time.sleep(1)
+
+    raise Exception("Timing out while waiting for enode")
 
 
 def run_commands(commands: list[CommandPreset], max_workers=2):

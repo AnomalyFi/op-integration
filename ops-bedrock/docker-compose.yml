@@ -100,7 +100,7 @@ services:
       --p2p.listen.tcp=9003
       --p2p.listen.udp=9003
       --p2p.scoring.peers=light
-      --p2p.ban.peers=true
+      --p2p.ban.peers=false
       --snapshotlog.file=/op_log/snapshot.log
       --p2p.priv.path=/config/p2p-node-key.txt
       --metrics.enabled
