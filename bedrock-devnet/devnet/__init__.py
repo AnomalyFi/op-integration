@@ -554,7 +554,7 @@ def devnet_deploy(paths, args):
     )
     # TODO: to be injected
     wait_up(9500)
-    wait_for_rpc_server("127.0.0.1:9500")
+    wait_for_rpc_server_local(f"http://127.0.0.1:9500")
 
     log.info(f"Bringing up op-node for builder. Bootnode={enr}")
     run_command(
