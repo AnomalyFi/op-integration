@@ -548,7 +548,7 @@ def devnet_deploy(paths, args):
 
     log.info(f"Bringing up Builder1. Bootnode={enode}")
     run_command(
-        ["docker compose", "up", "-d", "l2-builder"],
+        ["docker", "compose", "up", "-d", "l2-builder"],
         cwd=paths.ops_bedrock_dir,
         env={"PWD": paths.ops_bedrock_dir, "ENODE": enode, "COMPOSE_PROJECT_NAME": composer_project_name},
     )
@@ -558,7 +558,7 @@ def devnet_deploy(paths, args):
 
     log.info(f"Bringing up op-node for builder. Bootnode={enr}")
     run_command(
-        ["docker compose", "up", "-d", "op-node-builder"],
+        ["docker" "compose", "up", "-d", "op-node-builder"],
         cwd=paths.ops_bedrock_dir,
         env={
             "PWD": paths.ops_bedrock_dir,
