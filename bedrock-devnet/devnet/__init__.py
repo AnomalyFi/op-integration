@@ -503,6 +503,7 @@ def devnet_deploy(paths, args):
 
     log.info(f'l2 provider http: {l2_provider_http}, port: {l2_provider_port}')
 
+    print(f'devnet path: {paths.devnet_dir}')
     log.info('Bringing up L2.')
     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2',], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
@@ -558,7 +559,7 @@ def devnet_deploy(paths, args):
 
     log.info(f"Bringing up op-node for builder. Bootnode={enr}")
     run_command(
-        ["docker" "compose", "up", "-d", "op-node-builder"],
+        ["docker", "compose", "up", "-d", "op-node-builder"],
         cwd=paths.ops_bedrock_dir,
         env={
             "PWD": paths.ops_bedrock_dir,
@@ -760,6 +761,7 @@ def get_enode(project_name, container_id, cwd):
             for line in logs.splitlines():
                 enode_value = extract_enode_value(line)
                 if enode_value:
+                    enode_value = enode_value.replace('127.0.0.1', '172.20.0.6').strip('"').rstrip('"').rstrip('?discport=0')
                     print(f"Found enode value: {enode_value}")
                     return enode_value
         except Exception as e:

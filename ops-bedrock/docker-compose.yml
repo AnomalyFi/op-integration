@@ -199,9 +199,6 @@ services:
       standard:
     build:
       context: ../../javelin-op-stack
-    depends_on:
-      - op1-l2
-      - op1-node
     ports:
       - "9500:8545"
       - "9501:8551"
@@ -222,8 +219,8 @@ services:
       - "--builder.submission_offset=1s"
       - "--builder.beacon_endpoints=http://op-node-builder:8501"
       - "--miner.extradata=IlluminateDmocratizeDstribute"
-      - "--miner.algotype=greedy"
-      - "--bootnodes=${BOOTNODE}"
+      # - "--miner.algotype=greedy"
+      - "--bootnodes=${ENODE}"
 
   op-node-builder:
     restart: on-failure:5
@@ -231,10 +228,6 @@ services:
       static:
         ipv4_address: 172.20.0.9
       standard:
-    depends_on:
-      - op1-l2
-      - op1-node
-      - l2-builder
     build:
       context: ../
       dockerfile: ./op-node/Dockerfile
