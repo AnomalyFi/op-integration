@@ -142,9 +142,10 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	if err := n.initRuntimeConfig(ctx, cfg); err != nil { // depends on L2, to signal initial runtime values to
 		return fmt.Errorf("failed to init the runtime config: %w", err)
 	}
-	if err := n.initMev(ctx, cfg); err != nil {
-		return err
-	}
+	// TODO: restore this after, not needed for javelin demo
+	// if err := n.initMev(ctx, cfg); err != nil {
+	// 	return err
+	// }
 	if err := n.initP2PSigner(ctx, cfg); err != nil {
 		return fmt.Errorf("failed to init the P2P signer: %w", err)
 	}

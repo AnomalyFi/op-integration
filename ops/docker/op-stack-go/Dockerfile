@@ -51,8 +51,9 @@ ARG TARGETOS TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build cd cannon && make cannon  \
     GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE VERSION="$CANNON_VERSION"
 # note: we only build the host, that's all the user needs. No Go MIPS cross-build in docker
-RUN --mount=type=cache,target=/root/.cache/go-build cd op-program && make op-program-host  \
-    GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE VERSION="$OP_PROGRAM_VERSION"
+# TODO: restore after fixing op-program
+# RUN --mount=type=cache,target=/root/.cache/go-build cd op-program && make op-program-host  \
+#     GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE VERSION="$OP_PROGRAM_VERSION"
 
 RUN --mount=type=cache,target=/root/.cache/go-build cd op-heartbeat && make op-heartbeat  \
     GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE VERSION="$OP_HEARTBEAT_VERSION"
@@ -61,8 +62,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build cd op-wheel && make op-wheel
 
 RUN --mount=type=cache,target=/root/.cache/go-build cd op-node && make op-node  \
     GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE VERSION="$OP_NODE_VERSION"
-RUN --mount=type=cache,target=/root/.cache/go-build cd op-challenger && make op-challenger  \
-    GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE  VERSION="$OP_CHALLENGER_VERSION"
+# TODO: restore after fix
+# RUN --mount=type=cache,target=/root/.cache/go-build cd op-challenger && make op-challenger  \
+#     GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE  VERSION="$OP_CHALLENGER_VERSION"
 RUN --mount=type=cache,target=/root/.cache/go-build cd op-dispute-mon && make op-dispute-mon  \
     GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE  VERSION="$OP_DISPUTE_MON_VERSION"
 RUN --mount=type=cache,target=/root/.cache/go-build cd op-batcher && make op-batcher  \
@@ -76,13 +78,15 @@ RUN --mount=type=cache,target=/root/.cache/go-build cd op-conductor && make op-c
 FROM alpine:3.18
 
 COPY --from=builder /app/cannon/bin/cannon /usr/local/bin/
-COPY --from=builder /app/op-program/bin/op-program /usr/local/bin/
+# TODO: restore after fixing
+# COPY --from=builder /app/op-program/bin/op-program /usr/local/bin/
 
 COPY --from=builder /app/op-heartbeat/bin/op-heartbeat /usr/local/bin/
 COPY --from=builder /app/op-wheel/bin/op-wheel /usr/local/bin/
 
 COPY --from=builder /app/op-node/bin/op-node /usr/local/bin/
-COPY --from=builder /app/op-challenger/bin/op-challenger /usr/local/bin/
+# TOOD: restore after fixing
+# COPY --from=builder /app/op-challenger/bin/op-challenger /usr/local/bin/
 COPY --from=builder /app/op-dispute-mon/bin/op-dispute-mon /usr/local/bin/
 COPY --from=builder /app/op-batcher/bin/op-batcher /usr/local/bin/
 COPY --from=builder /app/op-proposer/bin/op-proposer /usr/local/bin/
