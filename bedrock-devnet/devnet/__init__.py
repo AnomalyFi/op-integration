@@ -47,6 +47,7 @@ parser.add_argument('--l1-rpc-url', help='l1 rpc url', type=str, default='http:/
 parser.add_argument('--l1-ws-url', help='l1 ws url', type=str, default='ws://localhost:8546')
 parser.add_argument('--launch-l2', help='if launch l2', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=bool, action=argparse.BooleanOptionalAction)
+parser.add_argument('--launch-builder', help='if launch builder', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
 parser.add_argument('--nodekit-contract', help='nodekit commitment contract address on l1', type=str, default='')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
@@ -111,6 +112,7 @@ def main():
 
     l1_rpc_url: str = args.l1_rpc_url
     launch_l2: bool = args.launch_l2
+    _launch_builder: bool = args.launch_builder
     launch_nodekit_l1: bool = args.launch_nodekit_l1
     _deploy_contracts: bool = args.deploy_contracts
 
@@ -169,6 +171,8 @@ def main():
     #     log.info('launching nodekit l1')
     #     deploy_nodekit_i1(paths, args)
     #     return
+    if _launch_builder:
+        launch_builder(paths, args)
 
     if launch_l2:
         log.info('launching op stack')
@@ -404,6 +408,15 @@ def devnet_l1_genesis(paths, deploy_config: str):
     finally:
         geth.terminate()
 
+def launch_builder(paths, args):
+    l2_chain_id = int(args.l2_chain_id)
+    composer_project_name = f'op-devnet_{l2_chain_id}'
+    compose_file = args.compose_file
+    run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'l2-builder', 'op-node-builder'], cwd=paths.ops_bedrock_dir, env={
+        'PWD': paths.ops_bedrock_dir,
+        'DEVNET_DIR': paths.devnet_dir,
+        'COMPOSE_PROJECT_NAME': composer_project_name
+    })
 
 # Bring up the devnet where the contracts are deployed to L1
 def devnet_deploy(paths, args):
@@ -498,7 +511,7 @@ def devnet_deploy(paths, args):
     l2_provider_http = l2_provider_url
 
     # rpc port value - default value
-    inc = l2_provider_port - 19545 
+    inc = l2_provider_port - 19545
     p2p_port = inc + 30303
 
     log.info(f'l2 provider http: {l2_provider_http}, port: {l2_provider_port}')
