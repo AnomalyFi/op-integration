@@ -497,15 +497,20 @@ def devnet_deploy(paths, args):
     l2_provider_port = int(l2_provider_url.split(':')[-1])
     l2_provider_http = l2_provider_url
 
+    # rpc port value - default value
+    inc = l2_provider_port - 19545 
+    p2p_port = inc + 30303
+
     log.info(f'l2 provider http: {l2_provider_http}, port: {l2_provider_port}')
 
     log.info('Bringing up L2.')
-    run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2', f'{l2}-geth-proxy'], cwd=paths.ops_bedrock_dir, env={
+    run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2',], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
         'DEVNET_DIR': paths.devnet_dir,
         'SEQ_ADDR': seq_addr,
         'SEQ_CHAIN_ID': seq_chain_id,
         'OP1_L2_RPC_PORT': str(l2_provider_port),
+        'OP1_L2_P2P_PORT': str(p2p_port),
         'COMPOSE_PROJECT_NAME': composer_project_name
     })
 

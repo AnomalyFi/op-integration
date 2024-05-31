@@ -42,10 +42,12 @@ services:
       - "$OP1_L2_RPC_PORT:8545"
       - "$OP1_L2_DEBUG_PORT:6060"
       - "$OP1_L2_P2P_PORT:30303"
+      - "$OP1_L2_P2P_PORT:30303/udp"
     volumes:
       - "l2_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "./entrypoint-l2.sh:/entrypoint.sh"
     entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
       - "/bin/sh"
       - "/entrypoint.sh"
