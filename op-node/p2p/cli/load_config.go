@@ -22,6 +22,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
@@ -194,6 +195,7 @@ func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context) error {
 	} else {
 		conf.Bootnodes = p2p.DefaultBootnodes
 	}
+	log.Debug("bootnodes", "bootnodes", bootnodes)
 
 	if ctx.IsSet(flags.NetRestrictName) {
 		netRestrict, err := netutil.ParseNetlist(ctx.String(flags.NetRestrictName))

@@ -557,6 +557,8 @@ def devnet_deploy(paths, args):
     wait_up(9500)
     wait_for_rpc_server_local(f"http://127.0.0.1:9500")
 
+    enr = f"enode://4d12f8f99cf20c54505146f194f7906a970443ad8ffc6ae6ba79323fb15ff228af256753eefdca0c441283499d9d49a0a7409812eed27a1283b2b5370c685a2d@172.20.0.7:{40404+inc}"
+    print(f'enr: {enr}')
     log.info(f"Bringing up op-node for builder. Bootnode={enr}")
     run_command(
         ["docker", "compose", "up", "-d", "op-node-builder"],
