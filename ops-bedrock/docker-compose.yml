@@ -244,6 +244,7 @@ services:
       --rpc.enable-admin
       --p2p.advertise.ip=172.20.0.9
       --p2p.bootnodes=${ENR}
+      --syncmode=execution-layer
     ports:
       - "7500:8500"
       - "7501:8501"
