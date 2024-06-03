@@ -105,8 +105,9 @@ func (n *NodeP2P) init(resourcesCtx context.Context, rollupCfg *rollup.Config, l
 			n.appScorer = &NoopApplicationScorer{}
 		}
 		// Activate the P2P req-resp sync if enabled by feature-flag.
+		log.Info("setup rep-resp", "req-resp", setup.ReqRespSyncEnabled(), "elSyncEnabled", elSyncEnabled)
 		if setup.ReqRespSyncEnabled() && !elSyncEnabled {
-			log.Debug("initializing p2p sync client")
+			log.Info("initializing p2p sync client")
 			n.syncCl = NewSyncClient(log, rollupCfg, n.host.NewStream, gossipIn.OnUnsafeL2Payload, metrics, n.appScorer)
 			n.host.Network().Notify(&network.NotifyBundle{
 				ConnectedF: func(nw network.Network, conn network.Conn) {
@@ -130,6 +131,8 @@ func (n *NodeP2P) init(resourcesCtx context.Context, rollupCfg *rollup.Config, l
 				payloadByNumber := MakeStreamHandler(resourcesCtx, log.New("serve", "payloads_by_number"), n.syncSrv.HandleSyncRequest)
 				n.host.SetStreamHandler(PayloadByNumberProtocolID(rollupCfg.L2ChainID), payloadByNumber)
 			}
+		} else {
+			log.Info("sync client disabled")
 		}
 		n.scorer = NewScorer(rollupCfg, eps, metrics, n.appScorer, log)
 		// notify of any new connections/streams/etc.
@@ -143,6 +146,7 @@ func (n *NodeP2P) init(resourcesCtx context.Context, rollupCfg *rollup.Config, l
 		if err != nil {
 			return fmt.Errorf("failed to join blocks gossip topic: %w", err)
 		}
+		log.Info("peers", "peers", n.host.Network().Peers())
 		log.Info("started p2p host", "addrs", n.host.Addrs(), "peerID", n.host.ID().String())
 
 		tcpPort, err := FindActiveTCPPort(n.host)

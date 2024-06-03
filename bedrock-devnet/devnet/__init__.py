@@ -557,7 +557,7 @@ def devnet_deploy(paths, args):
     wait_up(9500)
     wait_for_rpc_server_local(f"http://127.0.0.1:9500")
 
-    enr = f"enode://4d12f8f99cf20c54505146f194f7906a970443ad8ffc6ae6ba79323fb15ff228af256753eefdca0c441283499d9d49a0a7409812eed27a1283b2b5370c685a2d@172.20.0.7:{40404+inc}"
+    # enr = f"enode://4d12f8f99cf20c54505146f194f7906a970443ad8ffc6ae6ba79323fb15ff228af256753eefdca0c441283499d9d49a0a7409812eed27a1283b2b5370c685a2d@op1-node:9003"
     print(f'enr: {enr}')
     log.info(f"Bringing up op-node for builder. Bootnode={enr}")
     run_command(
@@ -764,7 +764,7 @@ def get_enode(project_name, container_id, cwd):
             for line in logs.splitlines():
                 enode_value = extract_enode_value(line)
                 if enode_value:
-                    enode_value = enode_value.replace('127.0.0.1', '172.20.0.6').strip('"').rstrip('"').rstrip('?discport=0')
+                    enode_value = enode_value.strip('"').rstrip('"').rstrip('?discport=0')
                     print(f"Found enode value: {enode_value}")
                     return enode_value
         except Exception as e:

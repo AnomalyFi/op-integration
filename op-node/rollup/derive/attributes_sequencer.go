@@ -60,6 +60,7 @@ func (as *AttributesSequencer) PreparePayloadAttributes(ctx context.Context, l2H
 		return nil, err
 	}
 
+	as.log.Info("unmarshaling txns", "len(attrs.Transactions)", len(attrs.Transactions))
 	txs := make(types.Transactions, 0, len(attrs.Transactions))
 	for i, tx := range attrs.Transactions {
 		txs[i].UnmarshalBinary(tx)

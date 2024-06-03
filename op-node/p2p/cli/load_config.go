@@ -195,7 +195,7 @@ func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context) error {
 	} else {
 		conf.Bootnodes = p2p.DefaultBootnodes
 	}
-	log.Debug("bootnodes", "bootnodes", bootnodes)
+	log.Info("bootnodes", "bootnodes", bootnodes)
 
 	if ctx.IsSet(flags.NetRestrictName) {
 		netRestrict, err := netutil.ParseNetlist(ctx.String(flags.NetRestrictName))
