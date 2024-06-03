@@ -195,32 +195,58 @@ services:
   l2-builder:
     networks:
       static:
-        ipv4_address: 172.20.0.8
+        ipv4_address: 172.20.0.6
       standard:
     build:
-      context: ../../javelin-op-stack
+      context: .
+      dockerfile: Dockerfile.l2
     ports:
       - "9500:8545"
       - "9501:8551"
       - "18061:6060"
     volumes:
-      - "l2_builder_data:/db"
+      - "l2_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "./entrypoint-l2.sh:/entrypoint.sh"
     entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
       - "/bin/sh"
       - "/entrypoint.sh"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-      - "--nat=extip:172.20.0.8"
-      - "--builder"
-      - "--builder.dry-run"
-      - "--builder.local_relay"
-      - "--builder.seconds_in_slot=2"
-      - "--builder.submission_offset=1s"
-      - "--builder.beacon_endpoints=http://op-node-builder:8501"
-      - "--miner.extradata=IlluminateDmocratizeDstribute"
-      # - "--miner.algotype=greedy"
+      - "--verbosity=4"
       - "--bootnodes=${ENODE}"
+    environment:
+      GETH_MINER_RECOMMIT: 100ms
+
+  # l2-builder:
+  #   networks:
+  #     static:
+  #       ipv4_address: 172.20.0.8
+  #     standard:
+  #   build:
+  #     context: ../../javelin-op-stack
+  #   ports:
+  #     - "9500:8545"
+  #     - "9501:8551"
+  #     - "18061:6060"
+  #   volumes:
+  #     - "l2_builder_data:/db"
+  #     - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
+  #     - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+  #   entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
+  #     - "/bin/sh"
+  #     - "/entrypoint.sh"
+  #     - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+  #     - "--nat=extip:172.20.0.8"
+  #     - "--builder"
+  #     - "--builder.dry-run"
+  #     - "--builder.local_relay"
+  #     - "--builder.seconds_in_slot=2"
+  #     - "--builder.submission_offset=1s"
+  #     - "--builder.beacon_endpoints=http://op-node-builder:8501"
+  #     - "--miner.extradata=IlluminateDmocratizeDstribute"
+  #     # - "--miner.algotype=greedy"
+  #     - "--bootnodes=${ENODE}"
 
   op-node-builder:
     restart: on-failure:5
