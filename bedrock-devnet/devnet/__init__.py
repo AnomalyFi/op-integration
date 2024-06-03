@@ -568,7 +568,7 @@ def devnet_deploy(paths, args):
             "PWD": paths.ops_bedrock_dir,
             "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
             "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
-            "ENR": f"enode://4d12f8f99cf20c54505146f194f7906a970443ad8ffc6ae6ba79323fb15ff228af256753eefdca0c441283499d9d49a0a7409812eed27a1283b2b5370c685a2d@172.20.0.7:{40404+l2_chain_id-45200}",
+            "ENR": enr,
             'COMPOSE_PROJECT_NAME': composer_project_name
         },
     )
