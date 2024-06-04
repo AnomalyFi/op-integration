@@ -573,6 +573,7 @@ def devnet_deploy(paths, args):
         cwd=paths.ops_bedrock_dir,
         env={
             'L1WS': l1_ws_url,
+            'SUBNET': subnet,
             "PWD": paths.ops_bedrock_dir,
             "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
             "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
