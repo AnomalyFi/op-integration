@@ -55,6 +55,7 @@ parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='3
 parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-zk contract', type=str, default='test test test test test test test test test test test junk')
+parser.add_argument('--subnet', help='the static subnet opstack will be deployed on', type=str, default='172.20')
 
 
 # Global environment variables
@@ -418,6 +419,7 @@ def devnet_deploy(paths, args):
     l1_ws_url = args.l1_ws_url
     seq_addr: str = args.seq_url
     seq_chain_id = seq_addr.split('/')[-1]
+    subnet = args.subnet
 
     conf = {
         l2_provider_url,
@@ -507,6 +509,7 @@ def devnet_deploy(paths, args):
     log.info('Bringing up L2.')
     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', f'{l2}-l2',], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
+        'SUBNET': subnet,
         'DEVNET_DIR': paths.devnet_dir,
         'SEQ_ADDR': seq_addr,
         'SEQ_CHAIN_ID': seq_chain_id,
@@ -535,6 +538,7 @@ def devnet_deploy(paths, args):
     services = [f'{l2}-node', f'{l2}-proposer', f'{l2}-batcher']
     run_command(command + services, cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
+        'SUBNET': subnet,
         'L2OO_ADDRESS': l2_output_oracle,
         'SEQUENCER_BATCH_INBOX_ADDRESS': batch_inbox_address,
         'DEVNET_DIR': paths.devnet_dir,
@@ -551,8 +555,12 @@ def devnet_deploy(paths, args):
     run_command(
         ["docker", "compose", "up", "-d", "l2-builder"],
         cwd=paths.ops_bedrock_dir,
-        env={"PWD": paths.ops_bedrock_dir, "ENODE": enode, "COMPOSE_PROJECT_NAME": composer_project_name},
-    )
+        env={
+            "PWD": paths.ops_bedrock_dir,
+            'SUBNET': subnet,
+            "ENODE": enode,
+            "COMPOSE_PROJECT_NAME": composer_project_name
+    })
     # TODO: to be injected
     wait_up(9500)
     wait_for_rpc_server_local(f"http://127.0.0.1:9500")

@@ -9,7 +9,7 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: $SUBNET.0.0/16
   standard:
 
 volumes:
@@ -46,7 +46,7 @@ services:
   op1-l2:
     networks:
       static:
-        ipv4_address: 172.20.0.6
+        ipv4_address: $SUBNET.0.6
       standard:
     build:
       context: ../../op-geth
@@ -66,14 +66,14 @@ services:
       - "/bin/sh"
       - "/entrypoint.sh"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-      - "--nat=extip:172.20.0.6"
+      - "--nat=extip:$SUBNET.0.6"
     environment:
       GETH_MINER_RECOMMIT: 100ms
 
   op1-node:
     networks:
       static:
-        ipv4_address: 172.20.0.7
+        ipv4_address: $SUBNET.0.7
       standard:
     depends_on:
       - op_stack_go_builder
@@ -98,7 +98,7 @@ services:
       --rollup.config=/rollup.json
       --rpc.addr=0.0.0.0
       --rpc.port=8545
-      --p2p.advertise.ip=172.20.0.7
+      --p2p.advertise.ip=$SUBNET.0.7
       --p2p.listen.ip=0.0.0.0
       --p2p.listen.tcp=9003
       --p2p.listen.udp=9003
@@ -198,7 +198,7 @@ services:
   l2-builder:
     networks:
       static:
-        ipv4_address: 172.20.0.8
+        ipv4_address: $SUBNET.0.8
       standard:
     build:
       context: .
@@ -218,14 +218,14 @@ services:
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
       - "--verbosity=4"
       - "--bootnodes=${ENODE}"
-      - "--nat=extip:172.20.0.8"
+      - "--nat=extip:$SUBNET.0.8"
     environment:
       GETH_MINER_RECOMMIT: 100ms
 
         # l2-builder:
         #   networks:
         #     static:
-        #       ipv4_address: 172.20.0.8
+        #       ipv4_address: $SUBNET.0.8
         #     standard:
         #   build:
         #     context: ../../javelin-op-stack
@@ -241,7 +241,7 @@ services:
         #     - "/bin/sh"
         #     - "/entrypoint.sh"
         #     - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-        #     - "--nat=extip:172.20.0.8"
+        #     - "--nat=extip:$SUBNET.0.8"
         #     - "--builder"
         #     - "--builder.dry-run"
         #     - "--builder.local_relay"
@@ -256,7 +256,7 @@ services:
     restart: on-failure:5
     networks:
       static:
-        ipv4_address: 172.20.0.9
+        ipv4_address: $SUBNET.0.9
       standard:
     build:
       context: ../
@@ -272,7 +272,7 @@ services:
       --rpc.addr=0.0.0.0
       --rpc.port=8500
       --rpc.enable-admin
-      --p2p.advertise.ip=172.20.0.9
+      --p2p.advertise.ip=$SUBNET.0.9
       --p2p.bootnodes=${ENR}
       --p2p.sync.req-resp
       --syncmode=execution-layer
