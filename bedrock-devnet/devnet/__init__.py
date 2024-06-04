@@ -562,8 +562,9 @@ def devnet_deploy(paths, args):
             "COMPOSE_PROJECT_NAME": composer_project_name
     })
     # TODO: to be injected
-    wait_up(9500)
-    wait_for_rpc_server_local(f"http://127.0.0.1:9500")
+    l2builder_rpc_port = 15545 + inc
+    wait_up(l2builder_rpc_port)
+    wait_for_rpc_server_local(f"http://127.0.0.1:{l2builder_rpc_port}")
 
     # enr = f"enode://4d12f8f99cf20c54505146f194f7906a970443ad8ffc6ae6ba79323fb15ff228af256753eefdca0c441283499d9d49a0a7409812eed27a1283b2b5370c685a2d@op1-node:9003"
     print(f'enr: {enr}')
