@@ -1,9 +1,9 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "defaultBase": "mev",
+  "defaultBase": "javelin-builder",
   "neverConnectToCloud": true,
   "affected": {
-    "defaultBase": "mev"
+    "defaultBase": "javelin-builder"
   },
   "implicitDependencies": {
     "nx.json": "*",

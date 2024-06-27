@@ -197,42 +197,16 @@ services:
     stop_grace_period: 1s
 
   # TODO: fix javelin-builder and replace this
-  l2-builder:
-    networks:
-      static:
-        ipv4_address: $SUBNET.0.8
-      standard:
-    image: op-geth
-    build:
-      context: ../../op-geth
-    ports:
-      - "$BUILDER_RPC_PORT:8545"
-    volumes:
-      - "l2_builder_data:/db"
-      - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
-      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-      - "./entrypoint-l2.sh:/entrypoint.sh"
-    entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
-      - "/bin/sh"
-      - "/entrypoint.sh"
-      - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-      - "--verbosity=4"
-      - "--bootnodes=${ENODE}"
-      - "--nat=extip:$SUBNET.0.8"
-    environment:
-      GETH_MINER_RECOMMIT: 100ms
-
   # l2-builder:
   #   networks:
   #     static:
   #       ipv4_address: $SUBNET.0.8
   #     standard:
+  #   image: op-geth
   #   build:
-  #     context: ../../javelin-op-stack
+  #     context: ../../op-geth
   #   ports:
-  #     - "9500:8545"
-  #     - "9501:8551"
-  #     - "18061:6060"
+  #     - "$BUILDER_RPC_PORT:8545"
   #   volumes:
   #     - "l2_builder_data:/db"
   #     - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
@@ -241,45 +215,71 @@ services:
   #     - "/bin/sh"
   #     - "/entrypoint.sh"
   #     - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-  #     - "--nat=extip:$SUBNET.0.8"
-  #     - "--builder"
-  #     - "--builder.dry-run"
-  #     - "--builder.local_relay"
-  #     - "--builder.seconds_in_slot=2"
-  #     - "--builder.submission_offset=1s"
-  #     - "--builder.beacon_endpoints=http://op-node-builder:8501"
-  #     - "--miner.extradata=IlluminateDmocratizeDstribute"
-  #     # - "--miner.algotype=greedy"
+  #     - "--verbosity=4"
   #     - "--bootnodes=${ENODE}"
+  #     - "--nat=extip:$SUBNET.0.8"
+  #   environment:
+  #     GETH_MINER_RECOMMIT: 100ms
 
-  op-node-builder:
-    restart: on-failure:5
+  l2-builder:
     networks:
       static:
-        ipv4_address: $SUBNET.0.9
+        ipv4_address: $SUBNET.0.8
       standard:
     build:
-      context: ../
-      dockerfile: ./op-node/Dockerfile
-      args:
-        OP_STACK_GO_BUILDER: op-stack-go
-    command: >
-      op-node
-      --l1=${L1WS}
-      --l2=http://l2-builder:8551
-      --l2.jwt-secret=/config/test-jwt-secret.txt
-      --rollup.config=/rollup.json
-      --rpc.addr=0.0.0.0
-      --rpc.port=8500
-      --rpc.enable-admin
-      --p2p.advertise.ip=$SUBNET.0.9
-      --p2p.bootnodes=${ENR}
-      --p2p.sync.req-resp
-      --syncmode=execution-layer
+      context: ../../javelin-op-stack
     ports:
-      - "$OPNODE_BUILDER_RPC:8500"
-      # - "7501:8501"
+      - "$BUILDER_RPC_PORT:8545"
+      # - "9501:8551"
+      # - "18061:6060"
     volumes:
+      - "l2_builder_data:/db"
+      - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-      - "${PWD}/../.devnet/rollup.json:/rollup.json"
-      - op_log:/op_log
+    entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
+      - "/bin/sh"
+      - "/entrypoint.sh"
+      - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
+      - "--nat=extip:$SUBNET.0.8"
+      - "--builder"
+      - "--builder.dry-run"
+      - "--builder.local_relay"
+      - "--builder.seconds_in_slot=2"
+      - "--builder.submission_offset=1s"
+      # - "--builder.beacon_endpoints=http://op-node-builder:8501"
+      - "--miner.extradata=IlluminateDmocratizeDstribute"
+      # - "--miner.algotype=greedy"
+      - "--bootnodes=${ENODE}"
+
+  # TODO: do we need this?
+  # op-node-builder:
+  #   restart: on-failure:5
+  #   networks:
+  #     static:
+  #       ipv4_address: $SUBNET.0.9
+  #     standard:
+  #   build:
+  #     context: ../
+  #     dockerfile: ./op-node/Dockerfile
+  #     args:
+  #       OP_STACK_GO_BUILDER: op-stack-go
+  #   command: >
+  #     op-node
+  #     --l1=${L1WS}
+  #     --l2=http://l2-builder:8551
+  #     --l2.jwt-secret=/config/test-jwt-secret.txt
+  #     --rollup.config=/rollup.json
+  #     --rpc.addr=0.0.0.0
+  #     --rpc.port=8500
+  #     --rpc.enable-admin
+  #     --p2p.advertise.ip=$SUBNET.0.9
+  #     --p2p.bootnodes=${ENR}
+  #     --p2p.sync.req-resp
+  #     --syncmode=execution-layer
+  #   ports:
+  #     - "$OPNODE_BUILDER_RPC:8500"
+  #     # - "7501:8501"
+  #   volumes:
+  #     - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+  #     - "${PWD}/../.devnet/rollup.json:/rollup.json"
+  #     - op_log:/op_log
