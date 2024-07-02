@@ -54,6 +54,7 @@ parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='3
 parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-zk contract', type=str, default='test test test test test test test test test test test junk')
+parser.add_argument('--additional-path', help='additional path that will be used', type=str, default='')
 
 
 # Global environment variables
@@ -141,7 +142,7 @@ def main():
 
     if args.test:
         log.info('Testing deployed devnet')
-        devnet_test(paths, args.l2_provider_url, args.l1_rpc_url)
+        devnet_test(paths, args.l2_provider_url, args.l1_rpc_url, args.additional_path)
         return
 
     os.makedirs(devnet_dir, exist_ok=True)
@@ -671,7 +672,7 @@ def deploy_erc20(paths, l2_provider_url):
 
 CommandPreset = namedtuple('Command', ['name', 'args', 'cwd', 'timeout', 'env'])
 
-def devnet_test(paths, l2_provider_url, l1_provider_url):
+def devnet_test(paths, l2_provider_url, l1_provider_url, path):
     # # Check the L2 config
     # run_command(
     #     ['go', 'run', 'cmd/check-l2/main.go', '--l2-rpc-url', l2_provider_url, '--l1-rpc-url', l1_provider_url],
@@ -680,15 +681,18 @@ def devnet_test(paths, l2_provider_url, l1_provider_url):
 
     # Run the commands with different signers, so the ethereum nonce management does not conflict
     # And do not use devnet system addresses, to avoid breaking fee-estimation or nonce values.
+    PATH = os.environ['PATH']
+    if path != '':
+        PATH += f':{path}'
     run_commands([
         CommandPreset('erc20-test',
           ['npx', 'hardhat',  'deposit-erc20', '--network',  'devnetL1',
            '--l1-contracts-json-path', paths.addresses_json_path, '--l2-provider-url', l2_provider_url, '--signer-index', '14'],
-          cwd=paths.sdk_dir, timeout=8*60, env={'L1_RPC': l1_provider_url}),
+          cwd=paths.sdk_dir, timeout=8*60, env={'L1_RPC': l1_provider_url, 'PATH': PATH}),
         CommandPreset('eth-test',
           ['npx', 'hardhat',  'deposit-eth', '--network',  'devnetL1',
            '--l1-contracts-json-path', paths.addresses_json_path, '--l2-provider-url', l2_provider_url, '--signer-index', '15'],
-          cwd=paths.sdk_dir, timeout=8*60, env={'L1_RPC': l1_provider_url}),
+          cwd=paths.sdk_dir, timeout=8*60, env={'L1_RPC': l1_provider_url, 'PATH': PATH}),
     ], max_workers=2)
 
 
