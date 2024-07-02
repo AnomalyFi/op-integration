@@ -252,34 +252,34 @@ services:
       - "--bootnodes=${ENODE}"
 
   # TODO: do we need this?
-  # op-node-builder:
-  #   restart: on-failure:5
-  #   networks:
-  #     static:
-  #       ipv4_address: $SUBNET.0.9
-  #     standard:
-  #   build:
-  #     context: ../
-  #     dockerfile: ./op-node/Dockerfile
-  #     args:
-  #       OP_STACK_GO_BUILDER: op-stack-go
-  #   command: >
-  #     op-node
-  #     --l1=${L1WS}
-  #     --l2=http://l2-builder:8551
-  #     --l2.jwt-secret=/config/test-jwt-secret.txt
-  #     --rollup.config=/rollup.json
-  #     --rpc.addr=0.0.0.0
-  #     --rpc.port=8500
-  #     --rpc.enable-admin
-  #     --p2p.advertise.ip=$SUBNET.0.9
-  #     --p2p.bootnodes=${ENR}
-  #     --p2p.sync.req-resp
-  #     --syncmode=execution-layer
-  #   ports:
-  #     - "$OPNODE_BUILDER_RPC:8500"
-  #     # - "7501:8501"
-  #   volumes:
-  #     - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-  #     - "${PWD}/../.devnet/rollup.json:/rollup.json"
-  #     - op_log:/op_log
+  op-node-builder:
+    restart: on-failure:5
+    networks:
+      static:
+        ipv4_address: $SUBNET.0.9
+      standard:
+    build:
+      context: ../
+      dockerfile: ./op-node/Dockerfile
+      args:
+        OP_STACK_GO_BUILDER: op-stack-go
+    command: >
+      op-node
+      --l1=${L1WS}
+      --l2=http://l2-builder:8551
+      --l2.jwt-secret=/config/test-jwt-secret.txt
+      --rollup.config=/rollup.json
+      --rpc.addr=0.0.0.0
+      --rpc.port=8500
+      --rpc.enable-admin
+      --p2p.advertise.ip=$SUBNET.0.9
+      --p2p.bootnodes=${ENR}
+      --p2p.sync.req-resp
+      --syncmode=execution-layer
+    ports:
+      - "$OPNODE_BUILDER_RPC:8500"
+      # - "7501:8501"
+    volumes:
+      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "${PWD}/../.devnet/rollup.json:/rollup.json"
+      - op_log:/op_log
