@@ -22,7 +22,7 @@ const config: HardhatUserConfig = {
       ],
     },
     devnetL1: {
-      url: 'http://localhost:8545',
+      url: process.env.L1_RPC || 'http://localhost:8545',
       accounts: [
         // warning: keys 0 - 12 (incl) are used by the system
         'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', // 0

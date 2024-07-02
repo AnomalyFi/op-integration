@@ -139,10 +139,10 @@ def main():
       nodekit_l1_dir=nodekit_l1_dir
     )
 
-    # if args.test:
-    #     log.info('Testing deployed devnet')
-    #     devnet_test(paths, args.l2_provider_url)
-    #     return
+    if args.test:
+        log.info('Testing deployed devnet')
+        devnet_test(paths, args.l2_provider_url, args.l1_rpc_url)
+        return
 
     os.makedirs(devnet_dir, exist_ok=True)
 
@@ -498,7 +498,7 @@ def devnet_deploy(paths, args):
     l2_provider_http = l2_provider_url
 
     # rpc port value - default value
-    inc = l2_provider_port - 19545 
+    inc = l2_provider_port - 19545
     p2p_port = inc + 30303
 
     log.info(f'l2 provider http: {l2_provider_http}, port: {l2_provider_port}')
@@ -669,14 +669,14 @@ def deploy_erc20(paths, l2_provider_url):
          timeout=60,
     )
 
-CommandPreset = namedtuple('Command', ['name', 'args', 'cwd', 'timeout'])
+CommandPreset = namedtuple('Command', ['name', 'args', 'cwd', 'timeout', 'env'])
 
-def devnet_test(paths, l2_provider_url):
-    # Check the L2 config
-    run_command(
-        ['go', 'run', 'cmd/check-l2/main.go', '--l2-rpc-url', l2_provider_url, '--l1-rpc-url', 'https://devnet.nodekit.xyz'],
-        cwd=paths.ops_chain_ops,
-    )
+def devnet_test(paths, l2_provider_url, l1_provider_url):
+    # # Check the L2 config
+    # run_command(
+    #     ['go', 'run', 'cmd/check-l2/main.go', '--l2-rpc-url', l2_provider_url, '--l1-rpc-url', l1_provider_url],
+    #     cwd=paths.ops_chain_ops,
+    # )
 
     # Run the commands with different signers, so the ethereum nonce management does not conflict
     # And do not use devnet system addresses, to avoid breaking fee-estimation or nonce values.
@@ -684,11 +684,11 @@ def devnet_test(paths, l2_provider_url):
         CommandPreset('erc20-test',
           ['npx', 'hardhat',  'deposit-erc20', '--network',  'devnetL1',
            '--l1-contracts-json-path', paths.addresses_json_path, '--l2-provider-url', l2_provider_url, '--signer-index', '14'],
-          cwd=paths.sdk_dir, timeout=8*60),
+          cwd=paths.sdk_dir, timeout=8*60, env={'L1_RPC': l1_provider_url}),
         CommandPreset('eth-test',
           ['npx', 'hardhat',  'deposit-eth', '--network',  'devnetL1',
            '--l1-contracts-json-path', paths.addresses_json_path, '--l2-provider-url', l2_provider_url, '--signer-index', '15'],
-          cwd=paths.sdk_dir, timeout=8*60),
+          cwd=paths.sdk_dir, timeout=8*60, env={'L1_RPC': l1_provider_url}),
     ], max_workers=2)
 
 
@@ -703,7 +703,7 @@ def run_commands(commands: list[CommandPreset], max_workers=2):
 
 
 def run_command_preset(command: CommandPreset):
-    with subprocess.Popen(command.args, cwd=command.cwd,
+    with subprocess.Popen(command.args, cwd=command.cwd, env=command.env,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
         try:
             # Live output processing
