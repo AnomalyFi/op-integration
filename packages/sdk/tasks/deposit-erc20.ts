@@ -142,6 +142,8 @@ task('deposit-erc20', 'Deposits WETH9 onto L2.')
       hre.network.config.accounts[args.signerIndex],
       l2Provider
     )
+    const l2SignerAddress = await l2Signer.getAddress()
+    console.log(`Using l2 signer ${l2SignerAddress}`)
 
     const l2ChainId = await l2Signer.getChainId()
     let contractAddrs = CONTRACT_ADDRESSES[l2ChainId]
@@ -253,8 +255,9 @@ task('deposit-erc20', 'Deposits WETH9 onto L2.')
 
     console.log('Checking to make sure deposit was successful')
     // Deposit might get reorged, wait and also log for reorgs.
+    console.log("waiting 60s to let op-node pickup messages on l1 to be relayed to l2 contracts")
     let prevBlockHash: string = ''
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 60; i++) {
       const messageReceipt = await signer.provider!.getTransactionReceipt(
         depositTx.hash
       )
@@ -278,6 +281,8 @@ task('deposit-erc20', 'Deposits WETH9 onto L2.')
     console.log(`Deposit confirmed`)
 
     const l2Balance = await OptimismMintableERC20.balanceOf(address)
+    const l2BalanceOfL2signer = await OptimismMintableERC20.balanceOf(l2SignerAddress)
+    console.log(`l2 signer balance: ${utils.formatEther(l2BalanceOfL2signer)}`)
     if (l2Balance.lt(utils.parseEther('1'))) {
       throw new Error(
         `bad deposit. recipient balance on L2: ${utils.formatEther(l2Balance)}`
