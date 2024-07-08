@@ -88,6 +88,7 @@ services:
     # TODO: replace l1 address
     command: >
       op-node
+      --log.level=debug
       --l1=${L1WS}
       --l2=http://op1-l2:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt
@@ -239,6 +240,7 @@ services:
     entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
       - "/bin/sh"
       - "/entrypoint.sh"
+      - "--verbosity=5"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
       - "--nat=extip:$SUBNET.0.8"
       - "--builder"
@@ -247,7 +249,7 @@ services:
       - "--builder.seconds_in_slot=2"
       - "--builder.submission_offset=1s"
       # - "--builder.beacon_endpoints=http://op-node-builder:8501"
-      - "--miner.extradata=IlluminateDmocratizeDstribute"
+      # - "--miner.extradata=IlluminateDmocratizeDstribute"
       # - "--miner.algotype=greedy"
       - "--bootnodes=${ENODE}"
 
@@ -265,6 +267,7 @@ services:
         OP_STACK_GO_BUILDER: op-stack-go
     command: >
       op-node
+      --log.level=debug
       --l1=${L1WS}
       --l2=http://l2-builder:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt

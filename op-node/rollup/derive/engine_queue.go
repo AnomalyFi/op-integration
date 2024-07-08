@@ -618,6 +618,12 @@ func (eq *EngineQueue) forceNextSafeAttributes(ctx context.Context) error {
 	if eq.safeAttributes == nil {
 		return nil
 	}
+	txTypes := make([]byte, 0, len(eq.safeAttributes.attributes.Transactions))
+	for _, tx := range eq.safeAttributes.attributes.Transactions {
+		txTypes = append(txTypes, tx[0])
+	}
+	eq.log.Info("[forceNextSafeAttributes]", "len(txns)", len(eq.safeAttributes.attributes.Transactions), "types", txTypes, "len(withdraws)", len(*eq.safeAttributes.attributes.Withdrawals))
+
 	attrs := eq.safeAttributes.attributes
 	lastInSpan := eq.safeAttributes.isLastInSpan
 	errType, err := eq.StartPayload(ctx, eq.ec.PendingSafeL2Head(), eq.safeAttributes, true)
