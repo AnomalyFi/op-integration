@@ -249,7 +249,7 @@ services:
       - "--builder.seconds_in_slot=2"
       - "--builder.submission_offset=1s"
       # - "--builder.beacon_endpoints=http://op-node-builder:8501"
-      # - "--miner.extradata=IlluminateDmocratizeDstribute"
+      # - "--miner.extradata=''"
       # - "--miner.algotype=greedy"
       - "--bootnodes=${ENODE}"
 
