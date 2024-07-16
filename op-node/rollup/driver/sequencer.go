@@ -162,6 +162,13 @@ func (d *Sequencer) updateNodeKitBatch(ctx context.Context, newHeaders []nodekit
 		})
 		for _, tx := range txs.Transactions {
 			batch.transactions = append(batch.transactions, []byte(tx))
+			txETH := new(types.Transaction)
+			err := txETH.UnmarshalBinary(tx)
+			if err != nil {
+				d.log.Info("unable to unmarshal transaction into eth tx instance type")
+			}
+
+			d.log.Info("tx from nodekit info", "txHash", txETH.Hash().Hex())
 		}
 	}
 
