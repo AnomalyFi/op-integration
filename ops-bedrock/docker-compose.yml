@@ -182,6 +182,9 @@ services:
       - "$OP1_BATCHER_METRICS_PORT:7300"
       - "$OP1_BATCHER_RPC_PORT:8545"
     # TODO: replace l1 addr
+    command: >
+      op-batcher
+      --log.level=debug
     environment:
       OP_BATCHER_L1_ETH_RPC: ${L1RPC}
       OP_BATCHER_L2_ETH_RPC: http://op1-l2:8545
@@ -282,7 +285,7 @@ services:
       --p2p.advertise.ip=$SUBNET.0.9
       --p2p.bootnodes=${ENR}
       --p2p.sync.req-resp
-      --syncmode=execution-layer
+      --syncmode=consensus-layer
     ports:
       - "$OPNODE_BUILDER_RPC:8500"
       # - "7501:8501"
