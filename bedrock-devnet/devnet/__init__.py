@@ -56,6 +56,8 @@ parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='4
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-zk contract', type=str, default='test test test test test test test test test test test junk')
 parser.add_argument('--subnet', help='the static subnet opstack will be deployed on', type=str, default='172.20')
+parser.add_argument('--proposer-hdpath', help='the hd path of proposer mnemonic will be used to post roots to l1', type=str, default="m/44'/60'/0'/0/1")
+parser.add_argument('--batcher-hdpath', help='the hd path of batcher mnemonic will be used to post batches to l1', type=str, default="m/44'/60'/0'/0/2")
 
 
 # Global environment variables
@@ -420,6 +422,9 @@ def devnet_deploy(paths, args):
     seq_addr: str = args.seq_url
     seq_chain_id = seq_addr.split('/')[-1]
     subnet = args.subnet
+    mnemonic_words = args.mnemonic_words
+    batcher_hdpath = args.batcher_hdpath
+    proposer_hdpath = args.proposer_hdpath
 
     conf = {
         l2_provider_url,
@@ -546,6 +551,10 @@ def devnet_deploy(paths, args):
         'SEQ_CHAIN_ID': seq_chain_id,
         'L1WS': l1_ws_url,
         'L1RPC': l1_rpc_url,
+        'OP_BATCHER_MNEMONIC': mnemonic_words,
+        'OP_BATCHER_SEQUENCER_HD_PATH': batcher_hdpath,
+        'OP_PROPOSER_MNEMONIC': mnemonic_words,
+        'OP_PROPOSER_L2_OUTPUT_HD_PATH': proposer_hdpath,
         'COMPOSE_PROJECT_NAME': composer_project_name
     })
 
