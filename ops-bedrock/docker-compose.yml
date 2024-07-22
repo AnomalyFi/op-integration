@@ -50,9 +50,8 @@ services:
       standard:
     image: op-geth
     build:
-      context: ../../op-geth
-      # context: .
-      # dockerfile: Dockerfile.l2
+      context: .
+      dockerfile: Dockerfile.l2
     ports:
       - "$OP1_L2_RPC_PORT:8545"
       - "$OP1_L2_DEBUG_PORT:6060"
