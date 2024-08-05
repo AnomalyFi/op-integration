@@ -527,7 +527,7 @@ def devnet_deploy(paths, args):
     # l2_provider_http = l2_provider_url.removeprefix('http://')
     wait_up(l2_provider_port)
     wait_for_rpc_server_local(l2_provider_http)
-    enode = get_enode(composer_project_name, "op1-l2", paths.ops_bedrock_dir)
+    # enode = get_enode(composer_project_name, "op1-l2", paths.ops_bedrock_dir)
 
     l2_output_oracle = addresses['L2OutputOracleProxy']
     log.info(f'Using L2OutputOracle {l2_output_oracle}')
@@ -558,40 +558,40 @@ def devnet_deploy(paths, args):
         'COMPOSE_PROJECT_NAME': composer_project_name
     })
 
-    enr = get_enr(composer_project_name, "op1-node", paths.ops_bedrock_dir)
+    # enr = get_enr(composer_project_name, "op1-node", paths.ops_bedrock_dir)
 
-    log.info(f"Bringing up Builder1. Bootnode={enode}")
-    run_command(
-        ["docker", "compose", "up", "-d", "l2-builder"],
-        cwd=paths.ops_bedrock_dir,
-        env={
-            "PWD": paths.ops_bedrock_dir,
-            'SUBNET': subnet,
-            "ENODE": enode,
-            "COMPOSE_PROJECT_NAME": composer_project_name
-    })
-    # TODO: to be injected
-    l2builder_rpc_port = 15545 + inc
-    wait_up(l2builder_rpc_port)
-    wait_for_rpc_server_local(f"http://127.0.0.1:{l2builder_rpc_port}")
+    # log.info(f"Bringing up Builder1. Bootnode={enode}")
+    # run_command(
+    #     ["docker", "compose", "up", "-d", "l2-builder"],
+    #     cwd=paths.ops_bedrock_dir,
+    #     env={
+    #         "PWD": paths.ops_bedrock_dir,
+    #         'SUBNET': subnet,
+    #         "ENODE": enode,
+    #         "COMPOSE_PROJECT_NAME": composer_project_name
+    # })
+    # # TODO: to be injected
+    # l2builder_rpc_port = 15545 + inc
+    # wait_up(l2builder_rpc_port)
+    # wait_for_rpc_server_local(f"http://127.0.0.1:{l2builder_rpc_port}")
 
     # TODO: do we need this for l2-builder
     # enr = f"enode://4d12f8f99cf20c54505146f194f7906a970443ad8ffc6ae6ba79323fb15ff228af256753eefdca0c441283499d9d49a0a7409812eed27a1283b2b5370c685a2d@op1-node:9003"
-    print(f'enr: {enr}')
-    log.info(f"Bringing up op-node for builder. Bootnode={enr}")
-    run_command(
-        ["docker", "compose", "up", "-d", "op-node-builder"],
-        cwd=paths.ops_bedrock_dir,
-        env={
-            'L1WS': l1_ws_url,
-            'SUBNET': subnet,
-            "PWD": paths.ops_bedrock_dir,
-            "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
-            "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
-            "ENR": enr,
-            'COMPOSE_PROJECT_NAME': composer_project_name
-        },
-    )
+    # print(f'enr: {enr}')
+    # log.info(f"Bringing up op-node for builder. Bootnode={enr}")
+    # run_command(
+    #     ["docker", "compose", "up", "-d", "op-node-builder"],
+    #     cwd=paths.ops_bedrock_dir,
+    #     env={
+    #         'L1WS': l1_ws_url,
+    #         'SUBNET': subnet,
+    #         "PWD": paths.ops_bedrock_dir,
+    #         "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
+    #         "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
+    #         "ENR": enr,
+    #         'COMPOSE_PROJECT_NAME': composer_project_name
+    #     },
+    # )
 
     log.info('Devnet ready.')
 
