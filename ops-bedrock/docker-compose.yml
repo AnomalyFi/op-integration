@@ -246,7 +246,7 @@ services:
     entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
       - "/bin/sh"
       - "/entrypoint.sh"
-      - "--verbosity=5"
+      - "--verbosity=4"
       - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
       - "--nat=extip:$SUBNET.0.8"
       - "--builder"
@@ -254,7 +254,7 @@ services:
       - "--builder.local_relay"
       - "--builder.seconds_in_slot=2"
       - "--builder.submission_offset=1s"
-      # - "--builder.beacon_endpoints=http://op-node-builder:8501"
+      - "--builder.beacon_endpoints=http://op-node-builder:8501/eth/v1"
       # - "--miner.extradata=''"
       # - "--miner.algotype=greedy"
       - "--bootnodes=${ENODE}"

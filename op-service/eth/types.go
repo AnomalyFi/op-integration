@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
@@ -303,24 +304,57 @@ func BlockAsPayloadEnv(bl *types.Block, canyonForkTime *uint64) (*ExecutionPaylo
 	}, nil
 }
 
-type BuilderPayloadAttributesEvent struct {
-	Version string                            `json:"version"`
-	Data    BuilderPayloadAttributesEventData `json:"data"`
-}
-
-type BuilderPayloadAttributesEventData struct {
-	ProposalSlot      uint64                   `json:"proposal_slot,string"`
-	ParentBlockHash   common.Hash              `json:"parent_block_hash"`
-	PayloadAttributes BuilderPayloadAttributes `json:"payload_attributes"`
-}
-
 type BuilderPayloadAttributes struct {
-	Timestamp             uint64             `json:"timestamp,string"`
-	PrevRandao            common.Hash        `json:"prev_randao"`
-	SuggestedFeeRecipient common.Address     `json:"suggested_fee_recipient"`
+	Timestamp             hexutil.Uint64     `json:"timestamp"`
+	Random                common.Hash        `json:"prevRandao"`
+	SuggestedFeeRecipient common.Address     `json:"suggestedFeeRecipient,omitempty"`
+	Slot                  uint64             `json:"slot"`
+	HeadHash              common.Hash        `json:"blockHash"`
+	Withdrawals           types.Withdrawals  `json:"withdrawals"`
+	ParentBeaconBlockRoot *common.Hash       `json:"parentBeaconBlockRoot"`
 	Transactions          types.Transactions `json:"transactions"`
-	GasLimit              uint64             `json:"gas_limit"`
+	GasLimit              uint64
 }
+
+func (attrs *BuilderPayloadAttributes) Equal(other *BuilderPayloadAttributes) bool {
+	if attrs.Timestamp != other.Timestamp ||
+		attrs.Random != other.Random ||
+		attrs.SuggestedFeeRecipient != other.SuggestedFeeRecipient ||
+		attrs.Slot != other.Slot ||
+		attrs.HeadHash != other.HeadHash ||
+		attrs.GasLimit != other.GasLimit ||
+		attrs.ParentBeaconBlockRoot != other.ParentBeaconBlockRoot {
+		return false
+	}
+
+	if !slices.Equal(attrs.Transactions, other.Transactions) {
+		return false
+	}
+
+	if !slices.Equal(attrs.Withdrawals, other.Withdrawals) {
+		return false
+	}
+	return true
+}
+
+// type BuilderPayloadAttributesEvent struct {
+// 	Version string                            `json:"version"`
+// 	Data    BuilderPayloadAttributesEventData `json:"data"`
+// }
+
+// type BuilderPayloadAttributesEventData struct {
+// 	ProposalSlot      uint64                   `json:"proposal_slot,string"`
+// 	ParentBlockHash   common.Hash              `json:"parent_block_hash"`
+// 	PayloadAttributes BuilderPayloadAttributes `json:"payload_attributes"`
+// }
+
+// type BuilderPayloadAttributes struct {
+// 	Timestamp             uint64             `json:"timestamp,string"`
+// 	PrevRandao            common.Hash        `json:"prev_randao"`
+// 	SuggestedFeeRecipient common.Address     `json:"suggested_fee_recipient"`
+// 	Transactions          types.Transactions `json:"transactions"`
+// 	GasLimit              uint64             `json:"gas_limit"`
+// }
 
 type PayloadAttributes struct {
 	// value for the timestamp field of the new payload

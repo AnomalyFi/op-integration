@@ -2,7 +2,6 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -203,7 +202,6 @@ func (d *Sequencer) tryToSealNodeKitBatch(ctx context.Context, agossip async.Asy
 // execution payload.
 func (d *Sequencer) sealNodeKitBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
 	batch := d.nodekitBatch
-	l2Head := batch.onto
 
 	sysCfg, err := d.cfgFetcher.SystemConfigByL2Hash(ctx, batch.onto.Hash)
 	if err != nil {
@@ -233,30 +231,30 @@ func (d *Sequencer) sealNodeKitBatch(ctx context.Context, agossip async.AsyncGos
 	attrs.Transactions = append(attrs.Transactions, batch.transactions...)
 
 	// trigger next block production by javalin
-	go func() {
-		attrsEvent := &eth.BuilderPayloadAttributesEvent{
-			Version: "",
-			Data: eth.BuilderPayloadAttributesEventData{
-				ProposalSlot:    l2Head.Number + 1,
-				ParentBlockHash: l2Head.Hash,
-				PayloadAttributes: eth.BuilderPayloadAttributes{
-					Timestamp:             uint64(attrs.Timestamp),
-					PrevRandao:            common.Hash(attrs.PrevRandao),
-					SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
-					GasLimit:              uint64(*attrs.GasLimit),
-					// here we include zero transactions just to trigger javalin block production
-					// javalin will fetch transactions from op-geth mempool
-					Transactions: types.Transactions{},
-				},
-			},
-		}
+	// go func() {
+	// 	attrsEvent := &eth.BuilderPayloadAttributesEvent{
+	// 		Version: "",
+	// 		Data: eth.BuilderPayloadAttributesEventData{
+	// 			ProposalSlot:    l2Head.Number + 1,
+	// 			ParentBlockHash: l2Head.Hash,
+	// 			PayloadAttributes: eth.BuilderPayloadAttributes{
+	// 				Timestamp:             uint64(attrs.Timestamp),
+	// 				PrevRandao:            common.Hash(attrs.PrevRandao),
+	// 				SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+	// 				GasLimit:              uint64(*attrs.GasLimit),
+	// 				// here we include zero transactions just to trigger javalin block production
+	// 				// javalin will fetch transactions from op-geth mempool
+	// 				Transactions: types.Transactions{},
+	// 			},
+	// 		},
+	// 	}
 
-		attrsData, err := json.Marshal(attrsEvent)
-		if err != nil {
-			d.log.Error("failed to marshal payload attributes", "err", err)
-		}
-		d.broadcastPayloadAttrs("payload_attributes", attrsData)
-	}()
+	// 	attrsData, err := json.Marshal(attrsEvent)
+	// 	if err != nil {
+	// 		d.log.Error("failed to marshal payload attributes", "err", err)
+	// 	}
+	// 	d.broadcastPayloadAttrs("payload_attributes", attrsData)
+	// }()
 
 	d.log.Debug("prepared attributes for new NodeKit block",
 		"num", batch.onto.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin)

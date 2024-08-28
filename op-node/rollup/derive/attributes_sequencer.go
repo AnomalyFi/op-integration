@@ -62,26 +62,40 @@ func (as *AttributesSequencer) PreparePayloadAttributes(ctx context.Context, l2H
 
 	as.log.Info("unmarshaling txns", "len(attrs.Transactions)", len(attrs.Transactions))
 	txs := make(types.Transactions, 0, len(attrs.Transactions))
-	for i, tx := range attrs.Transactions {
-		txs[i].UnmarshalBinary(tx)
+	for _, otx := range attrs.Transactions {
+		tx := new(types.Transaction)
+		tx.UnmarshalBinary(otx)
+		txs = append(txs, tx)
 	}
 
-	attrsEvent := &eth.BuilderPayloadAttributesEvent{
-		Version: "",
-		Data: eth.BuilderPayloadAttributesEventData{
-			ProposalSlot:    l2Head.Number + 1,
-			ParentBlockHash: l2Head.Hash,
-			PayloadAttributes: eth.BuilderPayloadAttributes{
-				Timestamp:             uint64(attrs.Timestamp),
-				PrevRandao:            common.Hash(attrs.PrevRandao),
-				SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
-				GasLimit:              uint64(*attrs.GasLimit),
-				Transactions:          txs,
-			},
-		},
+	builderAttrs := &eth.BuilderPayloadAttributes{
+		Timestamp:             attrs.Timestamp,
+		Random:                common.Hash(attrs.PrevRandao),
+		SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+		Slot:                  l2Head.Number + 1,
+		HeadHash:              l2Head.Hash,
+		Withdrawals:           *attrs.Withdrawals,
+		ParentBeaconBlockRoot: nil,
+		Transactions:          txs,
+		GasLimit:              uint64(*attrs.GasLimit),
 	}
 
-	attrsData, err := json.Marshal(attrsEvent)
+	// attrsEvent := &eth.BuilderPayloadAttributesEvent{
+	// 	Version: "",
+	// 	Data: eth.BuilderPayloadAttributesEventData{
+	// 		ProposalSlot:    l2Head.Number + 1,
+	// 		ParentBlockHash: l2Head.Hash,
+	// 		PayloadAttributes: eth.BuilderPayloadAttributes{
+	// 			Timestamp:             uint64(attrs.Timestamp),
+	// 			PrevRandao:            common.Hash(attrs.PrevRandao),
+	// 			SuggestedFeeRecipient: attrs.SuggestedFeeRecipient,
+	// 			GasLimit:              uint64(*attrs.GasLimit),
+	// 			Transactions:          txs,
+	// 		},
+	// 	},
+	// }
+
+	attrsData, err := json.Marshal(builderAttrs)
 	if err != nil {
 		return nil, err
 	}
