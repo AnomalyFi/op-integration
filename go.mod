@@ -3,7 +3,7 @@ module github.com/ethereum-optimism/optimism
 go 1.21
 
 require (
-	github.com/AnomalyFi/seq-sdk v0.1.2
+	github.com/AnomalyFi/seq-sdk v0.1.4
 	github.com/BurntSushi/toml v1.3.2
 	github.com/btcsuite/btcd v0.24.0
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
@@ -45,6 +45,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
 	github.com/prometheus/client_golang v1.19.0
+	github.com/r3labs/sse v0.0.0-20210224172625-26fe804710bc
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.1
 	golang.org/x/crypto v0.21.0
@@ -185,7 +186,6 @@ require (
 	github.com/quic-go/qtls-go1-20 v0.3.4 // indirect
 	github.com/quic-go/quic-go v0.39.4 // indirect
 	github.com/quic-go/webtransport-go v0.6.0 // indirect
-	github.com/r3labs/sse v0.0.0-20210224172625-26fe804710bc // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
