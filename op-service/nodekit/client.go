@@ -76,6 +76,8 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 		return WindowStart{}, err
 	}
 
+	c.log.Debug("Block headers", "prev", res.Prev.BlockId, "next", res.Next.BlockId, "len(res.Blocks)", len(res.Blocks))
+
 	blocks := make([]Header, len(res.Blocks))
 	for i, blk := range res.Blocks {
 		t, err := convertBlockInfoToHeader(blk)
