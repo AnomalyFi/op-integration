@@ -65,7 +65,7 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 	// cli := trpc.NewJSONRPCClient(urlNew, 1337, id)
 	cli := c.client
 
-	res, err := cli.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
+	res, err := cli.GetBlockHeadersByStartTimeStamp(context.Background(), int64(start_time), int64(end_time))
 
 	log.Info("seq info", "chain-id", c.chainID, "sequencer-addr", c.seqAddr)
 	//res, err := c.client.GetBlockHeadersByStart(context.Background(), int64(start_time), int64(end_time))
@@ -75,6 +75,8 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 		c.log.Error("Error in GetBlockHeadersByStart", "error", err)
 		return WindowStart{}, err
 	}
+
+	c.log.Debug("Block headers", "prev", res.Prev.BlockId, "next", res.Next.BlockId, "len(res.Blocks)", len(res.Blocks))
 
 	blocks := make([]Header, len(res.Blocks))
 	for i, blk := range res.Blocks {
@@ -86,7 +88,7 @@ func (c *Client) FetchHeadersForWindow(ctx context.Context, start uint64, end ui
 	}
 
 	if len(res.Prev.BlockId) == 0 {
-		err = errors.New("Zero Length Id")
+		err = errors.New("zero Length Id")
 		c.log.Error("Error in FetchHeadersForWindow", "error", err)
 	}
 
@@ -141,7 +143,7 @@ func (c *Client) FetchRemainingHeadersForWindow(ctx context.Context, from uint64
 	blocks := make([]Header, len(res.Blocks))
 	for i, blk := range res.Blocks {
 		if len(blk.BlockId) == 0 {
-			err = errors.New("Zero Length Id")
+			err = errors.New("zero Length Id")
 			c.log.Error("Error in FetchRemainingHeadersForWindow", "error", err)
 		}
 		t, err := convertBlockInfoToHeader(blk)

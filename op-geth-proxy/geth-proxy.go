@@ -63,12 +63,7 @@ func ForwardToSequencer(message rpcMessage) {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, *vm_id)
 
-	if err != nil {
-		log.Println("Failed to write bytes before SEQ: ", err)
-		return
-	}
-
-	txHash, err := cli.SubmitTx(context.Background(), *chain_id, 1337, buf, txnBytes)
+	txHash, err := cli.SubmitMsgTx(context.Background(), *chain_id, 1337, buf, txnBytes)
 	if err != nil {
 		log.Println("Failed to submit to SEQ: ", err)
 		return
