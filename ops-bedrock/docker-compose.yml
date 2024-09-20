@@ -203,31 +203,6 @@ services:
     # The batcher does not respond to sigint
     stop_grace_period: 1s
 
-  # TODO: fix javelin-builder and replace this
-  # l2-builder:
-  #   networks:
-  #     static:
-  #       ipv4_address: $SUBNET.0.8
-  #     standard:
-  #   image: op-geth
-  #   build:
-  #     context: ../../op-geth
-  #   ports:
-  #     - "$BUILDER_RPC_PORT:8545"
-  #   volumes:
-  #     - "l2_builder_data:/db"
-  #     - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
-  #     - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-  #   entrypoint:  # pass the L2 specific flags by overriding the entry-point and adding extra arguments
-  #     - "/bin/sh"
-  #     - "/entrypoint.sh"
-  #     - "--authrpc.jwtsecret=/config/test-jwt-secret.txt"
-  #     - "--verbosity=4"
-  #     - "--bootnodes=${ENODE}"
-  #     - "--nat=extip:$SUBNET.0.8"
-  #   environment:
-  #     GETH_MINER_RECOMMIT: 100ms
-
   l2-builder:
     networks:
       static:
@@ -255,9 +230,14 @@ services:
       - "--builder.seconds_in_slot=2"
       - "--builder.submission_offset=1s"
       - "--builder.beacon_endpoints=http://op-node-builder:8501/eth/v1"
+      - "--builder.baton=http://baton.url" # TODO: to be configured
+      - "--builder.chainid=$L2_CHAINID" # TODO: to be configured
       # - "--miner.extradata=''"
       # - "--miner.algotype=greedy"
       - "--bootnodes=${ENODE}"
+      - "--seq.url=${SEQ_ADDR}"
+      - "--seq.chainid=${SEQ_CHAIN_ID}"
+      - "--seq.signer=${SEQ_SIGNER_HEX}"
 
   # TODO: do we need this?
   op-node-builder:

@@ -51,6 +51,7 @@ parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=boo
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
 parser.add_argument('--nodekit-contract', help='nodekit commitment contract address on l1', type=str, default='')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
+parser.add_argument('--seq-signer',  help='signing wallet of SEQ', type=str, default='323b1d8f4eed5f0da9da93071b034f2dce9d2d22692c172f3cb252a64ddfafd01b057de320297c29ad0c1f589ea216869cf1938d88c9fbd70d6748323dbf2fa7')
 parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
 parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
@@ -421,6 +422,7 @@ def devnet_deploy(paths, args):
     l1_ws_url = args.l1_ws_url
     seq_addr: str = args.seq_url
     seq_chain_id = seq_addr.split('/')[-1]
+    seq_signer: str = args.seq_signer
     subnet = args.subnet
     mnemonic_words = args.mnemonic_words
     batcher_hdpath = args.batcher_hdpath
@@ -568,6 +570,10 @@ def devnet_deploy(paths, args):
             "PWD": paths.ops_bedrock_dir,
             'SUBNET': subnet,
             "ENODE": enode,
+            'SEQ_ADDR': seq_addr,
+            'SEQ_CHAIN_ID': seq_chain_id,
+            'SEQ_SIGNER_HEX': seq_signer,
+            'L2_CHAINID': f'{45200+inc}',
             "COMPOSE_PROJECT_NAME": composer_project_name
     })
     # TODO: to be injected
@@ -700,7 +706,7 @@ def wait_for_rpc_server_local(url, jwt_secret=None):
             session.close()
         except Exception as e:
             time.sleep(1)
-            log.warn(f'unable to connect to geth {e}')
+            log.warn(f'unable to connect to geth({url}) {e}')
 
 def generate_jwt_token(secret, expiration_seconds=JWT_EXPIRATION_SECONDS):
     payload = {
