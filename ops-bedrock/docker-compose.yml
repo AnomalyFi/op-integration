@@ -230,7 +230,7 @@ services:
       - "--builder.seconds_in_slot=2"
       - "--builder.submission_offset=1s"
       - "--builder.beacon_endpoints=http://op-node-builder:8501/eth/v1"
-      - "--builder.baton=http://baton.url" # TODO: to be configured
+      - "--builder.baton=$BATON_URL" # TODO: to be configured
       - "--builder.chainid=$L2_CHAINID" # TODO: to be configured
       # - "--miner.extradata=''"
       # - "--miner.algotype=greedy"

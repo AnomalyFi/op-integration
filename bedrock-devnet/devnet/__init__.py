@@ -59,6 +59,7 @@ parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-z
 parser.add_argument('--subnet', help='the static subnet opstack will be deployed on', type=str, default='172.20')
 parser.add_argument('--proposer-hdpath', help='the hd path of proposer mnemonic will be used to post roots to l1', type=str, default="m/44'/60'/0'/0/1")
 parser.add_argument('--batcher-hdpath', help='the hd path of batcher mnemonic will be used to post batches to l1', type=str, default="m/44'/60'/0'/0/2")
+parser.add_argument('--baton-url', help='rpc url of baton', type=str, default='http://baton.url')
 
 
 # Global environment variables
@@ -414,6 +415,7 @@ def devnet_deploy(paths, args):
     nodekit = args.nodekit
     l2 = args.l2
     l2_chain_id = int(args.l2_chain_id)
+    baton_url: str = args.baton_url
     # which will be prepended to names of docker volumnes and services so we can run several rollups
     composer_project_name = f'op-devnet_{l2_chain_id}'
     l2_provider_url = args.l2_provider_url
@@ -569,6 +571,7 @@ def devnet_deploy(paths, args):
         env={
             "PWD": paths.ops_bedrock_dir,
             'SUBNET': subnet,
+            'BATON_URL': baton_url,
             "ENODE": enode,
             'SEQ_ADDR': seq_addr,
             'SEQ_CHAIN_ID': seq_chain_id,
