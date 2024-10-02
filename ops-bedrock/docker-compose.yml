@@ -228,7 +228,8 @@ services:
       - "--builder.dry-run"
       - "--builder.local_relay"
       - "--builder.seconds_in_slot=2"
-      - "--builder.submission_offset=1s"
+      - "--builder.submission_offset=100ms"
+      - "--builder.rate_limit_duration=200ms"
       - "--builder.beacon_endpoints=http://op-node-builder:8501/eth/v1"
       - "--builder.baton=$BATON_URL" # TODO: to be configured
       - "--builder.chainid=$L2_CHAINID" # TODO: to be configured
