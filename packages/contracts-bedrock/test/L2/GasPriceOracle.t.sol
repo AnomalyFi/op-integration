@@ -6,6 +6,7 @@ import { CommonTest } from "test/setup/CommonTest.sol";
 
 // Libraries
 import { Encoding } from "src/libraries/Encoding.sol";
+import { L1SetBlockValuesParam } from "src/L2/L1Block.sol";
 
 contract GasPriceOracle_Test is CommonTest {
     event OverheadUpdated(uint256);
@@ -42,21 +43,23 @@ contract GasPriceOracleBedrock_Test is GasPriceOracle_Test {
     function setUp() public virtual override {
         super.setUp();
 
-        vm.prank(depositor);
-        l1Block.setL1BlockValues({
-            _number: number,
-            _timestamp: timestamp,
-            _basefee: baseFee,
-            _hash: hash,
-            _sequenceNumber: sequenceNumber,
-            _batcherHash: batcherHash,
-            _l1FeeOverhead: l1FeeOverhead,
-            _l1FeeScalar: l1FeeScalar,
-            _nodekit: nodekit,
-            _nodekitL1ConfDepth: nodekitL1ConfDepth,
-            _justificationOffset: justificationOffset,
-            _justification: ""
+        L1SetBlockValuesParam memory record = L1SetBlockValuesParam({
+            number: number, 
+            timestamp: timestamp,
+            basefee: baseFee,
+            hash: hash,
+            sequenceNumber: sequenceNumber,
+            batcherHash: batcherHash,
+            l1FeeOverhead: l1FeeOverhead,
+            l1FeeScalar: l1FeeScalar,
+            nodekit: nodekit,
+            nodekitL1ConfDepth: nodekitL1ConfDepth,
+            justificationOffset: uint256(352),
+            justification: ""
         });
+
+        vm.prank(depositor);
+        l1Block.setL1BlockValues({record: record});
     }
 
     /// @dev Tests that `l1BaseFee` is set correctly.
