@@ -32,12 +32,13 @@ contract L1BlockBedrock_Test is L1BlockTest {
         uint256 fo,
         uint256 fs,
         bool nk,
-        uint64 cd
+        uint64 cd,
+        uint256 jstof
     )
         external
     {
         vm.prank(depositor);
-        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs, nk, cd);
+        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs, nk, cd, jstof, "");
 
         assertEq(l1Block.number(), n);
         assertEq(l1Block.timestamp(), t);
@@ -64,7 +65,9 @@ contract L1BlockBedrock_Test is L1BlockTest {
             _l1FeeOverhead: type(uint256).max,
             _l1FeeScalar: type(uint256).max,
             _nodekit: true,
-            _nodekitL1ConfDepth: type(uint64).max
+            _nodekitL1ConfDepth: type(uint64).max,
+            _justificationOffset: type(uint256).max,
+            _justification: ""
         });
     }
 }

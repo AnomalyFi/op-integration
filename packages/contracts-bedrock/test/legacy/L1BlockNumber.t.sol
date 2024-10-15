@@ -34,7 +34,9 @@ contract L1BlockNumberTest is Test {
             _l1FeeOverhead: 2,
             _l1FeeScalar: 3,
             _nodekit: true,
-            _nodekitL1ConfDepth: 0
+            _nodekitL1ConfDepth: 0,
+            _justificationOffset: 532,
+            _justification: ""
         });
         // lb.setL1BlockValues(
         //     L1Block.L1BlockValues({

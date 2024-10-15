@@ -55,6 +55,9 @@ contract L1Block is ISemver {
     /// @notice Minimum confirmation depth for L1 origin blocks.
     uint64 public nodekitL1ConfDepth;
 
+    uint256 public justificationOffset;
+    bytes public justification;
+
     /// @custom:semver 1.2.0
     string public constant version = "1.2.0";
 
@@ -80,7 +83,9 @@ contract L1Block is ISemver {
         uint256 _l1FeeOverhead,
         uint256 _l1FeeScalar,
         bool _nodekit,
-        uint64 _nodekitL1ConfDepth
+        uint64 _nodekitL1ConfDepth,
+        uint256 _justificationOffset,
+        bytes calldata _justification
     )
         external
     {
@@ -96,6 +101,8 @@ contract L1Block is ISemver {
         l1FeeScalar = _l1FeeScalar;
         nodekit = _nodekit;
         nodekitL1ConfDepth = _nodekitL1ConfDepth;
+        justificationOffset = _justificationOffset;
+        justification = _justification;
     }
 
     /// @notice Updates the L1 block values for an Ecotone upgraded chain.

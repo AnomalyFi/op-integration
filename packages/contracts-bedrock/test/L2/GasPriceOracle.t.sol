@@ -28,6 +28,7 @@ contract GasPriceOracle_Test is CommonTest {
     uint32 constant baseFeeScalar = 20;
     bool constant nodekit = true;
     uint64 constant nodekitL1ConfDepth = 0;
+    uint256 constant justificationOffset = 352;
 
     /// @dev Sets up the test suite.
     function setUp() public virtual override {
@@ -52,7 +53,9 @@ contract GasPriceOracleBedrock_Test is GasPriceOracle_Test {
             _l1FeeOverhead: l1FeeOverhead,
             _l1FeeScalar: l1FeeScalar,
             _nodekit: nodekit,
-            _nodekitL1ConfDepth: nodekitL1ConfDepth
+            _nodekitL1ConfDepth: nodekitL1ConfDepth,
+            _justificationOffset: justificationOffset,
+            _justification: ""
         });
     }
 
