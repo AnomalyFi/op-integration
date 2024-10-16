@@ -48,7 +48,6 @@ contract L1BlockBedrock_Test is L1BlockTest {
             l1FeeScalar: fs,
             nodekit: nk,
             nodekitL1ConfDepth: cd,
-            justificationOffset: uint256(352),
             justification: ""
         });
 
@@ -80,7 +79,6 @@ contract L1BlockBedrock_Test is L1BlockTest {
             l1FeeScalar: type(uint256).max,
             nodekit: true,
             nodekitL1ConfDepth: type(uint64).max,
-            justificationOffset: type(uint256).max,
             justification: ""
         });
 

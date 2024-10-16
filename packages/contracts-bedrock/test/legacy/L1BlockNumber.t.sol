@@ -35,7 +35,6 @@ contract L1BlockNumberTest is Test {
             l1FeeScalar: 3,
             nodekit: true,
             nodekitL1ConfDepth: 0,
-            justificationOffset: 532,
             justification: ""
         });
 

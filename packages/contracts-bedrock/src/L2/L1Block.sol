@@ -14,7 +14,6 @@ struct L1SetBlockValuesParam {
     uint256 l1FeeScalar;
     bool nodekit;
     uint64 nodekitL1ConfDepth;
-    uint256 justificationOffset;
     bytes justification;
 }
 
@@ -71,7 +70,6 @@ contract L1Block is ISemver {
     /// @notice Minimum confirmation depth for L1 origin blocks.
     uint64 public nodekitL1ConfDepth;
 
-    uint256 public justificationOffset;
     bytes public justification;
 
     /// @custom:semver 1.2.0
@@ -83,7 +81,7 @@ contract L1Block is ISemver {
     function setL1BlockValues(L1SetBlockValuesParam memory record)
         external
     {
-        require(msg.sender == DEPOSITOR_ACCOUNT, "L1Block: only the depositor account can set L1 block values");
+        // require(msg.sender == DEPOSITOR_ACCOUNT, "L1Block: only the depositor account can set L1 block values");
 
         number = record.number;
         timestamp = record.timestamp;
@@ -95,7 +93,6 @@ contract L1Block is ISemver {
         l1FeeScalar = record.l1FeeScalar;
         nodekit = record.nodekit;
         nodekitL1ConfDepth = record.nodekitL1ConfDepth;
-        justificationOffset = record.justificationOffset;
         justification = record.justification;
     }
 

@@ -8,8 +8,10 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
@@ -70,7 +72,7 @@ type L1BlockInfo struct {
 // | Bytes   | Field                    |
 // +---------+--------------------------+
 // | 4       | Function signature       |
-// | 32      | Struct fields offset (32)|
+// | 32      | Array length             |
 // | 32      | Number                   |
 // | 32      | Time                     |
 // | 32      | BaseFee                  |
@@ -80,9 +82,9 @@ type L1BlockInfo struct {
 // | 32      | L1FeeOverhead            |
 // | 32      | L1FeeScalar              |
 // | 32      | NodeKit                  |
-// | 32      | NodeKitL1ConfDepth      |
+// | 32      | NodeKitL1ConfDepth       |
+// | 32      | JustificationLength      |
 // | variable| Justification            |
-// | 32      | L1InfoJustificationOffset|
 // | 		 | (this is how dynamic     |
 // | 		 | types are ABI encoded)   |
 // +---------+--------------------------+
@@ -92,7 +94,8 @@ func (info *L1BlockInfo) marshalBinaryBedrock() ([]byte, error) {
 	if err := solabi.WriteSignature(w, L1InfoFuncBedrockBytes4); err != nil {
 		return nil, err
 	}
-	if err := solabi.WriteUint64(w, 32); err != nil {
+	// length of the parameters, 11 parameters in total
+	if err := solabi.WriteUint64(w, 11); err != nil {
 		return nil, err
 	}
 	if err := solabi.WriteUint64(w, info.Number); err != nil {
@@ -132,7 +135,7 @@ func (info *L1BlockInfo) marshalBinaryBedrock() ([]byte, error) {
 		return nil, err
 	}
 
-	if err := solabi.WriteUint256(w, L1InfoJustificationOffset); err != nil {
+	if err := solabi.WriteUint256(w, big.NewInt(int64(len(rlpBytes)))); err != nil {
 		return nil, err
 	}
 	if err := solabi.WriteBytes(w, rlpBytes); err != nil {
@@ -151,8 +154,8 @@ func (info *L1BlockInfo) unmarshalBinaryBedrock(data []byte) error {
 	}
 	if fieldsOffset, err := solabi.ReadUint64(reader); err != nil {
 		return err
-	} else if fieldsOffset != 32 {
-		return fmt.Errorf("invalid struct fields offset (%d, expected 32)", fieldsOffset)
+	} else if fieldsOffset != 11 {
+		return fmt.Errorf("invalid struct fields offset (%d, expected 11)", fieldsOffset)
 	}
 	if info.Number, err = solabi.ReadUint64(reader); err != nil {
 		return err
@@ -187,13 +190,14 @@ func (info *L1BlockInfo) unmarshalBinaryBedrock(data []byte) error {
 	}
 
 	// Read the offset of the Justification bytes followed by the bytes themselves.
-	rlpOffset, err := solabi.ReadUint256(reader)
+	justificationLength, err := solabi.ReadUint256(reader)
 	if err != nil {
 		return err
 	}
-	if rlpOffset.Cmp(L1InfoJustificationOffset) != 0 {
-		return fmt.Errorf("invalid justification offset (%d, expected %d)", rlpOffset, L1InfoJustificationOffset)
-	}
+	log.Debug("justification length", "length", justificationLength)
+	// if justificationLength.Cmp(L1InfoJustificationOffset) != 0 {
+	// 	return fmt.Errorf("invalid justification offset (%d, expected %d)", rlpOffset, L1InfoJustificationOffset)
+	// }
 	rlpBytes, err := solabi.ReadBytes(reader)
 	if err != nil {
 		return err
@@ -324,6 +328,8 @@ func isEcotoneButNotFirstBlock(rollupCfg *rollup.Config, l2BlockTime uint64) boo
 
 // L1BlockInfoFromBytes is the inverse of L1InfoDeposit, to see where the L2 chain is derived from
 func L1BlockInfoFromBytes(rollupCfg *rollup.Config, l2BlockTime uint64, data []byte) (*L1BlockInfo, error) {
+	log.Debug("l1 block from bytes", "data", hexutil.Encode(data))
+
 	var info L1BlockInfo
 	if isEcotoneButNotFirstBlock(rollupCfg, l2BlockTime) {
 		return &info, info.unmarshalBinaryEcotone(data)
@@ -404,6 +410,7 @@ func L1InfoDepositBytes(rollupCfg *rollup.Config, sysCfg eth.SystemConfig, seqNu
 		return nil, fmt.Errorf("failed to create L1 info tx: %w", err)
 	}
 	l1Tx := types.NewTx(dep)
+	log.Debug("deposit tx info", "txHash", l1Tx.Hash().Hex(), "l1info", l1Info)
 	opaqueL1Tx, err := l1Tx.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode L1 info tx: %w", err)

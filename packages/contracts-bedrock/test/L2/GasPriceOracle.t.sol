@@ -54,7 +54,6 @@ contract GasPriceOracleBedrock_Test is GasPriceOracle_Test {
             l1FeeScalar: l1FeeScalar,
             nodekit: nodekit,
             nodekitL1ConfDepth: nodekitL1ConfDepth,
-            justificationOffset: uint256(352),
             justification: ""
         });
 
