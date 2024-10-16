@@ -22,7 +22,7 @@ func RandomL2Block(rng *rand.Rand, txCount int) (*types.Block, []*types.Receipt)
 		t := uint64(0)
 		rollupCfg.RegolithTime = &t
 	}
-	l1InfoTx, err := derive.L1InfoDeposit(&rollupCfg, eth.SystemConfig{}, 0, eth.BlockToInfo(l1Block), 0)
+	l1InfoTx, err := derive.L1InfoDeposit(&rollupCfg, eth.SystemConfig{}, 0, eth.BlockToInfo(l1Block), 0, nil)
 	if err != nil {
 		panic("L1InfoDeposit: " + err.Error())
 	}

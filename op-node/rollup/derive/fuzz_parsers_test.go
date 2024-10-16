@@ -123,7 +123,7 @@ func FuzzL1InfoBedrockAgainstContract(f *testing.F) {
 		opts.Nonce = common.Big0
 		// Create the SetL1BlockValues transaction
 
-		val := bindings.L1BlockL1BlockValues{
+		val := bindings.L1SetBlockValuesParam{
 			Number:             number,
 			Timestamp:          time,
 			Basefee:            BytesToBigInt(baseFee),
