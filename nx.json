@@ -1,9 +1,9 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "defaultBase": "javelin-builder",
+  "defaultBase": "contracts-bedrock-debug",
   "neverConnectToCloud": true,
   "affected": {
-    "defaultBase": "javelin-builder"
+    "defaultBase": "contracts-bedrock-debug"
   },
   "implicitDependencies": {
     "nx.json": "*",

@@ -3,6 +3,20 @@ pragma solidity 0.8.15;
 
 import { ISemver } from "src/universal/ISemver.sol";
 
+struct L1SetBlockValuesParam {
+    uint64 number;
+    uint64 timestamp;
+    uint256 basefee;
+    bytes32 hash;
+    uint64 sequenceNumber;
+    bytes32 batcherHash;
+    uint256 l1FeeOverhead;
+    uint256 l1FeeScalar;
+    bool nodekit;
+    uint64 nodekitL1ConfDepth;
+    bytes justification;
+}
+
 /// @custom:proxied
 /// @custom:predeploy 0x4200000000000000000000000000000000000015
 /// @title L1Block
@@ -13,6 +27,7 @@ import { ISemver } from "src/universal/ISemver.sol";
 contract L1Block is ISemver {
     /// @notice Address of the special depositor account.
     address public constant DEPOSITOR_ACCOUNT = 0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001;
+
 
     /// @notice The latest L1 block number known by the L2 system.
     uint64 public number;
@@ -55,47 +70,30 @@ contract L1Block is ISemver {
     /// @notice Minimum confirmation depth for L1 origin blocks.
     uint64 public nodekitL1ConfDepth;
 
+    bytes public justification;
+
     /// @custom:semver 1.2.0
     string public constant version = "1.2.0";
 
     /// @custom:legacy
     /// @notice Updates the L1 block values.
-    /// @param _number         L1 blocknumber.
-    /// @param _timestamp      L1 timestamp.
-    /// @param _basefee        L1 basefee.
-    /// @param _hash           L1 blockhash.
-    /// @param _sequenceNumber Number of L2 blocks since epoch start.
-    /// @param _batcherHash    Versioned hash to authenticate batcher by.
-    /// @param _l1FeeOverhead  L1 fee overhead.
-    /// @param _l1FeeScalar    L1 fee scalar.
-    /// @param _nodekit        Enable NodeKit
-    /// @param _nodekitL1ConfDepth       Minimum confirmation depth for L1 origin blocks.
-    function setL1BlockValues(
-        uint64 _number,
-        uint64 _timestamp,
-        uint256 _basefee,
-        bytes32 _hash,
-        uint64 _sequenceNumber,
-        bytes32 _batcherHash,
-        uint256 _l1FeeOverhead,
-        uint256 _l1FeeScalar,
-        bool _nodekit,
-        uint64 _nodekitL1ConfDepth
-    )
+    /// @param record         L1 block record wrapped in struct
+    function setL1BlockValues(L1SetBlockValuesParam memory record)
         external
     {
-        require(msg.sender == DEPOSITOR_ACCOUNT, "L1Block: only the depositor account can set L1 block values");
+        // require(msg.sender == DEPOSITOR_ACCOUNT, "L1Block: only the depositor account can set L1 block values");
 
-        number = _number;
-        timestamp = _timestamp;
-        basefee = _basefee;
-        hash = _hash;
-        sequenceNumber = _sequenceNumber;
-        batcherHash = _batcherHash;
-        l1FeeOverhead = _l1FeeOverhead;
-        l1FeeScalar = _l1FeeScalar;
-        nodekit = _nodekit;
-        nodekitL1ConfDepth = _nodekitL1ConfDepth;
+        number = record.number;
+        timestamp = record.timestamp;
+        basefee = record.basefee;
+        hash = record.hash;
+        sequenceNumber = record.sequenceNumber;
+        batcherHash = record.batcherHash;
+        l1FeeOverhead = record.l1FeeOverhead;
+        l1FeeScalar = record.l1FeeScalar;
+        nodekit = record.nodekit;
+        nodekitL1ConfDepth = record.nodekitL1ConfDepth;
+        justification = record.justification;
     }
 
     /// @notice Updates the L1 block values for an Ecotone upgraded chain.

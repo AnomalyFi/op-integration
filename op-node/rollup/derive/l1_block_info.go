@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
@@ -70,7 +71,7 @@ type L1BlockInfo struct {
 // | Bytes   | Field                    |
 // +---------+--------------------------+
 // | 4       | Function signature       |
-// | 32      | Struct fields offset (32)|
+// | 32      | Struct Length            |
 // | 32      | Number                   |
 // | 32      | Time                     |
 // | 32      | BaseFee                  |
@@ -80,9 +81,9 @@ type L1BlockInfo struct {
 // | 32      | L1FeeOverhead            |
 // | 32      | L1FeeScalar              |
 // | 32      | NodeKit                  |
-// | 32      | NodeKitL1ConfDepth      |
+// | 32      | NodeKitL1ConfDepth       |
+// | 32      | JustificationOffset      |
 // | variable| Justification            |
-// | 32      | L1InfoJustificationOffset|
 // | 		 | (this is how dynamic     |
 // | 		 | types are ABI encoded)   |
 // +---------+--------------------------+
@@ -126,15 +127,15 @@ func (info *L1BlockInfo) marshalBinaryBedrock() ([]byte, error) {
 	if err := solabi.WriteUint64(w, info.NodeKitL1ConfDepth); err != nil {
 		return nil, err
 	}
+	if err := solabi.WriteUint256(w, L1InfoJustificationOffset); err != nil {
+		return nil, err
+	}
 
 	rlpBytes, err := rlp.EncodeToBytes(info.Justification)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := solabi.WriteUint256(w, L1InfoJustificationOffset); err != nil {
-		return nil, err
-	}
 	if err := solabi.WriteBytes(w, rlpBytes); err != nil {
 		return nil, err
 	}
@@ -186,14 +187,10 @@ func (info *L1BlockInfo) unmarshalBinaryBedrock(data []byte) error {
 		return err
 	}
 
-	// Read the offset of the Justification bytes followed by the bytes themselves.
-	rlpOffset, err := solabi.ReadUint256(reader)
-	if err != nil {
-		return err
+	if offset, err := solabi.ReadUint256(reader); err != nil || offset.Cmp(L1InfoJustificationOffset) != 0 {
+		return fmt.Errorf("unable to read justification offset(%s) or justification offset not correct: %d(want %d)", err, offset.Uint64(), L1InfoJustificationOffset.Uint64())
 	}
-	if rlpOffset.Cmp(L1InfoJustificationOffset) != 0 {
-		return fmt.Errorf("invalid justification offset (%d, expected %d)", rlpOffset, L1InfoJustificationOffset)
-	}
+
 	rlpBytes, err := solabi.ReadBytes(reader)
 	if err != nil {
 		return err
@@ -404,6 +401,7 @@ func L1InfoDepositBytes(rollupCfg *rollup.Config, sysCfg eth.SystemConfig, seqNu
 		return nil, fmt.Errorf("failed to create L1 info tx: %w", err)
 	}
 	l1Tx := types.NewTx(dep)
+	log.Debug("deposit tx info", "txHash", l1Tx.Hash().Hex(), "l1info", l1Info)
 	opaqueL1Tx, err := l1Tx.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode L1 info tx: %w", err)

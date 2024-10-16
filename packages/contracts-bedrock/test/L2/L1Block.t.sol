@@ -8,7 +8,7 @@ import { CommonTest } from "test/setup/CommonTest.sol";
 import { Encoding } from "src/libraries/Encoding.sol";
 
 // Target contract
-import { L1Block } from "src/L2/L1Block.sol";
+import { L1Block, L1SetBlockValuesParam } from "src/L2/L1Block.sol";
 
 contract L1BlockTest is CommonTest {
     address depositor;
@@ -37,7 +37,21 @@ contract L1BlockBedrock_Test is L1BlockTest {
         external
     {
         vm.prank(depositor);
-        l1Block.setL1BlockValues(n, t, b, h, s, bt, fo, fs, nk, cd);
+        L1SetBlockValuesParam memory record = L1SetBlockValuesParam({
+            number: n, 
+            timestamp: t,
+            basefee: b,
+            hash: h,
+            sequenceNumber: s,
+            batcherHash: bt,
+            l1FeeOverhead: fo,
+            l1FeeScalar: fs,
+            nodekit: nk,
+            nodekitL1ConfDepth: cd,
+            justification: ""
+        });
+
+        l1Block.setL1BlockValues(record);
 
         assertEq(l1Block.number(), n);
         assertEq(l1Block.timestamp(), t);
@@ -54,18 +68,21 @@ contract L1BlockBedrock_Test is L1BlockTest {
     /// @dev Tests that `setL1BlockValues` can set max values.
     function test_updateValues_succeeds() external {
         vm.prank(depositor);
-        l1Block.setL1BlockValues({
-            _number: type(uint64).max,
-            _timestamp: type(uint64).max,
-            _basefee: type(uint256).max,
-            _hash: keccak256(abi.encode(1)),
-            _sequenceNumber: type(uint64).max,
-            _batcherHash: bytes32(type(uint256).max),
-            _l1FeeOverhead: type(uint256).max,
-            _l1FeeScalar: type(uint256).max,
-            _nodekit: true,
-            _nodekitL1ConfDepth: type(uint64).max
+        L1SetBlockValuesParam memory record = L1SetBlockValuesParam({
+            number: type(uint64).max,
+            timestamp: type(uint64).max,
+            basefee: type(uint256).max,
+            hash: keccak256(abi.encode(1)),
+            sequenceNumber: type(uint64).max,
+            batcherHash: bytes32(type(uint256).max),
+            l1FeeOverhead: type(uint256).max,
+            l1FeeScalar: type(uint256).max,
+            nodekit: true,
+            nodekitL1ConfDepth: type(uint64).max,
+            justification: ""
         });
+
+        l1Block.setL1BlockValues({record: record});
     }
 }
 
