@@ -42,7 +42,7 @@ const (
 // TODO this could be causing issues
 func NodeKitL1Origin(ctx context.Context, cfg *rollup.Config, sysCfg *eth.SystemConfig,
 	parent eth.L2BlockRef, suggested uint64, l1 L1BlockRefByNumberFetcher, l log.Logger) (eth.L1BlockRef, error) {
-
+	log.Debug("nodekit l1 origin", "parent", parent, "suggested", suggested)
 	if suggested > sysCfg.NodeKitL1ConfDepth {
 		suggested -= sysCfg.NodeKitL1ConfDepth
 	} else {
