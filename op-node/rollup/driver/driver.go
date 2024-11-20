@@ -12,8 +12,8 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/conductor"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
-	"github.com/ethereum-optimism/optimism/op-service/arcadia"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/sidecar"
 )
 
 type Metrics interface {
@@ -122,7 +122,7 @@ func NewDriver(
 	l1 L1Chain,
 	l1Blobs derive.L1BlobsFetcher,
 	// nodekitClient *nodekit.Client,
-	arcadiaClient arcadia.RPCInterface,
+	sidecarClient sidecar.RPCInterface,
 	altSync AltSync,
 	network Network,
 	log log.Logger,
@@ -146,7 +146,7 @@ func NewDriver(
 	// derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, attrsSequencer, engine, metrics, syncCfg, safeHeadListener)
 	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, attrsSequencer, engine, metrics, syncCfg, safeHeadListener)
 	meteredEngine := NewMeteredEngine(cfg, engine, metrics, log) // Only use the metered engine in the sequencer b/c it records sequencing metrics.
-	sequencer := NewSequencer(log, cfg, meteredEngine, l2, attrBuilder, findL1Origin, arcadiaClient, metrics, broadcastPayloadAttrs)
+	sequencer := NewSequencer(log, cfg, meteredEngine, l2, attrBuilder, findL1Origin, sidecarClient, metrics, broadcastPayloadAttrs)
 	driverCtx, driverCancel := context.WithCancel(context.Background())
 	asyncGossiper := async.NewAsyncGossiper(driverCtx, network, log, metrics)
 	return &Driver{

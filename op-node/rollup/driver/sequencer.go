@@ -14,8 +14,8 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/async"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/conductor"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
-	"github.com/ethereum-optimism/optimism/op-service/arcadia"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/sidecar"
 )
 
 type SequencerMode uint64
@@ -66,7 +66,7 @@ type Sequencer struct {
 	cfgFetcher       derive.SystemConfigL2Fetcher
 	attrBuilder      derive.AttributesBuilder
 	l1OriginSelector L1OriginSelectorIface
-	arcadia          arcadia.RPCInterface
+	sidecar          sidecar.RPCInterface
 
 	broadcastPayloadAttrs func(id string, data []byte)
 
@@ -77,10 +77,10 @@ type Sequencer struct {
 
 	nextAction time.Time
 	// The current NodeKit block we are building, if applicable.
-	arcadiaPayload *arcadia.GetPayloadResponse
+	arcadiaPayload *sidecar.GetPayloadResponse
 }
 
-func NewSequencer(log log.Logger, rollupCfg *rollup.Config, engine derive.EngineControl, cfgFetcher derive.SystemConfigL2Fetcher, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, arcadia arcadia.RPCInterface, metrics SequencerMetrics, broadcastPayloadAttrs func(id string, data []byte)) *Sequencer {
+func NewSequencer(log log.Logger, rollupCfg *rollup.Config, engine derive.EngineControl, cfgFetcher derive.SystemConfigL2Fetcher, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, sidecar sidecar.RPCInterface, metrics SequencerMetrics, broadcastPayloadAttrs func(id string, data []byte)) *Sequencer {
 	return &Sequencer{
 		log:                   log,
 		rollupCfg:             rollupCfg,
@@ -90,7 +90,7 @@ func NewSequencer(log log.Logger, rollupCfg *rollup.Config, engine derive.Engine
 		cfgFetcher:            cfgFetcher,
 		attrBuilder:           attributesBuilder,
 		l1OriginSelector:      l1OriginSelector,
-		arcadia:               arcadia,
+		sidecar:               sidecar,
 		metrics:               metrics,
 		broadcastPayloadAttrs: broadcastPayloadAttrs,
 		arcadiaPayload:        nil,
@@ -524,10 +524,10 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 
 	fetchFromArcadia := false
 	if d.mode == NodeKit {
-		status, err := d.arcadia.RollupStatus()
+		status, err := d.sidecar.RollupStatus()
 		if err != nil {
 			d.log.Warn("unable to fetch status of rollup", "err", err)
-		} else if status == arcadia.ROLLUP_NOT_REGISTERED {
+		} else if status == sidecar.ROLLUP_NOT_REGISTERED {
 			fetchFromArcadia = true
 		}
 	}
@@ -553,7 +553,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 
 func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
 	head := d.engine.UnsafeL2Head()
-	arcadiaTxs, err := d.arcadia.GetPayload(head.Number + 1)
+	arcadiaTxs, err := d.sidecar.GetPayload(head.Number + 1)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package arcadia
+package sidecar
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ const (
 )
 
 type ClientConfig struct {
-	ArcadiaUrl         string
+	SidecarUrl         string
 	Logger             log.Logger
 	SequencerPubkey    []byte
 	SequencerSecretKey []byte
@@ -45,7 +45,7 @@ type Client struct {
 	httpClient *http.Client
 }
 
-func NewArcadiaClient(cfg *ClientConfig) (*Client, error) {
+func NewSidecarClient(cfg *ClientConfig) (*Client, error) {
 	sk, err := bls.SecretKeyFromBytes(cfg.SequencerSecretKey)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
 	sig := bls.Sign(c.sk, reqHash)
 	sigBytes := sig.Bytes()
 
-	req, err := http.NewRequest("POST", c.cfg.ArcadiaUrl, bytes.NewBuffer(reqBytes))
+	req, err := http.NewRequest("POST", c.cfg.SidecarUrl, bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, err
 	}
