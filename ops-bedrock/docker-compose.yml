@@ -112,6 +112,9 @@ services:
       --metrics.port=7300
       --pprof.enabled
       --rpc.enable-admin
+      --chain-id=${L2_CHAINID}
+      --sidecar.url=${SIDECAR_URL}
+      --sidecar.secret-key=${SIDECAR_SECRET_KEY}
     ports:
       - "$OP1_NODE_RPC_PORT:8545"
       - "$OP1_NODE_P2P_PORT:9003"
@@ -227,11 +230,12 @@ services:
       - "--builder"
       - "--builder.dry-run"
       - "--builder.local_relay"
-      - "--builder.seconds_in_slot=2"
-      - "--builder.submission_offset=100ms"
-      - "--builder.rate_limit_duration=200ms"
+      - "--builder.seconds_in_slot=${BUILDER_SECONDS_IN_SLOT}"
+      - "--builder.submission_offset=${BUILDER_SUBMISSION_OFFSET}"
+      - "--builder.record_offset=${BUILDER_RECORD_OFFSET}"
+      - "--builder.rate_limit_duration=${BUILDER_RATE_LIMIT_DURATION}"
       - "--builder.beacon_endpoints=http://op-node-builder:8501/eth/v1"
-      - "--builder.baton=$BATON_URL" # TODO: to be configured
+      - "--builder.arcadia=$ARCADIA_URL" # TODO: to be configured
       - "--builder.chainid=$L2_CHAINID" # TODO: to be configured
       # - "--miner.extradata=''"
       # - "--miner.algotype=greedy"
@@ -240,7 +244,6 @@ services:
       - "--seq.chainid=${SEQ_CHAIN_ID}"
       - "--seq.signer=${SEQ_SIGNER_HEX}"
 
-  # TODO: do we need this?
   op-node-builder:
     restart: on-failure:5
     networks:

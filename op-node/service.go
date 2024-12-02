@@ -12,10 +12,12 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/chaincfg"
 	plasma "github.com/ethereum-optimism/optimism/op-plasma"
 	"github.com/ethereum-optimism/optimism/op-service/oppprof"
+	"github.com/ethereum-optimism/optimism/op-service/sidecar"
 	"github.com/ethereum-optimism/optimism/op-service/sources"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ethereum-optimism/optimism/op-node/flags"
@@ -73,6 +75,10 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 	if haltOption == "none" {
 		haltOption = ""
 	}
+	sidecarConfig, err := NewSidecarConfig(ctx, log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the sidecar config: %w", err)
+	}
 
 	cfg := &node.Config{
 		L1:     l1Endpoint,
@@ -112,6 +118,7 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 
 		Plasma:     plasma.ReadCLIConfig(ctx),
 		NodeKitURL: ctx.String(flags.NodeKitURL.Name),
+		Sidecar:    *sidecarConfig,
 	}
 
 	if err := cfg.LoadPersisted(log); err != nil {
@@ -197,6 +204,26 @@ func NewDriverConfig(ctx *cli.Context) *driver.Config {
 		SequencerStopped:    ctx.Bool(flags.SequencerStoppedFlag.Name),
 		SequencerMaxSafeLag: ctx.Uint64(flags.SequencerMaxSafeLagFlag.Name),
 	}
+}
+
+func NewSidecarConfig(ctx *cli.Context, log log.Logger) (*sidecar.ClientConfig, error) {
+	skBytes := ctx.String(flags.SidecarSecretKey.Name)
+	sk, err := bls.SecretKeyFromBytes([]byte(skBytes))
+	if err != nil {
+		return nil, err
+	}
+	pk, err := bls.PublicKeyFromSecretKey(sk)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sidecar.ClientConfig{
+		SidecarUrl:         ctx.String(flags.SidecarURL.Name),
+		Logger:             log,
+		SequencerPubkey:    pk,
+		SequencerSecretKey: sk,
+		ChainID:            ctx.String(flags.ChainID.Name),
+	}, nil
 }
 
 func NewRollupConfigFromCLI(log log.Logger, ctx *cli.Context) (*rollup.Config, error) {

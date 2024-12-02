@@ -24,8 +24,8 @@ const (
 type ClientConfig struct {
 	SidecarUrl         string
 	Logger             log.Logger
-	SequencerPubkey    []byte
-	SequencerSecretKey []byte
+	SequencerPubkey    *bls.PublicKey
+	SequencerSecretKey *bls.SecretKey
 
 	ChainID string
 }
@@ -42,19 +42,16 @@ type Client struct {
 	log log.Logger
 
 	sk         *bls.SecretKey
+	pk         *bls.PublicKey
 	httpClient *http.Client
 }
 
 func NewSidecarClient(cfg *ClientConfig) (*Client, error) {
-	sk, err := bls.SecretKeyFromBytes(cfg.SequencerSecretKey)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Client{
 		cfg:        *cfg,
 		log:        cfg.Logger,
-		sk:         sk,
+		sk:         cfg.SequencerSecretKey,
+		pk:         cfg.SequencerPubkey,
 		httpClient: &http.Client{},
 	}, nil
 }
