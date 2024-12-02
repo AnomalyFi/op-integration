@@ -15,14 +15,6 @@ import http.client
 from multiprocessing import Process, Queue
 import concurrent.futures
 from collections import namedtuple
-# from hdwallet import BIP44HDWallet
-# from hdwallet.cryptocurrencies import EthereumMainnet
-# from hdwallet.derivations import BIP44Derivation
-# from hdwallet.utils import generate_mnemonic
-# from typing import Optional
-
-
-import devnet.log_setup
 
 pjoin = os.path.join
 
@@ -59,7 +51,13 @@ parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-z
 parser.add_argument('--subnet', help='the static subnet opstack will be deployed on', type=str, default='172.20')
 parser.add_argument('--proposer-hdpath', help='the hd path of proposer mnemonic will be used to post roots to l1', type=str, default="m/44'/60'/0'/0/1")
 parser.add_argument('--batcher-hdpath', help='the hd path of batcher mnemonic will be used to post batches to l1', type=str, default="m/44'/60'/0'/0/2")
-parser.add_argument('--baton-url', help='rpc url of baton', type=str, default='http://baton.url')
+parser.add_argument('--arcadia-url', help='rpc url of arcadia', type=str, default='http://arcadia.url')
+parser.add_argument('--block-time', help='block time of chain in seconds', type=str, default='2')
+parser.add_argument('--builder-submission-offset', help='builder submission offset', type=str, default='1s')
+parser.add_argument('--builder-record-offset', help='builder record offset', type=str, default='500ms')
+parser.add_argument('--builder-rate-limit-duration', help='builder rate limit duration', type=str, default='100ms')
+parser.add_argument('--sidecar-url', help='sidecar url', type=str, default='http://sidecar.url')
+parser.add_argument('--sidecar-secret-key', help='sidecar bls signing key', type=str, default='0xblskey')
 
 
 # Global environment variables
@@ -429,6 +427,13 @@ def devnet_deploy(paths, args):
     mnemonic_words = args.mnemonic_words
     batcher_hdpath = args.batcher_hdpath
     proposer_hdpath = args.proposer_hdpath
+    arcadia_url: str = args.arcadia_url
+    block_time: str = args.block_time
+    builder_submission_offset: str = args.builder_submission_offset
+    builder_record_offset: str = args.builder_record_offset
+    builder_rate_limit_duration: str = args.builder_rate_limit_duration
+    sidecar_url: str = args.sidecar_url
+    sidecar_secret_key: str = args.sidecar_secret_key
 
     conf = {
         l2_provider_url,
@@ -559,7 +564,10 @@ def devnet_deploy(paths, args):
         'OP_BATCHER_SEQUENCER_HD_PATH': batcher_hdpath,
         'OP_PROPOSER_MNEMONIC': mnemonic_words,
         'OP_PROPOSER_L2_OUTPUT_HD_PATH': proposer_hdpath,
-        'COMPOSE_PROJECT_NAME': composer_project_name
+        'COMPOSE_PROJECT_NAME': composer_project_name,
+        'L2_CHAINID': hex(int(l2_chain_id)),
+        'SIDECAR_URL': sidecar_url,
+        'SIDECAR_SECRET_KEY': sidecar_secret_key,
     })
 
     enr = get_enr(composer_project_name, "op1-node", paths.ops_bedrock_dir)
@@ -577,7 +585,12 @@ def devnet_deploy(paths, args):
             'SEQ_CHAIN_ID': seq_chain_id,
             'SEQ_SIGNER_HEX': seq_signer,
             'L2_CHAINID': f'{45200+inc}',
-            "COMPOSE_PROJECT_NAME": composer_project_name
+            "COMPOSE_PROJECT_NAME": composer_project_name,
+            'ARCADIA_URL': arcadia_url,
+            'BUILDER_SECONDS_IN_SLOT': block_time,
+            'BUILDER_SUBMISSION_OFFSET': builder_submission_offset,
+            'BUILDER_RECORD_OFFSET': builder_record_offset,
+            'BUILDER_RATE_LIMIT_DURATION': builder_rate_limit_duration,
     })
     # TODO: to be injected
     l2builder_rpc_port = 15545 + inc
