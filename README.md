@@ -4,6 +4,9 @@
   <a href="https://optimism.io"><img alt="Optimism" src="https://raw.githubusercontent.com/ethereum-optimism/brand-kit/main/assets/svg/OPTIMISM-R.svg" width=600></a>
   <br />
   <h3><a href="https://optimism.io">Optimism</a> is Ethereum, scaled.</h3>
+    <p>
+         This Optimism Stack is tailored to run in PBS in NodeKit's system, check section NodeKit PBS for more information
+    </p>
   <br />
 </div>
 
@@ -13,6 +16,7 @@
 
 - [What is Optimism?](#what-is-optimism)
 - [Documentation](#documentation)
+- [NodeKit PBS](#NodeKit PBS)
 - [Specification](#specification)
 - [Community](#community)
 - [Contributing](#contributing)
@@ -36,6 +40,10 @@ In this repository, you'll find numerous core components of the OP Stack, the de
 
 - If you want to build on top of OP Mainnet, refer to the [Optimism Documentation](https://docs.optimism.io)
 - If you want to build your own OP Stack based blockchain, refer to the [OP Stack Guide](https://docs.optimism.io/stack/getting-started), and make sure to understand this repository's [Development and Release Process](#development-and-release-process)
+
+## NodeKit PBS
+
+In NodeKit PBS, we have two types of builder, the super builder and the MEV builder, both types of builder will build blocks then submit to [Arcadia](https://github.com/AnomalyFi/Arcadia/tree/arcadia), then Arcadia will produce valid block for op-node to be fetched from. In Arcadia based version, for ease of integration, we have a [sidecar](https://github.com/AnomalyFi/sidecar) that manages rollup registration and exit on NodeKit system, when the rollup is registered, the sidecar will fetch blocks from Arcadia; when the rollup is exited or not join NodeKit system, it simply fallback to the legacy mode, which produces block based on its mempool. For detail of launching the NodeKit based Optimism rollup, goto [op-javelin-deployment](https://github.com/AnomalyFi/op-javelin-deployment/tree/arcadia)
 
 ## Specification
 
