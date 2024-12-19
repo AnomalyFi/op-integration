@@ -235,8 +235,8 @@ services:
       - "--builder.record_offset=${BUILDER_RECORD_OFFSET}"
       - "--builder.rate_limit_duration=${BUILDER_RATE_LIMIT_DURATION}"
       - "--builder.beacon_endpoints=http://op-node-builder:8501/eth/v1"
-      - "--builder.arcadia=$ARCADIA_URL" # TODO: to be configured
-      - "--builder.chainid=$L2_CHAINID" # TODO: to be configured
+      - "--builder.arcadia=${ARCADIA_URL}" # TODO: to be configured
+      - "--builder.chainid=${L2_CHAINID}" # TODO: to be configured
       # - "--miner.extradata=''"
       # - "--miner.algotype=greedy"
       - "--bootnodes=${ENODE}"

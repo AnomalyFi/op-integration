@@ -413,7 +413,6 @@ def devnet_deploy(paths, args):
     nodekit = args.nodekit
     l2 = args.l2
     l2_chain_id = int(args.l2_chain_id)
-    baton_url: str = args.baton_url
     # which will be prepended to names of docker volumnes and services so we can run several rollups
     composer_project_name = f'op-devnet_{l2_chain_id}'
     l2_provider_url = args.l2_provider_url
@@ -445,53 +444,6 @@ def devnet_deploy(paths, args):
     }
 
     print(f'using config {conf}')
-
-    # TODO: to be removed since we don't need to launch l2 ourselves
-    # if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
-    #     log.info('L1 genesis already generated.')
-    # elif not args.deploy_l2:
-    #     # Generate the L1 genesis, unless we are deploying an L2 onto an existing L1.
-    #     log.info('Generating L1 genesis.')
-    #     if os.path.exists(paths.allocs_path) == False:
-    #         devnet_l1_genesis(paths, args.deploy_config)
-
-    #     # It's odd that we want to regenerate the devnetL1.json file with
-    #     # an updated timestamp different than the one used in the devnet_l1_genesis
-    #     # function.  But, without it, CI flakes on this test rather consistently.
-    #     # If someone reads this comment and understands why this is being done, please
-    #     # update this comment to explain.
-    #     init_devnet_l1_deploy_config(paths, update_timestamp=True)
-    #     outfile_l1 = pjoin(paths.devnet_dir, 'genesis-l1.json')
-    #     run_command([
-    #         'go', 'run', 'cmd/main.go', 'genesis', 'l1',
-    #         '--deploy-config', paths.devnet_config_path,
-    #         '--l1-allocs', paths.allocs_path,
-    #         '--l1-deployments', paths.addresses_json_path,
-    #         '--outfile.l1', outfile_l1,
-    #     ], cwd=paths.op_node_dir)
-
-    # if args.deploy_l2:
-    #     # L1 and sequencer already exist, just create the deploy config and deploy the L1 contracts
-    #     # for the new L2.
-    #     init_devnet_l1_deploy_config(paths, update_timestamp=True)
-    #     deploy_contracts(paths, args.deploy_config, args.deploy_l2)
-    # else:
-    #     # Deploy L1 and sequencer network.
-    #     log.info('Starting L1.')
-    #     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-    #         'PWD': paths.ops_bedrock_dir,
-    #         'DEVNET_DIR': paths.devnet_dir
-    #     })
-    #     #wait_up(8545)
-    #     wait_for_rpc_server('devnet.nodekit.xyz')
-
-    #     log.info('Bringing up `artifact-server`')
-    #     run_command(['docker', 'compose', 'up', '-d', 'artifact-server'], cwd=paths.ops_bedrock_dir, env={
-    #         'PWD': paths.ops_bedrock_dir,
-    #         'DEVNET_DIR': paths.devnet_dir
-    #     })
-
-
 
     # Re-build the L2 genesis unconditionally in NodeKit mode, since we require the timestamps to be recent.
     # if not nodekit and os.path.exists(paths.genesis_l2_path) and os.path.isfile(paths.genesis_l2_path):
@@ -579,7 +531,6 @@ def devnet_deploy(paths, args):
         env={
             "PWD": paths.ops_bedrock_dir,
             'SUBNET': subnet,
-            'BATON_URL': baton_url,
             "ENODE": enode,
             'SEQ_ADDR': seq_addr,
             'SEQ_CHAIN_ID': seq_chain_id,

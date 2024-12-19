@@ -207,8 +207,13 @@ func NewDriverConfig(ctx *cli.Context) *driver.Config {
 }
 
 func NewSidecarConfig(ctx *cli.Context, log log.Logger) (*sidecar.ClientConfig, error) {
-	skBytes := ctx.String(flags.SidecarSecretKey.Name)
-	sk, err := bls.SecretKeyFromBytes([]byte(skBytes))
+	skHex := ctx.String(flags.SidecarSecretKey.Name)
+	log.Debug("sidecar config received", "skHex", skHex, "url", ctx.String(flags.SidecarURL.Name), "chainID", ctx.String(flags.ChainID.Name))
+	skBytes, err := hexutil.Decode(skHex)
+	if err != nil {
+		return nil, err
+	}
+	sk, err := bls.SecretKeyFromBytes(skBytes)
 	if err != nil {
 		return nil, err
 	}
