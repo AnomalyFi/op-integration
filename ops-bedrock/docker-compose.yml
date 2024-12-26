@@ -275,5 +275,5 @@ services:
       # - "7501:8501"
     volumes:
       - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-      - "${PWD}/../.devnet/rollup.json:/rollup.json"
+      - "${DEVNET_DIR}/rollup.json:/rollup.json"
       - op_log:/op_log

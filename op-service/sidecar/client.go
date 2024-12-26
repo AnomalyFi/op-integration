@@ -21,6 +21,11 @@ const (
 	ROLLUP_NOT_REGISTERED
 )
 
+const (
+	pathGetPayload   = "/rollup/getpayload"
+	pathRollupStatus = "/rollup/status"
+)
+
 type ClientConfig struct {
 	SidecarUrl         string
 	Logger             log.Logger
@@ -48,8 +53,9 @@ type Client struct {
 
 func NewSidecarClient(cfg *ClientConfig) (*Client, error) {
 	return &Client{
-		cfg:        *cfg,
-		log:        cfg.Logger,
+		cfg: *cfg,
+		log: cfg.Logger,
+
 		sk:         cfg.SequencerSecretKey,
 		pk:         cfg.SequencerPubkey,
 		httpClient: &http.Client{},
@@ -68,6 +74,8 @@ type GetPayloadResponse struct {
 }
 
 func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
+	endpoint := c.cfg.SidecarUrl + pathGetPayload
+
 	payloadReq := GetPayloadRequest{
 		ChainID:     c.cfg.ChainID,
 		BlockNumber: height,
@@ -84,7 +92,7 @@ func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
 	sig := bls.Sign(c.sk, reqHash)
 	sigBytes := sig.Bytes()
 
-	req, err := http.NewRequest("POST", c.cfg.SidecarUrl, bytes.NewBuffer(reqBytes))
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +106,12 @@ func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code not 200: %d", resp.StatusCode)
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			c.log.Warn("unable to read response body", "err", err)
+			return nil, fmt.Errorf("status code not 200: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("status code: %d, err: %s", resp.StatusCode, string(respBody))
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -115,7 +128,31 @@ func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
 }
 
 func (c *Client) RollupStatus() (int, error) {
-	return ROLLUP_NOT_REGISTERED, nil
+	endpoint := c.cfg.SidecarUrl + pathRollupStatus
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
+	if err != nil {
+		return ROLLUP_NOT_REGISTERED, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return ROLLUP_NOT_REGISTERED, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			c.log.Warn("unable to read response body", "err", err)
+			return ROLLUP_NOT_REGISTERED, nil
+		}
+		c.log.Warn("rollup status error:", "err", string(respBody))
+		return ROLLUP_NOT_REGISTERED, nil
+	}
+
+	return ROLLUP_REGISTERED, nil
 }
 
 func sha256HashPayload(payload []byte) ([]byte, error) {

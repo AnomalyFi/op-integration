@@ -362,18 +362,16 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 		return time.Second * time.Duration(d.rollupCfg.BlockTime)
 	}
 
-	switch d.mode {
-	case NodeKit:
-		return d.planNextNodeKitSequencerAction()
-	case Legacy:
-		return d.planNextLegacySequencerAction()
-	default:
-		// If we don't yet know what mode we are in, our first action is going to be discovering our
-		// mode based on the L2 system config. We should start this immediately, since it will
-		// impact our scheduling decisions for all future actions.
-		return 0
+	rollupStatus, err := d.sidecar.RollupStatus()
+	if err != nil {
+		d.log.Warn("err querying rollup status", "err", err)
 	}
-
+	switch rollupStatus {
+	case sidecar.ROLLUP_REGISTERED:
+		return d.planNextNodeKitSequencerAction()
+	default:
+		return d.planNextLegacySequencerAction()
+	}
 }
 
 func (d *Sequencer) planNextNodeKitSequencerAction() time.Duration {
@@ -510,52 +508,57 @@ func (d *Sequencer) CancelBuildingBlock(ctx context.Context) {
 // but the derivation can continue to reset until the chain is correct.
 // If the engine is currently building safe blocks, then that building is not interrupted, and sequencing is delayed.
 func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
+	rollupStatus, err := d.sidecar.RollupStatus()
+	if err != nil {
+		d.log.Warn("error querying rollup status")
+	}
+
+	onto, buildingID, safe := d.engine.BuildingPayload()
+	// if still building under legacy mode but rollup is registered on Arcadia, we cancel that
+	if buildingID != (eth.PayloadID{}) && rollupStatus == sidecar.ROLLUP_REGISTERED {
+		d.log.Debug("canceling payload", "payloadID", buildingID)
+		err := d.engine.CancelPayload(ctx, true)
+		if err != nil {
+			d.log.Warn("unable to force cancel payload", "err", err)
+			// delay force cancel
+			d.nextAction = d.timeNow().Add(time.Second)
+			return nil, nil
+		}
+	}
 	// if the engine returns a non-empty payload, OR if the async gossiper already has a payload, we can CompleteBuildingBlock
 	// Regardless of what mode we are in (NodeKit or Legacy) our first priority is to not bother
 	// the engine if it is busy building safe blocks (and thus changing the head that we would sync
 	// on top of). Give it time to sync up.
-	onto, buildingID, safe := d.engine.BuildingPayload()
-	if buildingID != (eth.PayloadID{}) || agossip.Get() != nil && safe {
-		d.log.Warn("avoiding sequencing to not interrupt safe-head changes", "onto", onto, "onto_time", onto.Time)
-		// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
-		d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.rollupCfg.BlockTime))
-		return nil, nil
-	}
-
-	fetchFromArcadia := false
-	if d.mode == NodeKit {
-		status, err := d.sidecar.RollupStatus()
-		if err != nil {
-			d.log.Warn("unable to fetch status of rollup", "err", err)
-		} else if status == sidecar.ROLLUP_NOT_REGISTERED {
-			fetchFromArcadia = true
+	if buildingID != (eth.PayloadID{}) || agossip.Get() != nil {
+		if safe {
+			d.log.Warn("avoiding sequencing to not interrupt safe-head changes", "onto", onto, "onto_time", onto.Time, "agossip.Get()", agossip.Get(), "safe", safe)
+			// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
+			d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.rollupCfg.BlockTime))
+			return nil, nil
 		}
 	}
 
-	switch d.mode {
-	case NodeKit:
-		if fetchFromArcadia {
-			return d.buildArcadiaBatch(ctx, agossip, sequencerConductor)
-		}
-		fallthrough
-	case Legacy:
-		return d.buildLegacyBlock(ctx, agossip, sequencerConductor, buildingID != eth.PayloadID{} || agossip.Get() != nil)
+	switch rollupStatus {
+	case sidecar.ROLLUP_REGISTERED:
+		d.log.Debug("rollup registered, building arcadia block")
+		return d.buildArcadiaBatch(ctx, agossip, sequencerConductor)
 	default:
-		// If we don't know what mode we are in, figure it out and then schedule another action
-		// immediately.
-		if err := d.detectMode(ctx); err != nil {
-			return nil, d.handleNonEngineError("to determine mode", err)
-		}
-		// Now that we know what mode we're in, return to the scheduler to plan the next action.
-		return nil, nil
+		d.log.Debug("rollup exited or not registered, building legacy block")
+		return d.buildLegacyBlock(ctx, agossip, sequencerConductor, buildingID != eth.PayloadID{} || agossip.Get() != nil)
 	}
 }
 
+// TODO: control `nextAction` in this method to plan next block production
 func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
+	buildingStartAt := time.Now()
+
 	head := d.engine.UnsafeL2Head()
 	arcadiaTxs, err := d.sidecar.GetPayload(head.Number + 1)
 	if err != nil {
-		return nil, err
+		// delay and retry
+		d.log.Warn("unable to fetch payload from sidecar", "err", err)
+		d.nextAction = time.Now().Add(200 * time.Millisecond)
+		return nil, nil
 	}
 
 	l1Origin, err := d.l1OriginSelector.FindL1Origin(ctx, head)
@@ -595,6 +598,15 @@ func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGo
 		_ = d.engine.CancelPayload(ctx, true)
 		return nil, fmt.Errorf("failed to complete building block: error (%d): %w", errTyp, err)
 	}
+	timeBlockProductionUsed := time.Since(buildingStartAt)
+
+	// plan next production
+	if time.Second*time.Duration(d.rollupCfg.BlockTime) <= timeBlockProductionUsed {
+		d.nextAction = time.Now()
+	} else {
+		d.nextAction = time.Now().Add(time.Second*time.Duration(d.rollupCfg.BlockTime) - timeBlockProductionUsed)
+	}
+
 	return payload, nil
 }
 
