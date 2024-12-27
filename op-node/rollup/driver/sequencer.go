@@ -548,7 +548,6 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 	}
 }
 
-// TODO: control `nextAction` in this method to plan next block production
 func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
 	buildingStartAt := time.Now()
 
@@ -699,7 +698,6 @@ func (d *Sequencer) buildLegacyBlock(ctx context.Context, agossip async.AsyncGos
 		}
 		return nil, nil
 	}
-
 }
 
 func (d *Sequencer) detectMode(ctx context.Context) error {

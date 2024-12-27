@@ -142,7 +142,9 @@ func (c *Client) RollupStatus() (int, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode == http.StatusTooEarly {
+		return ROLLUP_NOT_REGISTERED, nil
+	} else if resp.StatusCode != http.StatusOK {
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			c.log.Warn("unable to read response body", "err", err)
