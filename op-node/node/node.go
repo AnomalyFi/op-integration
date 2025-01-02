@@ -424,9 +424,14 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	// 	nodekitClient = nodekit.NewClient(n.log, cfg.NodeKitURL)
 	// }
 
-	sidecarClient, err := sidecar.NewSidecarClient(&cfg.Sidecar)
-	if err != nil {
-		return fmt.Errorf("failed to instantiatte arcadia client: %w", err)
+	var sidecarClient *sidecar.Client = nil
+	if !cfg.Driver.SequencerEnabled {
+		n.log.Info("sequencer not enabled, sidecar not needed")
+	} else {
+		sidecarClient, err = sidecar.NewSidecarClient(&cfg.Sidecar)
+		if err != nil {
+			return fmt.Errorf("failed to instantiatte arcadia client: %w", err)
+		}
 	}
 
 	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n.beacon, sidecarClient, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, n.safeDB, &cfg.Sync, sequencerConductor, plasmaDA, func(id string, data []byte) {

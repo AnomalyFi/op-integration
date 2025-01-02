@@ -43,7 +43,7 @@ parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=boo
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
 parser.add_argument('--nodekit-contract', help='nodekit commitment contract address on l1', type=str, default='')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
-parser.add_argument('--seq-signer',  help='signing wallet of SEQ', type=str, default='323b1d8f4eed5f0da9da93071b034f2dce9d2d22692c172f3cb252a64ddfafd01b057de320297c29ad0c1f589ea216869cf1938d88c9fbd70d6748323dbf2fa7')
+parser.add_argument('--builder-sk',  help='bls secret key of l2-builder', type=str, default='0x2fc12ae741f29701f8e30f5de6350766c020cb80768a0ff01e6838ffd2431e11')
 parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
 parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
@@ -53,8 +53,9 @@ parser.add_argument('--proposer-hdpath', help='the hd path of proposer mnemonic 
 parser.add_argument('--batcher-hdpath', help='the hd path of batcher mnemonic will be used to post batches to l1', type=str, default="m/44'/60'/0'/0/2")
 parser.add_argument('--arcadia-url', help='rpc url of arcadia', type=str, default='http://arcadia.url')
 parser.add_argument('--block-time', help='block time of chain in seconds', type=str, default='2')
-parser.add_argument('--builder-submission-offset', help='builder submission offset', type=str, default='1s')
-parser.add_argument('--builder-record-offset', help='builder record offset', type=str, default='500ms')
+parser.add_argument('--builder-resubmit-interval', help='builder block production interval', type=str, default='200ms')
+parser.add_argument('--builder-submission-offset', help='builder submission offset', type=str, default='500ms')
+parser.add_argument('--builder-record-offset', help='builder record offset', type=str, default='1500ms')
 parser.add_argument('--builder-rate-limit-duration', help='builder rate limit duration', type=str, default='100ms')
 parser.add_argument('--sidecar-url', help='sidecar url', type=str, default='http://sidecar.url')
 parser.add_argument('--sidecar-secret-key', help='sidecar bls signing key', type=str, default='0xblskey')
@@ -421,13 +422,14 @@ def devnet_deploy(paths, args):
     l1_ws_url = args.l1_ws_url
     seq_addr: str = args.seq_url
     seq_chain_id = seq_addr.split('/')[-1]
-    seq_signer: str = args.seq_signer
+    builder_sk: str = args.builder_sk
     subnet = args.subnet
     mnemonic_words = args.mnemonic_words
     batcher_hdpath = args.batcher_hdpath
     proposer_hdpath = args.proposer_hdpath
     arcadia_url: str = args.arcadia_url
     block_time: str = args.block_time
+    builder_resubmit_interval: str = args.builder_resubmit_interval
     builder_submission_offset: str = args.builder_submission_offset
     builder_record_offset: str = args.builder_record_offset
     builder_rate_limit_duration: str = args.builder_rate_limit_duration
@@ -534,10 +536,11 @@ def devnet_deploy(paths, args):
             "ENODE": enode,
             'SEQ_ADDR': seq_addr,
             'SEQ_CHAIN_ID': seq_chain_id,
-            'SEQ_SIGNER_HEX': seq_signer,
+            'BUILDER_SECRET_KEY': builder_sk,
             'L2_CHAINID': f'{45200+inc}',
             "COMPOSE_PROJECT_NAME": composer_project_name,
             'ARCADIA_URL': arcadia_url,
+            'BUILDER_RESUBMIT_INTERVAL': builder_resubmit_interval,
             'BUILDER_SECONDS_IN_SLOT': block_time,
             'BUILDER_SUBMISSION_OFFSET': builder_submission_offset,
             'BUILDER_RECORD_OFFSET': builder_record_offset,
@@ -556,6 +559,7 @@ def devnet_deploy(paths, args):
         ["docker", "compose", "up", "-d", "op-node-builder"],
         cwd=paths.ops_bedrock_dir,
         env={
+            'DEVNET_DIR': paths.devnet_dir,
             'L1WS': l1_ws_url,
             'SUBNET': subnet,
             "PWD": paths.ops_bedrock_dir,

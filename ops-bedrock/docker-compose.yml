@@ -230,7 +230,9 @@ services:
       - "--builder"
       - "--builder.dry-run"
       - "--builder.local_relay"
+      - "--builder.secret_key=${BUILDER_SECRET_KEY}"
       - "--builder.seconds_in_slot=${BUILDER_SECONDS_IN_SLOT}"
+      - "--builder.block_resubmit_interval=${BUILDER_RESUBMIT_INTERVAL}"
       - "--builder.submission_offset=${BUILDER_SUBMISSION_OFFSET}"
       - "--builder.record_offset=${BUILDER_RECORD_OFFSET}"
       - "--builder.rate_limit_duration=${BUILDER_RATE_LIMIT_DURATION}"
@@ -242,7 +244,7 @@ services:
       - "--bootnodes=${ENODE}"
       - "--seq.url=${SEQ_ADDR}"
       - "--seq.chainid=${SEQ_CHAIN_ID}"
-      - "--seq.signer=${SEQ_SIGNER_HEX}"
+      # - "--seq.signer=${SEQ_SIGNER_HEX}"
 
   op-node-builder:
     restart: on-failure:5
@@ -269,6 +271,9 @@ services:
       --p2p.bootnodes=${ENR}
       --p2p.sync.req-resp
       --syncmode=consensus-layer
+      --chain-id=${L2_CHAINID}
+      --sidecar.url=${SIDECAR_URL}
+      --sidecar.secret-key=${SIDECAR_SECRET_KEY}
     ports:
       - "$OPNODE_BUILDER_RPC:8500"
       - "$OPNODE_BUILDER_METRICS_PORT:7300"
