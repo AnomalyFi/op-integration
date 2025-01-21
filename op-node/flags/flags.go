@@ -359,6 +359,24 @@ var (
 		EnvVars:  prefixEnvVars("NODEKIT_URL"),
 		Required: false,
 	}
+	ChainID = &cli.StringFlag{
+		Name:     "chain-id",
+		Usage:    "Chain ID of the chain, 0x prefixed",
+		EnvVars:  prefixEnvVars("CHAIN_ID"),
+		Required: false,
+	}
+	SidecarURL = &cli.StringFlag{
+		Name:     "sidecar.url",
+		Usage:    "URL of Sidecar, where op-node fetches blocks from",
+		EnvVars:  prefixEnvVars("SIDECAR_URL"),
+		Required: false,
+	}
+	SidecarSecretKey = &cli.StringFlag{
+		Name:     "sidecar.secret-key",
+		Usage:    "0x prefixed BLS Secret key of sidecar client, which is used to sign messages to sidecar server",
+		EnvVars:  prefixEnvVars("SIDECAR_SECRET_KEY"),
+		Required: false,
+	}
 )
 
 var requiredFlags = []cli.Flag{
@@ -368,6 +386,9 @@ var requiredFlags = []cli.Flag{
 }
 
 var optionalFlags = []cli.Flag{
+	ChainID,
+	SidecarURL,
+	SidecarSecretKey,
 	NodeKitURL,
 	BeaconAddr,
 	BeaconHeader,

@@ -186,6 +186,8 @@ func (e *EngineController) StartPayload(ctx context.Context, parent eth.L2BlockR
 		e.safeAttrs = attrs
 	}
 
+	e.log.Debug("setting building info", "buildingOnto", e.buildingOnto, "safe", e.buildingSafe, "buildingInfo", e.buildingInfo)
+
 	return BlockInsertOK, nil
 }
 

@@ -15,14 +15,6 @@ import http.client
 from multiprocessing import Process, Queue
 import concurrent.futures
 from collections import namedtuple
-# from hdwallet import BIP44HDWallet
-# from hdwallet.cryptocurrencies import EthereumMainnet
-# from hdwallet.derivations import BIP44Derivation
-# from hdwallet.utils import generate_mnemonic
-# from typing import Optional
-
-
-import devnet.log_setup
 
 pjoin = os.path.join
 
@@ -51,7 +43,7 @@ parser.add_argument('--launch-nodekit-l1', help='if launch nodekit l1', type=boo
 parser.add_argument('--nodekit-l1-dir', help='directory of nodekit-l1', type=str, default='nodekit-l1')
 parser.add_argument('--nodekit-contract', help='nodekit commitment contract address on l1', type=str, default='')
 parser.add_argument('--seq-url',  help='seq url', type=str, default='http://127.0.0.1:37029/ext/bc/56iQygPt5wrSCqZSLVwKyT7hAEdraXqDsYqWtWoAWaZSKDSDm')
-parser.add_argument('--seq-signer',  help='signing wallet of SEQ', type=str, default='323b1d8f4eed5f0da9da93071b034f2dce9d2d22692c172f3cb252a64ddfafd01b057de320297c29ad0c1f589ea216869cf1938d88c9fbd70d6748323dbf2fa7')
+parser.add_argument('--builder-sk',  help='bls secret key of l2-builder', type=str, default='0x2fc12ae741f29701f8e30f5de6350766c020cb80768a0ff01e6838ffd2431e11')
 parser.add_argument('--l1-chain-id', help='chain id of l1', type=str, default='32382')
 parser.add_argument('--l2-chain-id', help='chain id of l2', type=str, default='45200')
 parser.add_argument('--deploy-contracts', help='deploy contracts for l2 and nodekit-zk', type=bool, action=argparse.BooleanOptionalAction)
@@ -59,7 +51,14 @@ parser.add_argument('--mnemonic-words', help='mnemonic words to deploy nodekit-z
 parser.add_argument('--subnet', help='the static subnet opstack will be deployed on', type=str, default='172.20')
 parser.add_argument('--proposer-hdpath', help='the hd path of proposer mnemonic will be used to post roots to l1', type=str, default="m/44'/60'/0'/0/1")
 parser.add_argument('--batcher-hdpath', help='the hd path of batcher mnemonic will be used to post batches to l1', type=str, default="m/44'/60'/0'/0/2")
-parser.add_argument('--baton-url', help='rpc url of baton', type=str, default='http://baton.url')
+parser.add_argument('--arcadia-url', help='rpc url of arcadia', type=str, default='http://arcadia.url')
+parser.add_argument('--block-time', help='block time of chain in seconds', type=str, default='2')
+parser.add_argument('--builder-resubmit-interval', help='builder block production interval', type=str, default='200ms')
+parser.add_argument('--builder-submission-offset', help='builder submission offset', type=str, default='500ms')
+parser.add_argument('--builder-record-offset', help='builder record offset', type=str, default='1500ms')
+parser.add_argument('--builder-rate-limit-duration', help='builder rate limit duration', type=str, default='100ms')
+parser.add_argument('--sidecar-url', help='sidecar url', type=str, default='http://sidecar.url')
+parser.add_argument('--sidecar-secret-key', help='sidecar bls signing key', type=str, default='0xblskey')
 
 
 # Global environment variables
@@ -415,7 +414,6 @@ def devnet_deploy(paths, args):
     nodekit = args.nodekit
     l2 = args.l2
     l2_chain_id = int(args.l2_chain_id)
-    baton_url: str = args.baton_url
     # which will be prepended to names of docker volumnes and services so we can run several rollups
     composer_project_name = f'op-devnet_{l2_chain_id}'
     l2_provider_url = args.l2_provider_url
@@ -424,11 +422,19 @@ def devnet_deploy(paths, args):
     l1_ws_url = args.l1_ws_url
     seq_addr: str = args.seq_url
     seq_chain_id = seq_addr.split('/')[-1]
-    seq_signer: str = args.seq_signer
+    builder_sk: str = args.builder_sk
     subnet = args.subnet
     mnemonic_words = args.mnemonic_words
     batcher_hdpath = args.batcher_hdpath
     proposer_hdpath = args.proposer_hdpath
+    arcadia_url: str = args.arcadia_url
+    block_time: str = args.block_time
+    builder_resubmit_interval: str = args.builder_resubmit_interval
+    builder_submission_offset: str = args.builder_submission_offset
+    builder_record_offset: str = args.builder_record_offset
+    builder_rate_limit_duration: str = args.builder_rate_limit_duration
+    sidecar_url: str = args.sidecar_url
+    sidecar_secret_key: str = args.sidecar_secret_key
 
     conf = {
         l2_provider_url,
@@ -440,53 +446,6 @@ def devnet_deploy(paths, args):
     }
 
     print(f'using config {conf}')
-
-    # TODO: to be removed since we don't need to launch l2 ourselves
-    # if os.path.exists(paths.genesis_l1_path) and os.path.isfile(paths.genesis_l1_path):
-    #     log.info('L1 genesis already generated.')
-    # elif not args.deploy_l2:
-    #     # Generate the L1 genesis, unless we are deploying an L2 onto an existing L1.
-    #     log.info('Generating L1 genesis.')
-    #     if os.path.exists(paths.allocs_path) == False:
-    #         devnet_l1_genesis(paths, args.deploy_config)
-
-    #     # It's odd that we want to regenerate the devnetL1.json file with
-    #     # an updated timestamp different than the one used in the devnet_l1_genesis
-    #     # function.  But, without it, CI flakes on this test rather consistently.
-    #     # If someone reads this comment and understands why this is being done, please
-    #     # update this comment to explain.
-    #     init_devnet_l1_deploy_config(paths, update_timestamp=True)
-    #     outfile_l1 = pjoin(paths.devnet_dir, 'genesis-l1.json')
-    #     run_command([
-    #         'go', 'run', 'cmd/main.go', 'genesis', 'l1',
-    #         '--deploy-config', paths.devnet_config_path,
-    #         '--l1-allocs', paths.allocs_path,
-    #         '--l1-deployments', paths.addresses_json_path,
-    #         '--outfile.l1', outfile_l1,
-    #     ], cwd=paths.op_node_dir)
-
-    # if args.deploy_l2:
-    #     # L1 and sequencer already exist, just create the deploy config and deploy the L1 contracts
-    #     # for the new L2.
-    #     init_devnet_l1_deploy_config(paths, update_timestamp=True)
-    #     deploy_contracts(paths, args.deploy_config, args.deploy_l2)
-    # else:
-    #     # Deploy L1 and sequencer network.
-    #     log.info('Starting L1.')
-    #     run_command(['docker', 'compose', '-f', compose_file, 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-    #         'PWD': paths.ops_bedrock_dir,
-    #         'DEVNET_DIR': paths.devnet_dir
-    #     })
-    #     #wait_up(8545)
-    #     wait_for_rpc_server('devnet.nodekit.xyz')
-
-    #     log.info('Bringing up `artifact-server`')
-    #     run_command(['docker', 'compose', 'up', '-d', 'artifact-server'], cwd=paths.ops_bedrock_dir, env={
-    #         'PWD': paths.ops_bedrock_dir,
-    #         'DEVNET_DIR': paths.devnet_dir
-    #     })
-
-
 
     # Re-build the L2 genesis unconditionally in NodeKit mode, since we require the timestamps to be recent.
     # if not nodekit and os.path.exists(paths.genesis_l2_path) and os.path.isfile(paths.genesis_l2_path):
@@ -559,7 +518,10 @@ def devnet_deploy(paths, args):
         'OP_BATCHER_SEQUENCER_HD_PATH': batcher_hdpath,
         'OP_PROPOSER_MNEMONIC': mnemonic_words,
         'OP_PROPOSER_L2_OUTPUT_HD_PATH': proposer_hdpath,
-        'COMPOSE_PROJECT_NAME': composer_project_name
+        'COMPOSE_PROJECT_NAME': composer_project_name,
+        'L2_CHAINID': hex(int(l2_chain_id)),
+        'SIDECAR_URL': sidecar_url,
+        'SIDECAR_SECRET_KEY': sidecar_secret_key,
     })
 
     enr = get_enr(composer_project_name, "op1-node", paths.ops_bedrock_dir)
@@ -571,13 +533,18 @@ def devnet_deploy(paths, args):
         env={
             "PWD": paths.ops_bedrock_dir,
             'SUBNET': subnet,
-            'BATON_URL': baton_url,
             "ENODE": enode,
             'SEQ_ADDR': seq_addr,
             'SEQ_CHAIN_ID': seq_chain_id,
-            'SEQ_SIGNER_HEX': seq_signer,
+            'BUILDER_SECRET_KEY': builder_sk,
             'L2_CHAINID': f'{45200+inc}',
-            "COMPOSE_PROJECT_NAME": composer_project_name
+            "COMPOSE_PROJECT_NAME": composer_project_name,
+            'ARCADIA_URL': arcadia_url,
+            'BUILDER_RESUBMIT_INTERVAL': builder_resubmit_interval,
+            'BUILDER_SECONDS_IN_SLOT': block_time,
+            'BUILDER_SUBMISSION_OFFSET': builder_submission_offset,
+            'BUILDER_RECORD_OFFSET': builder_record_offset,
+            'BUILDER_RATE_LIMIT_DURATION': builder_rate_limit_duration,
     })
     # TODO: to be injected
     l2builder_rpc_port = 15545 + inc
@@ -592,6 +559,7 @@ def devnet_deploy(paths, args):
         ["docker", "compose", "up", "-d", "op-node-builder"],
         cwd=paths.ops_bedrock_dir,
         env={
+            'DEVNET_DIR': paths.devnet_dir,
             'L1WS': l1_ws_url,
             'SUBNET': subnet,
             "PWD": paths.ops_bedrock_dir,
