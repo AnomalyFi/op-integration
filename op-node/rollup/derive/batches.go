@@ -324,11 +324,13 @@ func checkSingularBatch(cfg *rollup.Config, sysCfg *eth.SystemConfig, log log.Lo
 		}
 	}
 
-	if sysCfg.NodeKit {
-		return CheckBatchNodeKit(cfg, sysCfg, log, l2SafeHead, batch, l1)
-	} else {
-		return BatchAccept
-	}
+	// if sysCfg.NodeKit {
+	// 	return CheckBatchNodeKit(cfg, sysCfg, log, l2SafeHead, batch, l1)
+	// } else {
+	// 	return BatchAccept
+	// }
+
+	return BatchAccept
 }
 
 // Check that the starting or ending bookend blocks of an NodeKit block range surround the given

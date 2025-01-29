@@ -141,6 +141,6 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		GasLimit:              (*eth.Uint64Quantity)(&sysConfig.GasLimit),
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
-		NodeKit:               justification != nil,
+		NodeKit:               sysConfig.NodeKit,
 	}, nil
 }

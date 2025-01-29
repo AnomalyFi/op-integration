@@ -582,7 +582,7 @@ func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGo
 	attrs.Transactions = append(attrs.Transactions, arcadiaTxs...)
 
 	d.log.Debug("prepared attributes for new NodeKit block",
-		"num", head.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin)
+		"num", head.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin, "prevRandao", attrs.PrevRandao)
 
 	// Start a payload building process.
 	withParent := derive.NewAttributesWithParent(attrs, head, false)
