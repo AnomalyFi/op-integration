@@ -362,12 +362,13 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 		return time.Second * time.Duration(d.rollupCfg.BlockTime)
 	}
 
-	rollupStatus, err := d.sidecar.RollupStatus()
+	head := d.engine.UnsafeL2Head()
+	rollupStatus, err := d.sidecar.RollupStatus(head.Number + 1)
 	if err != nil {
 		d.log.Warn("err querying rollup status", "err", err)
 	}
 	switch rollupStatus {
-	case sidecar.ROLLUP_REGISTERED:
+	case sidecar.RollupManagedByNodeKit:
 		return d.planNextNodeKitSequencerAction()
 	default:
 		return d.planNextLegacySequencerAction()
@@ -508,14 +509,15 @@ func (d *Sequencer) CancelBuildingBlock(ctx context.Context) {
 // but the derivation can continue to reset until the chain is correct.
 // If the engine is currently building safe blocks, then that building is not interrupted, and sequencing is delayed.
 func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
-	rollupStatus, err := d.sidecar.RollupStatus()
+	head := d.engine.UnsafeL2Head()
+	rollupStatus, err := d.sidecar.RollupStatus(head.Number + 1)
 	if err != nil {
 		d.log.Warn("error querying rollup status")
 	}
 
 	onto, buildingID, safe := d.engine.BuildingPayload()
 	// if still building under legacy mode but rollup is registered on Arcadia, we cancel that
-	if buildingID != (eth.PayloadID{}) && rollupStatus == sidecar.ROLLUP_REGISTERED {
+	if buildingID != (eth.PayloadID{}) && rollupStatus == sidecar.RollupManagedByNodeKit {
 		d.log.Debug("canceling payload", "payloadID", buildingID)
 		err := d.engine.CancelPayload(ctx, true)
 		if err != nil {
@@ -539,9 +541,19 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 	}
 
 	switch rollupStatus {
-	case sidecar.ROLLUP_REGISTERED:
+	case sidecar.RollupManagedByNodeKit:
 		d.log.Debug("rollup registered, building arcadia block")
-		return d.buildArcadiaBatch(ctx, agossip, sequencerConductor)
+		payload, err := d.buildArcadiaBatch(ctx, agossip, sequencerConductor)
+		if err != sidecar.ErrArcadiaDown {
+			return payload, err
+		}
+		// upon arcadia down, we are safe to fallback to local production
+		// - if the payload on Arcadia is delivered by the chunk is not submitted to DA, derivation pipeline will detect that
+		// and reset the chain to the safe head
+		// - if the payload on Arcadia is undelivered but the chunk is submitted to DA, derivation pipeline will also detect that and reset
+		// upon starting again with building new payload, it will call sidecar for payload and sidecar should check if there's anything left on DA
+		// to be delivered
+		fallthrough
 	default:
 		d.log.Debug("rollup exited or not registered, building legacy block")
 		return d.buildLegacyBlock(ctx, agossip, sequencerConductor, buildingID != eth.PayloadID{} || agossip.Get() != nil)

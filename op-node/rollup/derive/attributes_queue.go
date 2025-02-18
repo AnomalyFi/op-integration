@@ -2,6 +2,7 @@ package derive
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/sidecar"
 )
 
 // The attributes queue sits in between the batch queue and the engine queue
@@ -33,15 +35,17 @@ type AttributesQueue struct {
 	builder      AttributesBuilder
 	prev         *BatchQueue
 	batch        *SingularBatch
+	sidecar      sidecar.RPCInterface
 	isLastInSpan bool
 }
 
-func NewAttributesQueue(log log.Logger, cfg *rollup.Config, builder AttributesBuilder, prev *BatchQueue) *AttributesQueue {
+func NewAttributesQueue(log log.Logger, cfg *rollup.Config, builder AttributesBuilder, prev *BatchQueue, sidecar sidecar.RPCInterface) *AttributesQueue {
 	return &AttributesQueue{
 		log:     log,
 		config:  cfg,
 		builder: builder,
 		prev:    prev,
+		sidecar: sidecar,
 	}
 }
 
@@ -70,7 +74,6 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 		aq.isLastInSpan = false
 		return &attr, nil
 	}
-
 }
 
 // createNextAttributes transforms a batch into a payload attributes. This sets `NoTxPool` and appends the batched transactions
@@ -94,7 +97,16 @@ func (aq *AttributesQueue) createNextAttributes(ctx context.Context, batch *Sing
 	// we are verifying, not sequencing, we've got all transactions and do not pull from the tx-pool
 	// (that would make the block derivation non-deterministic)
 	attrs.NoTxPool = true
-	attrs.Transactions = append(attrs.Transactions, batch.Transactions...)
+	// try fetch from sidecar and if the payload is managed by NodeKit, we will fetch txs from sidecar and start verifying
+	nodekitPayloadTxs, err := aq.sidecar.GetPayloadFromDA(l2SafeHead.Number + 1)
+	if err != nil && errors.Is(err, sidecar.ErrPayloadNotManagedByNodekit) {
+		attrs.Transactions = append(attrs.Transactions, batch.Transactions...)
+	} else if err == nil {
+		attrs.Transactions = append(attrs.Transactions, nodekitPayloadTxs...)
+	} else {
+		// should only happen when sidecar is down
+		return nil, err
+	}
 
 	aq.log.Info("generated attributes in payload queue", "txs", len(attrs.Transactions), "timestamp", batch.Timestamp)
 
