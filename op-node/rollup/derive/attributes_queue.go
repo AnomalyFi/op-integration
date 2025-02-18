@@ -99,12 +99,12 @@ func (aq *AttributesQueue) createNextAttributes(ctx context.Context, batch *Sing
 	attrs.NoTxPool = true
 	// try fetch from sidecar and if the payload is managed by NodeKit, we will fetch txs from sidecar and start verifying
 	nodekitPayloadTxs, err := aq.sidecar.GetPayloadFromDA(l2SafeHead.Number + 1)
-	if err != nil && errors.Is(err, sidecar.ErrPayloadNotManagedByNodekit) {
+	if err != nil && errors.Is(err, sidecar.ErrRollupBlockNotManagedByNodeKit) {
 		attrs.Transactions = append(attrs.Transactions, batch.Transactions...)
 	} else if err == nil {
 		attrs.Transactions = append(attrs.Transactions, nodekitPayloadTxs...)
 	} else {
-		// should only happen when sidecar is down
+		// should only happen when sidecar is down or it's unable to fetch chunks from DA
 		return nil, err
 	}
 
