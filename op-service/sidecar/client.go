@@ -33,6 +33,7 @@ var (
 	ErrArcadiaDown                    = errors.New("arcadia is down, need reorg")
 	ErrRollupBlockNotManagedByNodeKit = errors.New("rollup block not managed by nodekit")
 	ErrSidecarInteralErr              = errors.New("sidecar internal error")
+	ErrPayloadDANotReady              = errors.New("get payload from da method not ready")
 )
 
 type ClientConfig struct {
@@ -188,6 +189,8 @@ func (c *Client) GetPayloadFromDA(height uint64) ([]hexutil.Bytes, error) {
 		return payloadResp.Transactions, nil
 	case http.StatusNoContent:
 		return nil, ErrRollupBlockNotManagedByNodeKit
+	case http.StatusTooEarly:
+		return nil, ErrPayloadDANotReady
 	case http.StatusInternalServerError:
 		return nil, fmt.Errorf("%w: %s", ErrSidecarInteralErr, string(body))
 	default:
