@@ -144,7 +144,7 @@ func NewDriver(
 	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, l2)
 	attrsSequencer := derive.NewAttributesSequencer(log, findL1Origin, attrBuilder, broadcastPayloadAttrs, metrics)
 	// derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, attrsSequencer, engine, metrics, syncCfg, safeHeadListener)
-	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, attrsSequencer, engine, metrics, syncCfg, safeHeadListener)
+	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, attrsSequencer, engine, metrics, syncCfg, safeHeadListener, sidecarClient)
 	meteredEngine := NewMeteredEngine(cfg, engine, metrics, log) // Only use the metered engine in the sequencer b/c it records sequencing metrics.
 	sequencer := NewSequencer(log, cfg, meteredEngine, l2, attrBuilder, findL1Origin, sidecarClient, metrics, broadcastPayloadAttrs)
 	driverCtx, driverCancel := context.WithCancel(context.Background())

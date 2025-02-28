@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,17 +14,26 @@ import (
 	"github.com/flashbots/go-boost-utils/bls"
 )
 
-const HEADER_ROLLUP_SIG = "X-ROLLUP-SEQ-SIG"
+const ManagerSigHeader = "X-Sidecar-Manager-Sig"
 
 const (
-	ROLLUP_REGISTERED = iota
-	ROLLUP_EXITED
-	ROLLUP_NOT_REGISTERED
+	RollupStatusUnknown = iota
+	RollupManagedByNodeKit
+	RollupNotManagedByNodeKit
 )
 
 const (
+	pathGetPayloadDA = "/rollup/getpayload-da"
 	pathGetPayload   = "/rollup/getpayload"
 	pathRollupStatus = "/rollup/status"
+)
+
+var (
+	ErrPayloadNotManagedByNodekit     = errors.New("payload at given height is not produced by NodeKit")
+	ErrArcadiaDown                    = errors.New("arcadia is down, need reorg")
+	ErrRollupBlockNotManagedByNodeKit = errors.New("rollup block not managed by nodekit")
+	ErrSidecarInteralErr              = errors.New("sidecar internal error")
+	ErrPayloadDANotReady              = errors.New("get payload from da method not ready")
 )
 
 type ClientConfig struct {
@@ -37,7 +47,8 @@ type ClientConfig struct {
 
 type RPCInterface interface {
 	GetPayload(height uint64) ([]hexutil.Bytes, error)
-	RollupStatus() (int, error)
+	GetPayloadFromDA(height uint64) ([]hexutil.Bytes, error)
+	RollupStatus(height uint64) (int, error)
 }
 
 var _ RPCInterface = (*Client)(nil)
@@ -45,6 +56,8 @@ var _ RPCInterface = (*Client)(nil)
 type Client struct {
 	cfg ClientConfig
 	log log.Logger
+
+	chainID string
 
 	sk         *bls.SecretKey
 	pk         *bls.PublicKey
@@ -96,7 +109,7 @@ func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set(HEADER_ROLLUP_SIG, hexutil.Encode(sigBytes[:]))
+	req.Header.Set(ManagerSigHeader, hexutil.Encode(sigBytes[:]))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -106,6 +119,9 @@ func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode != http.StatusBadRequest {
+			return nil, ErrArcadiaDown
+		}
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			c.log.Warn("unable to read response body", "err", err)
@@ -127,34 +143,117 @@ func (c *Client) GetPayload(height uint64) ([]hexutil.Bytes, error) {
 	return payloadResp.Transactions, nil
 }
 
-func (c *Client) RollupStatus() (int, error) {
-	endpoint := c.cfg.SidecarUrl + pathRollupStatus
+func (c *Client) GetPayloadFromDA(height uint64) ([]hexutil.Bytes, error) {
+	endpoint := c.cfg.SidecarUrl + pathGetPayloadDA
 
-	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
-	if err != nil {
-		return ROLLUP_NOT_REGISTERED, err
+	payloadReq := GetPayloadRequest{
+		ChainID:     c.cfg.ChainID,
+		BlockNumber: height,
 	}
+
+	reqBytes, err := json.Marshal(payloadReq)
+	if err != nil {
+		return nil, err
+	}
+	reqHash, err := sha256HashPayload(reqBytes)
+	if err != nil {
+		return nil, err
+	}
+	sig := bls.Sign(c.sk, reqHash)
+	sigBytes := sig.Bytes()
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(ManagerSigHeader, hexutil.Encode(sigBytes[:]))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return ROLLUP_NOT_REGISTERED, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusTooEarly {
-		return ROLLUP_NOT_REGISTERED, nil
-	} else if resp.StatusCode != http.StatusOK {
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			c.log.Warn("unable to read response body", "err", err)
-			return ROLLUP_NOT_REGISTERED, nil
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var payloadResp GetPayloadResponse
+		if err := json.Unmarshal(body, &payloadResp); err != nil {
+			return nil, err
 		}
-		c.log.Warn("rollup status error:", "err", string(respBody))
-		return ROLLUP_NOT_REGISTERED, nil
+
+		return payloadResp.Transactions, nil
+	case http.StatusNoContent:
+		return nil, ErrRollupBlockNotManagedByNodeKit
+	case http.StatusTooEarly:
+		return nil, ErrPayloadDANotReady
+	case http.StatusInternalServerError:
+		return nil, fmt.Errorf("%w: %s", ErrSidecarInteralErr, string(body))
+	default:
+		return nil, fmt.Errorf("status code: %d, err: %s", resp.StatusCode, string(body))
+	}
+}
+
+type RollupStatusRequest struct {
+	ChainID string `json:"chainID"`
+	Height  uint64 `json:"height"`
+}
+
+type RollupStatusResponse struct {
+	Status int `json:"status"`
+}
+
+func (c *Client) RollupStatus(height uint64) (int, error) {
+	endpoint := c.cfg.SidecarUrl + pathRollupStatus
+
+	statusReq := RollupStatusRequest{
+		ChainID: c.chainID,
+		Height:  height,
 	}
 
-	return ROLLUP_REGISTERED, nil
+	reqBytes, err := json.Marshal(statusReq)
+	if err != nil {
+		return RollupStatusUnknown, err
+	}
+	reqHash, err := sha256HashPayload(reqBytes)
+	if err != nil {
+		return RollupStatusUnknown, err
+	}
+	sig := bls.Sign(c.sk, reqHash)
+	sigBytes := sig.Bytes()
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return RollupStatusUnknown, err
+	}
+	req.Header.Set(ManagerSigHeader, hexutil.Encode(sigBytes[:]))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return RollupStatusUnknown, err
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return RollupStatusUnknown, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		c.log.Error("unable to query rollup status", "err", string(respBody))
+		// either signature not correct or sidecar is down
+		return RollupStatusUnknown, nil
+	}
+
+	statusResp := new(RollupStatusResponse)
+	if err := json.Unmarshal(respBody, statusResp); err != nil {
+		return RollupStatusUnknown, nil
+	}
+	return statusResp.Status, nil
 }
 
 func sha256HashPayload(payload []byte) ([]byte, error) {
