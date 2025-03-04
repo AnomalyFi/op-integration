@@ -566,7 +566,9 @@ def devnet_deploy(paths, args):
             "L2OO_ADDRESS": addresses["L2OutputOracleProxy"],
             "SEQUENCER_BATCH_INBOX_ADDRESS": rollup_config["batch_inbox_address"],
             "ENR": enr,
-            'COMPOSE_PROJECT_NAME': composer_project_name
+            'COMPOSE_PROJECT_NAME': composer_project_name,
+            'SIDECAR_URL': sidecar_url,
+            'SIDECAR_SECRET_KEY': sidecar_secret_key,
         },
     )
 

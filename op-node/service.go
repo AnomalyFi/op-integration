@@ -76,12 +76,9 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 		haltOption = ""
 	}
 
-	var sidecarConfig *sidecar.ClientConfig = &sidecar.ClientConfig{}
-	if driverConfig.SequencerEnabled {
-		sidecarConfig, err = NewSidecarConfig(ctx, log)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create the sidecar config: %w", err)
-		}
+	sidecarConfig, err := NewSidecarConfig(ctx, log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the sidecar config: %w", err)
 	}
 
 	cfg := &node.Config{
