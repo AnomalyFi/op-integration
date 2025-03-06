@@ -587,7 +587,7 @@ func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGo
 		return nil, nil
 	}
 
-	buildingStartAt := time.Now()
+	// buildingStartAt := time.Now()
 
 	head := d.engine.UnsafeL2Head()
 	l1Origin, err := d.l1OriginSelector.FindL1Origin(ctx, head)
@@ -619,10 +619,9 @@ func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGo
 		}
 
 		attrs.Transactions = append(attrs.Transactions, arcadiaTxs...)
+		d.log.Debug("prepared attributes transactions for new NodeKit block",
+			"num", head.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin, "prevRandao", attrs.PrevRandao)
 	}
-
-	d.log.Debug("prepared attributes for new NodeKit block",
-		"num", head.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin, "prevRandao", attrs.PrevRandao)
 
 	// Start a payload building process.
 	withParent := derive.NewAttributesWithParent(attrs, head, false)
@@ -637,14 +636,14 @@ func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGo
 		_ = d.engine.CancelPayload(ctx, true)
 		return nil, fmt.Errorf("failed to complete building block: error (%d): %w", errTyp, err)
 	}
-	timeBlockProductionUsed := time.Since(buildingStartAt)
+	// timeBlockProductionUsed := time.Since(buildingStartAt)
 
-	// plan next production
-	if time.Second*time.Duration(d.rollupCfg.BlockTime) <= timeBlockProductionUsed {
-		d.nextAction = time.Now()
-	} else {
-		d.nextAction = time.Now().Add(time.Second*time.Duration(d.rollupCfg.BlockTime) - timeBlockProductionUsed)
-	}
+	// // plan next production
+	// if time.Second*time.Duration(d.rollupCfg.BlockTime) <= timeBlockProductionUsed {
+	// 	d.nextAction = time.Now()
+	// } else {
+	// 	d.nextAction = time.Now().Add(time.Second*time.Duration(d.rollupCfg.BlockTime) - timeBlockProductionUsed)
+	// }
 
 	return payload, nil
 }
