@@ -376,22 +376,41 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 }
 
 func (d *Sequencer) planNextNodeKitSequencerAction() time.Duration {
-	// head := d.engine.UnsafeL2Head()
+	head := d.engine.UnsafeL2Head()
 	now := d.timeNow()
 
+	buildingOnto, buildingID, _ := d.engine.BuildingPayload()
+
 	// We may have to wait till the next sequencing action, e.g. upon an error.
-	// However, we ignore this delay if we are building a block and the L2 head has changed, in
-	// which case we need to respond immediately.
-	delay := d.nextAction.Sub(now)
-	// reorg := d.nodekitBatch != nil && d.nodekitBatch.onto.Hash != head.Hash
-	// if delay > 0 && !reorg {
-	if delay > 0 {
+	// If the head changed we need to respond and will not delay the sequencing.
+	if delay := d.nextAction.Sub(now); delay > 0 && buildingOnto.Hash == head.Hash {
 		return delay
 	}
 
-	// In case there has been a reorg or the previous action did not set a delay, run the next
-	// action immediately.
-	return 0
+	blockTime := time.Duration(d.rollupCfg.BlockTime) * time.Second
+	payloadTime := time.Unix(int64(head.Time+d.rollupCfg.BlockTime), 0)
+	remainingTime := payloadTime.Sub(now)
+
+	// If we started building a block already, and if that work is still consistent,
+	// then we would like to finish it by sealing the block.
+	if buildingID != (eth.PayloadID{}) && buildingOnto.Hash == head.Hash {
+		// if we started building already, then we will schedule the sealing.
+		if remainingTime < sealingDuration {
+			return 0 // if there's not enough time for sealing, don't wait.
+		} else {
+			// finish with margin of sealing duration before payloadTime
+			return remainingTime - sealingDuration
+		}
+	} else {
+		// if we did not yet start building, then we will schedule the start.
+		if remainingTime > blockTime {
+			// if we have too much time, then wait before starting the build
+			return remainingTime - blockTime
+		} else {
+			// otherwise start instantly
+			return 0
+		}
+	}
 }
 
 func (d *Sequencer) planNextLegacySequencerAction() time.Duration {
@@ -543,7 +562,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 	switch rollupStatus {
 	case sidecar.RollupManagedByNodeKit:
 		d.log.Debug("rollup registered, building arcadia block")
-		payload, err := d.buildArcadiaBatch(ctx, agossip, sequencerConductor)
+		payload, err := d.buildArcadiaBatch(ctx, agossip, sequencerConductor, buildingID != eth.PayloadID{} || agossip.Get() != nil)
 		if err != sidecar.ErrArcadiaDown {
 			return payload, err
 		}
@@ -560,7 +579,14 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 	}
 }
 
-func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
+func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor, building bool) (*eth.ExecutionPayloadEnvelope, error) {
+	// if still building, delay next production
+	if building {
+		d.log.Info("arcadia block still in production, waiting it confirmed in execution engine")
+		d.nextAction = d.timeNow().Add(100 * time.Millisecond)
+		return nil, nil
+	}
+
 	buildingStartAt := time.Now()
 
 	head := d.engine.UnsafeL2Head()
