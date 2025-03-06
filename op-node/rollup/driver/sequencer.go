@@ -590,14 +590,6 @@ func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGo
 	buildingStartAt := time.Now()
 
 	head := d.engine.UnsafeL2Head()
-	arcadiaTxs, err := d.sidecar.GetPayload(head.Number + 1)
-	if err != nil {
-		// delay and retry
-		d.log.Warn("unable to fetch payload from sidecar", "err", err)
-		d.nextAction = time.Now().Add(200 * time.Millisecond)
-		return nil, nil
-	}
-
 	l1Origin, err := d.l1OriginSelector.FindL1Origin(ctx, head)
 	if err != nil {
 		d.log.Error("Error finding next L1 Origin", "err", err)
@@ -609,15 +601,25 @@ func (d *Sequencer) buildArcadiaBatch(ctx context.Context, agossip async.AsyncGo
 		return nil, derive.NewResetError(fmt.Errorf("cannot build new L2 block with L1 origin %s (parent L1 %s) on current L2 head %s with L1 origin %s", l1Origin, l1Origin.ParentHash, head, head.L1Origin))
 	}
 
-	d.log.Info("creating new block", "parent", head, "l1Origin", l1Origin)
-
 	attrs, err := d.attrBuilder.PreparePayloadAttributes(ctx, head, l1Origin.ID(), nil)
 	if err != nil {
 		return nil, err
 	}
-
 	attrs.NoTxPool = true
-	attrs.Transactions = append(attrs.Transactions, arcadiaTxs...)
+
+	d.log.Info("creating new block", "parent", head, "l1Origin", l1Origin)
+	if !(uint64(attrs.Timestamp) > l1Origin.Time+d.rollupCfg.MaxSequencerDrift) {
+		// if attributes timestamp within allowed sequencer drift, fetch from arcadia
+		arcadiaTxs, err := d.sidecar.GetPayload(head.Number + 1)
+		if err != nil {
+			// delay and retry
+			d.log.Warn("unable to fetch payload from sidecar", "err", err)
+			d.nextAction = time.Now().Add(200 * time.Millisecond)
+			return nil, nil
+		}
+
+		attrs.Transactions = append(attrs.Transactions, arcadiaTxs...)
+	}
 
 	d.log.Debug("prepared attributes for new NodeKit block",
 		"num", head.Number+1, "time", uint64(attrs.Timestamp), "origin", l1Origin, "prevRandao", attrs.PrevRandao)
